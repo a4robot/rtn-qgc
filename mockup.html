@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QGC Boat Fly View Mockup - Minimal</title>
+    <title>QGC Boat Fly View Mockup - Minimal 2.0</title>
     <style>
         body, html {
             margin: 0;
@@ -35,11 +35,11 @@
             position: absolute;
             top: 10px;
             left: 10px;
-            width: 90px; /* Much narrower, 3-4x smaller than 320px */
             z-index: 10;
             display: flex;
             flex-direction: column;
             gap: 15px;
+            align-items: flex-start;
         }
 
         /* Common Panel Style */
@@ -53,19 +53,32 @@
             align-items: center;
         }
 
+        .panel-title {
+            font-size: 9px;
+            color: #aaa;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
         /* --- Telemetry Styles --- */
+        .telemetry-panel {
+            width: 110px; /* ~1.2x wider than previous 90px */
+            /* Height is driven by content, which we'll make ~1.5x taller */
+            box-sizing: border-box;
+        }
+
         .telemetry-section {
             width: 100%;
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 18px; /* scaled up */
         }
 
         /* RPM Gauge */
         .rpm-container {
-            width: 74px;
-            height: 50px;
+            width: 90px; /* scaled up */
+            height: 75px; /* scaled up from 50px */
             position: relative;
         }
         .rpm-val {
@@ -73,40 +86,40 @@
             bottom: -5px;
             width: 100%;
             text-align: center;
-            font-size: 11px;
+            font-size: 13px;
             font-weight: bold;
         }
 
         /* Rudder */
         .rudder-container {
-            width: 74px;
-            height: 30px;
+            width: 90px; /* scaled up */
+            height: 45px; /* scaled up from 30px */
             position: relative;
-            margin-top: 10px;
+            margin-top: 15px;
         }
 
         /* Vertical Scales */
         .v-scales-container {
             display: flex;
             justify-content: space-between;
-            width: 74px;
-            height: 80px;
-            margin-top: 10px;
+            width: 90px; /* scaled up */
+            height: 120px; /* 1.5x taller from 80px */
+            margin-top: 15px;
         }
         .v-scale {
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 20px;
+            width: 25px; /* scaled up */
         }
         .v-scale-bar {
             position: relative;
-            width: 10px;
-            height: 60px;
+            width: 12px;
+            height: 90px; /* 1.5x taller from 60px */
         }
         .v-label {
-            font-size: 9px;
-            margin-top: 4px;
+            font-size: 10px;
+            margin-top: 6px;
             color: #ccc;
         }
 
@@ -119,10 +132,15 @@
         }
 
         /* --- Control Styles --- */
+        .control-panel {
+            width: 50px; /* narrower than telemetry */
+            box-sizing: border-box;
+        }
+
         .control-grid {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 6px;
             width: 100%;
         }
 
@@ -130,7 +148,7 @@
             background: transparent;
             border: 1px solid rgba(255,255,255,0.3);
             color: white;
-            border-radius: 6px;
+            border-radius: 4px;
             width: 100%;
             aspect-ratio: 1; /* Make them square */
             display: flex;
@@ -139,7 +157,7 @@
             justify-content: center;
             cursor: pointer;
             transition: all 0.2s;
-            padding: 4px;
+            padding: 2px;
             box-sizing: border-box;
         }
 
@@ -153,16 +171,16 @@
         }
 
         .btn-icon {
-            width: 22px;
-            height: 22px;
+            width: 16px;
+            height: 16px;
             fill: currentColor;
             margin-bottom: 2px;
         }
 
         .btn-lbl {
-            font-size: 8px;
+            font-size: 7px;
             text-align: center;
-            line-height: 1;
+            line-height: 1.1;
         }
     </style>
 </head>
@@ -175,7 +193,7 @@
     <div class="left-panel">
 
         <!-- Telemetry Panel -->
-        <div class="panel">
+        <div class="panel telemetry-panel">
 
             <!-- RPM -->
             <div class="telemetry-section">
@@ -269,22 +287,30 @@
 
         </div>
 
-        <!-- Interactive Control Panel -->
-        <div class="panel">
+        <!-- Trim Control Panel -->
+        <div class="panel control-panel">
+            <div class="panel-title">TRIM</div>
             <div class="control-grid">
 
                 <!-- Trim Up -->
                 <button class="btn">
                     <svg class="btn-icon" viewBox="0 0 24 24"><path d="M12 4l-8 8h16z"/></svg>
-                    <span class="btn-lbl">TRIM<br>UP</span>
+                    <span class="btn-lbl">UP</span>
                 </button>
 
                 <!-- Trim Down -->
                 <button class="btn">
                     <svg class="btn-icon" viewBox="0 0 24 24"><path d="M12 20l8-8H4z"/></svg>
-                    <span class="btn-lbl">TRIM<br>DN</span>
+                    <span class="btn-lbl">DN</span>
                 </button>
 
+            </div>
+        </div>
+
+        <!-- Light Control Panel -->
+        <div class="panel control-panel">
+            <div class="panel-title">LIGHT</div>
+            <div class="control-grid">
                 <!-- Nav -->
                 <button class="btn active">
                     <svg class="btn-icon" viewBox="0 0 24 24"><path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-4 0V4a2 2 0 0 1 2-2zm6.36 4.64a2 2 0 0 1 0 2.83l-1.42 1.41a2 2 0 0 1-2.83-2.83l1.41-1.41a2 2 0 0 1 2.84 0zM22 12a2 2 0 0 1-2 2h-2a2 2 0 0 1 0-4h2a2 2 0 0 1 2 2zM12 22a2 2 0 0 1-2-2v-2a2 2 0 0 1 4 0v2a2 2 0 0 1-2 2zm-6.36-4.64a2 2 0 0 1 0-2.83l1.42-1.41a2 2 0 0 1 2.83 2.83l-1.41 1.41a2 2 0 0 1-2.84 0zM2 12a2 2 0 0 1 2-2h2a2 2 0 0 1 0 4H4a2 2 0 0 1-2-2zm4.64-6.36a2 2 0 0 1 2.83 0l1.41 1.42a2 2 0 0 1-2.83 2.83L6.64 8.47a2 2 0 0 1 0-2.83zM18.36 18.36a2 2 0 0 1-2.83 0l-1.41-1.42a2 2 0 0 1 2.83-2.83l1.41 1.42a2 2 0 0 1 0 2.83z"/></svg>
@@ -308,7 +334,6 @@
                     <svg class="btn-icon" viewBox="0 0 24 24"><path d="M21 3H3v18h18V3zM12 19H5V5h7v14zm7 0h-5V5h5v14z"/></svg>
                     <span class="btn-lbl">PORT<br>STBD</span>
                 </button>
-
             </div>
         </div>
     </div>
