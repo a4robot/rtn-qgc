@@ -12,7 +12,7 @@ class FactGroupListModel : public QmlObjectListModel
 {
     Q_OBJECT
     QML_ELEMENT
-    QML_UNCREATABLE("")
+    QML_UNCREATABLE("Not creatable from QML")
 
 public:
     explicit FactGroupListModel(const char* factGroupNamePrefix, QObject* parent = nullptr);

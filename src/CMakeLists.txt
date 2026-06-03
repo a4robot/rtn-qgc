@@ -83,6 +83,9 @@ target_sources(${CMAKE_PROJECT_NAME}
         QGCApplication.h
 )
 
+if(QGC_DISABLE_NEW_VERSION_CHECK)
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE QGC_DISABLE_NEW_VERSION_CHECK)
+endif()
 
 # ----------------------------------------------------------------------------
 # Include Directories

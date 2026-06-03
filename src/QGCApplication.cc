@@ -158,7 +158,7 @@ QGCApplication::QGCApplication(int &argc, char *argv[], const QGCCommandLinePars
     // Force old SVG Tiny 1.2 behavior for compatibility
     QSvgRenderer::setDefaultOptions(QtSvg::Tiny12FeaturesOnly);
 
-#ifndef QGC_DAILY_BUILD
+#if !defined(QGC_DAILY_BUILD) && !defined(QGC_DISABLE_NEW_VERSION_CHECK)
     _checkForNewVersion();
 #endif
 }
