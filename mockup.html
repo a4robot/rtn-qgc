@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QGC Boat Fly View Mockup - Minimal 2.0</title>
+    <title>QGC Boat Fly View Mockup - Minimal 2.1</title>
     <style>
         body, html {
             margin: 0;
@@ -62,9 +62,12 @@
 
         /* --- Telemetry Styles --- */
         .telemetry-panel {
-            width: 110px; /* ~1.2x wider than previous 90px */
-            /* Height is driven by content, which we'll make ~1.5x taller */
+            width: 110px;
+            /* Height is driven by content */
             box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            height: 400px; /* Force an overall height so bars can expand */
         }
 
         .telemetry-section {
@@ -72,13 +75,13 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin-bottom: 18px; /* scaled up */
+            margin-bottom: 18px;
         }
 
         /* RPM Gauge */
         .rpm-container {
-            width: 90px; /* scaled up */
-            height: 75px; /* scaled up from 50px */
+            width: 90px;
+            height: 75px;
             position: relative;
         }
         .rpm-val {
@@ -92,8 +95,8 @@
 
         /* Rudder */
         .rudder-container {
-            width: 90px; /* scaled up */
-            height: 45px; /* scaled up from 30px */
+            width: 90px;
+            height: 45px;
             position: relative;
             margin-top: 15px;
         }
@@ -102,20 +105,21 @@
         .v-scales-container {
             display: flex;
             justify-content: space-between;
-            width: 90px; /* scaled up */
-            height: 120px; /* 1.5x taller from 80px */
+            width: 90px;
             margin-top: 15px;
+            flex-grow: 1; /* Allow container to fill vertical space */
         }
         .v-scale {
             display: flex;
             flex-direction: column;
             align-items: center;
-            width: 25px; /* scaled up */
+            width: 25px;
+            height: 100%; /* Fill parent height */
         }
         .v-scale-bar {
             position: relative;
             width: 12px;
-            height: 90px; /* 1.5x taller from 60px */
+            flex-grow: 1; /* Allow bar to fill vertical space */
         }
         .v-label {
             font-size: 10px;
@@ -130,10 +134,14 @@
             height: 100%;
             overflow: visible;
         }
+        /* Tell SVGs inside the vertical scales not to preserve aspect ratio so they stretch */
+        .v-scale-bar svg.minimal {
+            preserveAspectRatio: none;
+        }
 
         /* --- Control Styles --- */
         .control-panel {
-            width: 50px; /* narrower than telemetry */
+            width: 50px;
             box-sizing: border-box;
         }
 
@@ -150,7 +158,7 @@
             color: white;
             border-radius: 4px;
             width: 100%;
-            aspect-ratio: 1; /* Make them square */
+            aspect-ratio: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -196,7 +204,7 @@
         <div class="panel telemetry-panel">
 
             <!-- RPM -->
-            <div class="telemetry-section">
+            <div class="telemetry-section" style="margin-bottom:0;">
                 <div class="rpm-container">
                     <svg class="minimal" viewBox="0 0 100 60">
                         <!-- Scale Arc -->
@@ -216,7 +224,7 @@
             </div>
 
             <!-- Rudder -->
-            <div class="telemetry-section">
+            <div class="telemetry-section" style="margin-bottom:0;">
                 <div class="rudder-container">
                     <svg class="minimal" viewBox="0 0 100 30">
                         <!-- Horizontal Scale -->
@@ -239,14 +247,15 @@
                 <!-- Trim -->
                 <div class="v-scale">
                     <div class="v-scale-bar">
-                        <svg class="minimal" viewBox="0 0 20 100">
-                            <line x1="10" y1="5" x2="10" y2="95" stroke="#fff" stroke-width="2"/>
+                        <!-- We use preserveAspectRatio="none" to stretch the height but keep vector stroke scaling uniform via css/svg props -->
+                        <svg class="minimal" viewBox="0 0 20 100" preserveAspectRatio="none">
+                            <line x1="10" y1="5" x2="10" y2="95" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
                             <!-- Ticks -->
-                            <line x1="5" y1="5" x2="15" y2="5" stroke="#fff" stroke-width="2"/>
-                            <line x1="5" y1="50" x2="15" y2="50" stroke="#fff" stroke-width="2"/>
-                            <line x1="5" y1="95" x2="15" y2="95" stroke="#fff" stroke-width="2"/>
+                            <line x1="5" y1="5" x2="15" y2="5" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                            <line x1="5" y1="50" x2="15" y2="50" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                            <line x1="5" y1="95" x2="15" y2="95" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
                             <!-- Indicator -->
-                            <polygon points="2,40 10,45 2,50" fill="#fff"/>
+                            <polygon points="2,40 10,45 2,50" fill="#fff" vector-effect="non-scaling-stroke"/>
                         </svg>
                     </div>
                     <div class="v-label">TRM</div>
@@ -255,14 +264,14 @@
                 <!-- Fuel -->
                 <div class="v-scale">
                     <div class="v-scale-bar">
-                        <svg class="minimal" viewBox="0 0 20 100">
-                            <line x1="10" y1="5" x2="10" y2="95" stroke="#fff" stroke-width="2"/>
+                        <svg class="minimal" viewBox="0 0 20 100" preserveAspectRatio="none">
+                            <line x1="10" y1="5" x2="10" y2="95" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
                             <!-- Ticks -->
-                            <line x1="5" y1="5" x2="15" y2="5" stroke="#fff" stroke-width="2"/>
-                            <line x1="7" y1="50" x2="13" y2="50" stroke="#fff" stroke-width="2"/>
-                            <line x1="5" y1="95" x2="15" y2="95" stroke="#fff" stroke-width="2"/>
+                            <line x1="5" y1="5" x2="15" y2="5" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                            <line x1="7" y1="50" x2="13" y2="50" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                            <line x1="5" y1="95" x2="15" y2="95" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
                             <!-- Indicator (Fill line) -->
-                            <line x1="10" y1="95" x2="10" y2="25" stroke="#fff" stroke-width="4"/>
+                            <line x1="10" y1="95" x2="10" y2="25" stroke="#fff" stroke-width="4" vector-effect="non-scaling-stroke"/>
                         </svg>
                     </div>
                     <div class="v-label">FUL</div>
@@ -271,14 +280,14 @@
                 <!-- Batt -->
                 <div class="v-scale">
                     <div class="v-scale-bar">
-                        <svg class="minimal" viewBox="0 0 20 100">
-                            <line x1="10" y1="5" x2="10" y2="95" stroke="#fff" stroke-width="2"/>
+                        <svg class="minimal" viewBox="0 0 20 100" preserveAspectRatio="none">
+                            <line x1="10" y1="5" x2="10" y2="95" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
                             <!-- Ticks -->
-                            <line x1="5" y1="5" x2="15" y2="5" stroke="#fff" stroke-width="2"/>
-                            <line x1="7" y1="50" x2="13" y2="50" stroke="#fff" stroke-width="2"/>
-                            <line x1="5" y1="95" x2="15" y2="95" stroke="#fff" stroke-width="2"/>
+                            <line x1="5" y1="5" x2="15" y2="5" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                            <line x1="7" y1="50" x2="13" y2="50" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
+                            <line x1="5" y1="95" x2="15" y2="95" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke"/>
                             <!-- Indicator (Fill line) -->
-                            <line x1="10" y1="95" x2="10" y2="15" stroke="#fff" stroke-width="4"/>
+                            <line x1="10" y1="95" x2="10" y2="15" stroke="#fff" stroke-width="4" vector-effect="non-scaling-stroke"/>
                         </svg>
                     </div>
                     <div class="v-label">BAT</div>
