@@ -9,6 +9,7 @@
         "start": "npm run docs:dev"
     },
     "dependencies": {
+        "playwright": "^1.60.0",
         "vitepress": "^1.6.4"
     },
     "license": "CC-BY-4.0",
