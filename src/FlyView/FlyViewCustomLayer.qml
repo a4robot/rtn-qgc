@@ -38,4 +38,15 @@ Item {
         bottomEdgeCenterInset:  parentToolInsets.bottomEdgeCenterInset
         bottomEdgeRightInset:   parentToolInsets.bottomEdgeRightInset
     }
+
+    Loader {
+        anchors.fill: parent
+        active: QGroundControl.multiVehicleManager.activeVehicle && QGroundControl.multiVehicleManager.activeVehicle.rover
+        sourceComponent: customBoatComponent
+    }
+
+    Component {
+        id: customBoatComponent
+        CustomBoatFlyView { }
+    }
 }

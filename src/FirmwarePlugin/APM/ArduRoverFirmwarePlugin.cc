@@ -2,6 +2,19 @@
 #include "AppMessages.h"
 #include "Vehicle.h"
 
+
+APMRoverFactGroup::APMRoverFactGroup(QObject *parent)
+    : FactGroup(1000, "", parent)
+{
+    _addFact(&_trimAngleFact,   QStringLiteral("trimAngle"));
+    _addFact(&_rudderAngleFact, QStringLiteral("rudderAngle"));
+    _addFact(&_batteryVoltFact, QStringLiteral("batteryVolt"));
+    _addFact(&_fuelLevelFact,   QStringLiteral("fuelLevel"));
+    _addFact(&_lightsStatFact,  QStringLiteral("lightsStat"));
+    _addFact(&_trimStatFact,    QStringLiteral("trimStat"));
+    _addFact(&_rpmFact,         QStringLiteral("rpm"));
+}
+
 bool ArduRoverFirmwarePlugin::_remapParamNameIntialized = false;
 FirmwarePlugin::remapParamNameMajorVersionMap_t ArduRoverFirmwarePlugin::_remapParamName;
 
@@ -70,6 +83,15 @@ int ArduRoverFirmwarePlugin::remapParamNameHigestMinorVersionNumber(int majorVer
     return ((majorVersionNumber == 4) ? 7 : Vehicle::versionNotSetValue);
 }
 
+void ArduRoverFirmwarePlugin::initializeVehicle(Vehicle *vehicle)
+{
+    APMFirmwarePlugin::initializeVehicle(vehicle);
+
+    // Create the fact group safely per-vehicle and expose it as a dynamic property before UI loads
+    APMRoverFactGroup* group = new APMRoverFactGroup(vehicle);
+    vehicle->setProperty("apmRoverInfo", QVariant::fromValue(static_cast<QObject*>(group)));
+}
+
 void ArduRoverFirmwarePlugin::guidedModeChangeAltitude(Vehicle* /*vehicle*/, double /*altitudeChange*/, bool /*pauseVehicle*/)
 {
     QGC::showAppMessage(QStringLiteral("Change altitude not supported."));
@@ -113,5 +135,41 @@ uint32_t ArduRoverFirmwarePlugin::_convertToCustomFlightModeEnum(uint32_t val) c
         return APMRoverMode::SMART_RTL;
     default:
         return UINT32_MAX;
+    }
+}
+
+bool ArduRoverFirmwarePlugin::adjustIncomingMavlinkMessage(Vehicle *vehicle, mavlink_message_t *message)
+{
+    if (message->msgid == MAVLINK_MSG_ID_NAMED_VALUE_FLOAT) {
+        _handleNamedValueFloat(vehicle, message);
+    }
+    return APMFirmwarePlugin::adjustIncomingMavlinkMessage(vehicle, message);
+}
+
+void ArduRoverFirmwarePlugin::_handleNamedValueFloat(Vehicle *vehicle, mavlink_message_t *message)
+{
+    mavlink_named_value_float_t value;
+    mavlink_msg_named_value_float_decode(message, &value);
+
+    int len = qstrnlen(value.name, 10);
+    QString name = QString::fromLocal8Bit(value.name, len);
+
+    APMRoverFactGroup* group = qobject_cast<APMRoverFactGroup*>(vehicle->property("apmRoverInfo").value<QObject*>());
+    if (!group) return;
+
+    if (name == "TRIM_ANG") {
+        group->trimAngle()->setRawValue(value.value);
+    } else if (name == "RUDD_ANG") {
+        group->rudderAngle()->setRawValue(value.value);
+    } else if (name == "BAT_VOLT") {
+        group->batteryVolt()->setRawValue(value.value);
+    } else if (name == "FUEL_LVL") {
+        group->fuelLevel()->setRawValue(value.value);
+    } else if (name == "LGT_STAT") {
+        group->lightsStat()->setRawValue(value.value);
+    } else if (name == "TRM_STAT") {
+        group->trimStat()->setRawValue(value.value);
+    } else if (name == "ENG_RPM") {
+        group->rpm()->setRawValue(value.value);
     }
 }

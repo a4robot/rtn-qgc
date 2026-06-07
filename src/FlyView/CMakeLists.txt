@@ -25,6 +25,7 @@ qt_add_qml_module(FlyViewModule
         FlyViewAdditionalCustomActionsList.qml
         FlyViewBottomRightRowLayout.qml
         FlyViewCustomLayer.qml
+        CustomBoatFlyView.qml
         FlyViewInsetViewer.qml
         FlyViewInstrumentPanel.qml
         FlyViewGripperButton.qml
