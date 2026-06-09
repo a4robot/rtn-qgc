@@ -98,7 +98,7 @@ void ADSBVehicleManager::_handleAISVessel(const mavlink_message_t &message)
     }
 
     // Copy name into callsign field of ADSB
-    strncpy(adsbVehicleMsg.callsign, name.toLatin1().constData(), sizeof(adsbVehicleMsg.callsign));
+    strncpy(adsbVehicleMsg.callsign, name.toLatin1().constData(), sizeof(adsbVehicleMsg.callsign) - 1);
     adsbVehicleMsg.callsign[sizeof(adsbVehicleMsg.callsign) - 1] = '\0';
 
     // Set flags
