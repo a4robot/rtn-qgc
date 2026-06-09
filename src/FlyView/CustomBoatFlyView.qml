@@ -6,7 +6,6 @@ import QGroundControl
 import QGroundControl.Controls
 import QGroundControl.ScreenTools
 import QGroundControl.Vehicle
-import QGroundControl.FactSystem
 
 Item {
     id: _root
@@ -555,8 +554,7 @@ Item {
 
                     QGCLabel {
                         anchors.centerIn: parent
-                        text: "PORT
-STBD"
+                        text: "PORT\nSTBD"
                         font.pointSize: ScreenTools.defaultFontPointSize * 0.6
                         color: "white"
                         horizontalAlignment: Text.AlignHCenter
