@@ -92,9 +92,11 @@ void ADSBVehicleManager::_handleAISVessel(const mavlink_message_t &message)
     adsbVehicleMsg.tslc = aisVehicleMsg.tslc;
 
     // Map callsign/name
-    QString name = QString::fromLatin1(aisVehicleMsg.name, sizeof(aisVehicleMsg.name)).trimmed();
+    int nameLen = qstrnlen(aisVehicleMsg.name, sizeof(aisVehicleMsg.name));
+    QString name = QString::fromLatin1(aisVehicleMsg.name, nameLen).trimmed();
     if (name.isEmpty()) {
-        name = QString::fromLatin1(aisVehicleMsg.callsign, sizeof(aisVehicleMsg.callsign)).trimmed();
+        int callsignLen = qstrnlen(aisVehicleMsg.callsign, sizeof(aisVehicleMsg.callsign));
+        name = QString::fromLatin1(aisVehicleMsg.callsign, callsignLen).trimmed();
     }
 
     // Copy name into callsign field of ADSB
