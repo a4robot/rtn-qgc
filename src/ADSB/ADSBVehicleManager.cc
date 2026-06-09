@@ -59,11 +59,64 @@ ADSBVehicleManager *ADSBVehicleManager::instance()
 
 void ADSBVehicleManager::mavlinkMessageReceived(const mavlink_message_t &message)
 {
+    if (message.msgid == MAVLINK_MSG_ID_AIS_VESSEL) {
+        _handleAISVessel(message);
+        return;
+    }
     if (message.msgid != MAVLINK_MSG_ID_ADSB_VEHICLE) {
         return;
     }
 
     _handleADSBVehicle(message);
+}
+
+
+void ADSBVehicleManager::_handleAISVessel(const mavlink_message_t &message)
+{
+    mavlink_ais_vessel_t aisVehicleMsg{};
+    mavlink_msg_ais_vessel_decode(&message, &aisVehicleMsg);
+
+    // Filter invalid coordinates and MMSI
+    if (aisVehicleMsg.MMSI == 0 || aisVehicleMsg.lat == 910000000 || aisVehicleMsg.lon == 1810000000) {
+        return;
+    }
+
+    // Translate AIS to ADSB structure
+    mavlink_adsb_vehicle_t adsbVehicleMsg{};
+    adsbVehicleMsg.ICAO_address = aisVehicleMsg.MMSI;
+    adsbVehicleMsg.lat = aisVehicleMsg.lat;
+    adsbVehicleMsg.lon = aisVehicleMsg.lon;
+    adsbVehicleMsg.altitude = 0; // Surface vessel
+    adsbVehicleMsg.heading = aisVehicleMsg.COG; // COG is course over ground
+    adsbVehicleMsg.hor_velocity = aisVehicleMsg.velocity;
+    adsbVehicleMsg.tslc = aisVehicleMsg.tslc;
+
+    // Map callsign/name
+    QString name = QString::fromLatin1(aisVehicleMsg.name, sizeof(aisVehicleMsg.name)).trimmed();
+    if (name.isEmpty()) {
+        name = QString::fromLatin1(aisVehicleMsg.callsign, sizeof(aisVehicleMsg.callsign)).trimmed();
+    }
+
+    // Copy name into callsign field of ADSB
+    strncpy(adsbVehicleMsg.callsign, name.toLatin1().constData(), sizeof(adsbVehicleMsg.callsign));
+    adsbVehicleMsg.callsign[sizeof(adsbVehicleMsg.callsign) - 1] = '\0';
+
+    // Set flags
+    adsbVehicleMsg.flags = ADSB_FLAGS_VALID_COORDS;
+
+    if (aisVehicleMsg.flags & 2) { // AIS_FLAGS_VALID_COG
+        adsbVehicleMsg.flags |= ADSB_FLAGS_VALID_HEADING;
+    }
+
+    if (aisVehicleMsg.flags & 4) { // AIS_FLAGS_VALID_VELOCITY
+        adsbVehicleMsg.flags |= ADSB_FLAGS_VALID_VELOCITY;
+    }
+
+    // Pass it to the standard handler by re-encoding it into a generic mavlink message
+    mavlink_message_t convertedMsg{};
+    mavlink_msg_adsb_vehicle_encode(message.sysid, message.compid, &convertedMsg, &adsbVehicleMsg);
+
+    _handleADSBVehicle(convertedMsg);
 }
 
 void ADSBVehicleManager::_handleADSBVehicle(const mavlink_message_t &message)

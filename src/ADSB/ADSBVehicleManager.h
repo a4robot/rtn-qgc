@@ -39,6 +39,7 @@ private:
     void _start(const QString &hostAddress, quint16 port);
     void _stop();
     void _handleADSBVehicle(const mavlink_message_t &message);
+    void _handleAISVessel(const mavlink_message_t &message);
 
     ADSBVehicleManagerSettings *_adsbSettings = nullptr;
     QTimer *_adsbVehicleCleanupTimer = nullptr;

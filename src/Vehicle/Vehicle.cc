@@ -655,6 +655,7 @@ void Vehicle::_mavlinkMessageReceived(LinkInterface* link, mavlink_message_t mes
         _handleCameraImageCaptured(message);
         break;
     case MAVLINK_MSG_ID_ADSB_VEHICLE:
+    case MAVLINK_MSG_ID_AIS_VESSEL:
         ADSBVehicleManager::instance()->mavlinkMessageReceived(message);
         break;
     case MAVLINK_MSG_ID_HIGH_LATENCY:
