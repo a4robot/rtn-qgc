@@ -41,7 +41,8 @@ Item {
 
     Loader {
         anchors.fill: parent
-        active: QGroundControl.multiVehicleManager.activeVehicle && QGroundControl.multiVehicleManager.activeVehicle.rover
+        active: QGroundControl.multiVehicleManager.activeVehicle ? QGroundControl.multiVehicleManager.activeVehicle.rover : false
+        z: 9999
         sourceComponent: customBoatComponent
     }
 

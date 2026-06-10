@@ -13,13 +13,13 @@ Item {
     property var _roverInfo: _activeVehicle ? _activeVehicle.apmRoverInfo : null
 
     // Safe getters for telemetry with fallback
-    property real rpmValue: _roverInfo && _roverInfo.rpm ? _roverInfo.rpm.value : 0
-    property real rudderValue: _roverInfo && _roverInfo.rudderAngle ? _roverInfo.rudderAngle.value : 0
-    property real trimValue: _roverInfo && _roverInfo.trimAngle ? _roverInfo.trimAngle.value : 0
-    property real fuelValue: _roverInfo && _roverInfo.fuelLevel ? _roverInfo.fuelLevel.value : 0
-    property real battValue: _roverInfo && _roverInfo.batteryVolt ? _roverInfo.batteryVolt.value : 0
-    property int lightsStat: _roverInfo && _roverInfo.lightsStat ? _roverInfo.lightsStat.value : 0
-    property int trimStat: _roverInfo && _roverInfo.trimStat ? _roverInfo.trimStat.value : 0
+    property real rpmValue: _roverInfo && _roverInfo.getFact("rpm") ? _roverInfo.getFact("rpm").value : 0
+    property real rudderValue: _roverInfo && _roverInfo.getFact("rudderAngle") ? _roverInfo.getFact("rudderAngle").value : 0
+    property real trimValue: _roverInfo && _roverInfo.getFact("trimAngle") ? _roverInfo.getFact("trimAngle").value : 0
+    property real fuelValue: _roverInfo && _roverInfo.getFact("fuelLevel") ? _roverInfo.getFact("fuelLevel").value : 0
+    property real battValue: _roverInfo && _roverInfo.getFact("batteryVolt") ? _roverInfo.getFact("batteryVolt").value : 0
+    property int lightsStat: _roverInfo && _roverInfo.getFact("lightsStat") ? _roverInfo.getFact("lightsStat").value : 0
+    property int trimStat: _roverInfo && _roverInfo.getFact("trimStat") ? _roverInfo.getFact("trimStat").value : 0
 
     onRpmValueChanged: if (rpmCanvas) rpmCanvas.requestPaint()
     onRudderValueChanged: if (rudderCanvas) rudderCanvas.requestPaint()
