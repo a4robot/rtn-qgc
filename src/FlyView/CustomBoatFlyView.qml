@@ -9,6 +9,16 @@ Item {
     id: _root
     anchors.fill: parent
 
+    Text {
+        id: _measureText
+        text: "X"
+        visible: false
+    }
+    property real myFontPixelWidth: _measureText.contentWidth
+    property real myFontPixelHeight: _measureText.contentHeight
+    property real myFontPointSize: _measureText.font.pointSize
+
+
     property var _activeVehicle: QGroundControl.multiVehicleManager.activeVehicle
     property var _roverInfo: _activeVehicle ? _activeVehicle.apmRoverInfo : null
 
@@ -57,34 +67,34 @@ Item {
         visible: true
         anchors.left: parent.left
         anchors.top: parent.top
-        anchors.leftMargin: (Qt.application.font.pixelSize / 2) * 1.5
-        anchors.topMargin: Qt.application.font.pixelSize * 4 // avoid top toolbar
-        spacing: Qt.application.font.pixelSize * 1.5
-        width: (Qt.application.font.pixelSize / 2) * 12
+        anchors.leftMargin: myFontPixelWidth * 1.5
+        anchors.topMargin: myFontPixelHeight * 4 // avoid top toolbar
+        spacing: myFontPixelHeight * 1.5
+        width: myFontPixelWidth * 12
 
         // Telemetry Panel
         Rectangle {
             width: parent.width
-            height: Qt.application.font.pixelSize * 28
+            height: myFontPixelHeight * 28
             color: Qt.rgba(0.1, 0.1, 0.1, 0.7)
-            radius: (Qt.application.font.pixelSize / 2)
+            radius: myFontPixelWidth
             border.color: Qt.rgba(1, 1, 1, 0.2)
 
             Column {
                 anchors.fill: parent
-                anchors.margins: (Qt.application.font.pixelSize / 2)
-                spacing: Qt.application.font.pixelSize * 1.5
+                anchors.margins: myFontPixelWidth
+                spacing: myFontPixelHeight * 1.5
 
                 // RPM Gauge
                 Item {
                     width: parent.width
-                    height: Qt.application.font.pixelSize * 6
+                    height: myFontPixelHeight * 6
 
                     QGCLabel {
                         anchors.bottom: parent.bottom
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: (rpmValue / 1000).toFixed(1) + "k"
-                        font.pointSize: Qt.application.font.pointSize * 1.2
+                        font.pointSize: myFontPointSize * 1.2
                         font.bold: true
                         color: "white"
                     }
@@ -139,7 +149,7 @@ Item {
                 // Rudder
                 Item {
                     width: parent.width
-                    height: Qt.application.font.pixelSize * 3
+                    height: myFontPixelHeight * 3
 
                     Canvas {
                         id: rudderCanvas
@@ -182,14 +192,14 @@ Item {
                         anchors.bottom: parent.bottom
                         anchors.left: parent.left
                         text: "L"
-                        font.pointSize: Qt.application.font.pointSize * 0.7
+                        font.pointSize: myFontPointSize * 0.7
                         color: "white"
                     }
                     QGCLabel {
                         anchors.bottom: parent.bottom
                         anchors.right: parent.right
                         text: "R"
-                        font.pointSize: Qt.application.font.pointSize * 0.7
+                        font.pointSize: myFontPointSize * 0.7
                         color: "white"
                     }
                 }
@@ -198,11 +208,11 @@ Item {
                 Row {
                     width: parent.width
                     height: parent.height - y // fill remaining
-                    spacing: (width - 3*(Qt.application.font.pixelSize / 2) * 2.5) / 2
+                    spacing: (width - 3*myFontPixelWidth * 2.5) / 2
 
                     // Trim Scale
                     Column {
-                        width: (Qt.application.font.pixelSize / 2) * 2.5
+                        width: myFontPixelWidth * 2.5
                         height: parent.height
 
                         Item {
@@ -246,7 +256,7 @@ Item {
                         QGCLabel {
                             id: trimLbl
                             text: "TRM"
-                            font.pointSize: Qt.application.font.pointSize * 0.7
+                            font.pointSize: myFontPointSize * 0.7
                             color: "#ccc"
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
@@ -254,7 +264,7 @@ Item {
 
                     // Fuel Scale
                     Column {
-                        width: (Qt.application.font.pixelSize / 2) * 2.5
+                        width: myFontPixelWidth * 2.5
                         height: parent.height
 
                         Item {
@@ -296,7 +306,7 @@ Item {
                         QGCLabel {
                             id: fuelLbl
                             text: "FUL"
-                            font.pointSize: Qt.application.font.pointSize * 0.7
+                            font.pointSize: myFontPointSize * 0.7
                             color: "#ccc"
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
@@ -304,7 +314,7 @@ Item {
 
                     // Battery Scale
                     Column {
-                        width: (Qt.application.font.pixelSize / 2) * 2.5
+                        width: myFontPixelWidth * 2.5
                         height: parent.height
 
                         Item {
@@ -348,7 +358,7 @@ Item {
                         QGCLabel {
                             id: battLbl
                             text: "BAT"
-                            font.pointSize: Qt.application.font.pointSize * 0.7
+                            font.pointSize: myFontPointSize * 0.7
                             color: "#ccc"
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
@@ -362,20 +372,20 @@ Item {
 
         // Trim Control Panel
         Rectangle {
-            width: (Qt.application.font.pixelSize / 2) * 6
-            height: Qt.application.font.pixelSize * 8
+            width: myFontPixelWidth * 6
+            height: myFontPixelHeight * 8
             color: Qt.rgba(0.1, 0.1, 0.1, 0.7)
-            radius: (Qt.application.font.pixelSize / 2)
+            radius: myFontPixelWidth
             border.color: Qt.rgba(1, 1, 1, 0.2)
 
             Column {
                 anchors.fill: parent
-                anchors.margins: (Qt.application.font.pixelSize / 2) * 0.5
-                spacing: Qt.application.font.pixelSize * 0.5
+                anchors.margins: myFontPixelWidth * 0.5
+                spacing: myFontPixelHeight * 0.5
 
                 QGCLabel {
                     text: "TRIM"
-                    font.pointSize: Qt.application.font.pointSize * 0.6
+                    font.pointSize: myFontPointSize * 0.6
                     color: "#aaa"
                 }
 
@@ -396,7 +406,7 @@ Item {
                     QGCLabel {
                         anchors.centerIn: parent
                         text: "UP"
-                        font.pointSize: Qt.application.font.pointSize * 0.6
+                        font.pointSize: myFontPointSize * 0.6
                         color: "white"
                         horizontalAlignment: Text.AlignHCenter
                     }
@@ -424,7 +434,7 @@ Item {
                     QGCLabel {
                         anchors.centerIn: parent
                         text: "DN"
-                        font.pointSize: Qt.application.font.pointSize * 0.6
+                        font.pointSize: myFontPointSize * 0.6
                         color: "white"
                         horizontalAlignment: Text.AlignHCenter
                     }
@@ -439,20 +449,20 @@ Item {
 
         // Light Control Panel
         Rectangle {
-            width: (Qt.application.font.pixelSize / 2) * 6
-            height: Qt.application.font.pixelSize * 15
+            width: myFontPixelWidth * 6
+            height: myFontPixelHeight * 15
             color: Qt.rgba(0.1, 0.1, 0.1, 0.7)
-            radius: (Qt.application.font.pixelSize / 2)
+            radius: myFontPixelWidth
             border.color: Qt.rgba(1, 1, 1, 0.2)
 
             Column {
                 anchors.fill: parent
-                anchors.margins: (Qt.application.font.pixelSize / 2) * 0.5
-                spacing: Qt.application.font.pixelSize * 0.5
+                anchors.margins: myFontPixelWidth * 0.5
+                spacing: myFontPixelHeight * 0.5
 
                 QGCLabel {
                     text: "LIGHT"
-                    font.pointSize: Qt.application.font.pointSize * 0.6
+                    font.pointSize: myFontPointSize * 0.6
                     color: "#aaa"
                 }
 
@@ -473,7 +483,7 @@ Item {
                     QGCLabel {
                         anchors.centerIn: parent
                         text: "NAV"
-                        font.pointSize: Qt.application.font.pointSize * 0.6
+                        font.pointSize: myFontPointSize * 0.6
                         color: "white"
                         horizontalAlignment: Text.AlignHCenter
                     }
@@ -500,7 +510,7 @@ Item {
                     QGCLabel {
                         anchors.centerIn: parent
                         text: "SIREN"
-                        font.pointSize: Qt.application.font.pointSize * 0.6
+                        font.pointSize: myFontPointSize * 0.6
                         color: "white"
                         horizontalAlignment: Text.AlignHCenter
                     }
@@ -527,7 +537,7 @@ Item {
                     QGCLabel {
                         anchors.centerIn: parent
                         text: "HEAD"
-                        font.pointSize: Qt.application.font.pointSize * 0.6
+                        font.pointSize: myFontPointSize * 0.6
                         color: "white"
                         horizontalAlignment: Text.AlignHCenter
                     }
@@ -554,7 +564,7 @@ Item {
                     QGCLabel {
                         anchors.centerIn: parent
                         text: "PORT\nSTBD"
-                        font.pointSize: Qt.application.font.pointSize * 0.6
+                        font.pointSize: myFontPointSize * 0.6
                         color: "white"
                         horizontalAlignment: Text.AlignHCenter
                     }
