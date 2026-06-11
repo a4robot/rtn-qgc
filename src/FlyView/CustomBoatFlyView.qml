@@ -12,11 +12,16 @@ Item {
     Text {
         id: _measureText
         text: "X"
-        visible: false
+        font.pointSize: 10
+        opacity: 0
     }
-    property real myFontPixelWidth: _measureText.contentWidth
-    property real myFontPixelHeight: _measureText.contentHeight
-    property real myFontPointSize: _measureText.font.pointSize
+    // Provide a solid fallback in case contentWidth evaluates to 0 momentarily
+    property real myFontPixelWidth: Math.max(_measureText.contentWidth, 10)
+    property real myFontPixelHeight: Math.max(_measureText.contentHeight, 15)
+    property real myFontPointSize: 10
+
+
+
 
 
     property var _activeVehicle: QGroundControl.multiVehicleManager.activeVehicle
