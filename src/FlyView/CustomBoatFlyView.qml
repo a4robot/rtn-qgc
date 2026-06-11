@@ -4,8 +4,6 @@ import QtQuick.Layouts
 
 import QGroundControl
 import QGroundControl.Controls
-import QGroundControl.ScreenTools
-import QGroundControl.Vehicle
 
 Item {
     id: _root
@@ -56,36 +54,37 @@ Item {
     // Container for all left-anchored UI
     Column {
         id: leftPanel
+        visible: true
         anchors.left: parent.left
         anchors.top: parent.top
-        anchors.leftMargin: ScreenTools.defaultFontPixelWidth * 1.5
-        anchors.topMargin: ScreenTools.defaultFontPixelHeight * 4 // avoid top toolbar
-        spacing: ScreenTools.defaultFontPixelHeight * 1.5
-        width: ScreenTools.defaultFontPixelWidth * 12
+        anchors.leftMargin: (Qt.application.font.pixelSize / 2) * 1.5
+        anchors.topMargin: Qt.application.font.pixelSize * 4 // avoid top toolbar
+        spacing: Qt.application.font.pixelSize * 1.5
+        width: (Qt.application.font.pixelSize / 2) * 12
 
         // Telemetry Panel
         Rectangle {
             width: parent.width
-            height: ScreenTools.defaultFontPixelHeight * 28
+            height: Qt.application.font.pixelSize * 28
             color: Qt.rgba(0.1, 0.1, 0.1, 0.7)
-            radius: ScreenTools.defaultFontPixelWidth
+            radius: (Qt.application.font.pixelSize / 2)
             border.color: Qt.rgba(1, 1, 1, 0.2)
 
             Column {
                 anchors.fill: parent
-                anchors.margins: ScreenTools.defaultFontPixelWidth
-                spacing: ScreenTools.defaultFontPixelHeight * 1.5
+                anchors.margins: (Qt.application.font.pixelSize / 2)
+                spacing: Qt.application.font.pixelSize * 1.5
 
                 // RPM Gauge
                 Item {
                     width: parent.width
-                    height: ScreenTools.defaultFontPixelHeight * 6
+                    height: Qt.application.font.pixelSize * 6
 
                     QGCLabel {
                         anchors.bottom: parent.bottom
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: (rpmValue / 1000).toFixed(1) + "k"
-                        font.pointSize: ScreenTools.defaultFontPointSize * 1.2
+                        font.pointSize: Qt.application.font.pointSize * 1.2
                         font.bold: true
                         color: "white"
                     }
@@ -140,7 +139,7 @@ Item {
                 // Rudder
                 Item {
                     width: parent.width
-                    height: ScreenTools.defaultFontPixelHeight * 3
+                    height: Qt.application.font.pixelSize * 3
 
                     Canvas {
                         id: rudderCanvas
@@ -183,14 +182,14 @@ Item {
                         anchors.bottom: parent.bottom
                         anchors.left: parent.left
                         text: "L"
-                        font.pointSize: ScreenTools.defaultFontPointSize * 0.7
+                        font.pointSize: Qt.application.font.pointSize * 0.7
                         color: "white"
                     }
                     QGCLabel {
                         anchors.bottom: parent.bottom
                         anchors.right: parent.right
                         text: "R"
-                        font.pointSize: ScreenTools.defaultFontPointSize * 0.7
+                        font.pointSize: Qt.application.font.pointSize * 0.7
                         color: "white"
                     }
                 }
@@ -199,11 +198,11 @@ Item {
                 Row {
                     width: parent.width
                     height: parent.height - y // fill remaining
-                    spacing: (width - 3*ScreenTools.defaultFontPixelWidth * 2.5) / 2
+                    spacing: (width - 3*(Qt.application.font.pixelSize / 2) * 2.5) / 2
 
                     // Trim Scale
                     Column {
-                        width: ScreenTools.defaultFontPixelWidth * 2.5
+                        width: (Qt.application.font.pixelSize / 2) * 2.5
                         height: parent.height
 
                         Item {
@@ -247,7 +246,7 @@ Item {
                         QGCLabel {
                             id: trimLbl
                             text: "TRM"
-                            font.pointSize: ScreenTools.defaultFontPointSize * 0.7
+                            font.pointSize: Qt.application.font.pointSize * 0.7
                             color: "#ccc"
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
@@ -255,7 +254,7 @@ Item {
 
                     // Fuel Scale
                     Column {
-                        width: ScreenTools.defaultFontPixelWidth * 2.5
+                        width: (Qt.application.font.pixelSize / 2) * 2.5
                         height: parent.height
 
                         Item {
@@ -297,7 +296,7 @@ Item {
                         QGCLabel {
                             id: fuelLbl
                             text: "FUL"
-                            font.pointSize: ScreenTools.defaultFontPointSize * 0.7
+                            font.pointSize: Qt.application.font.pointSize * 0.7
                             color: "#ccc"
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
@@ -305,7 +304,7 @@ Item {
 
                     // Battery Scale
                     Column {
-                        width: ScreenTools.defaultFontPixelWidth * 2.5
+                        width: (Qt.application.font.pixelSize / 2) * 2.5
                         height: parent.height
 
                         Item {
@@ -349,7 +348,7 @@ Item {
                         QGCLabel {
                             id: battLbl
                             text: "BAT"
-                            font.pointSize: ScreenTools.defaultFontPointSize * 0.7
+                            font.pointSize: Qt.application.font.pointSize * 0.7
                             color: "#ccc"
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
@@ -363,20 +362,20 @@ Item {
 
         // Trim Control Panel
         Rectangle {
-            width: ScreenTools.defaultFontPixelWidth * 6
-            height: ScreenTools.defaultFontPixelHeight * 8
+            width: (Qt.application.font.pixelSize / 2) * 6
+            height: Qt.application.font.pixelSize * 8
             color: Qt.rgba(0.1, 0.1, 0.1, 0.7)
-            radius: ScreenTools.defaultFontPixelWidth
+            radius: (Qt.application.font.pixelSize / 2)
             border.color: Qt.rgba(1, 1, 1, 0.2)
 
             Column {
                 anchors.fill: parent
-                anchors.margins: ScreenTools.defaultFontPixelWidth * 0.5
-                spacing: ScreenTools.defaultFontPixelHeight * 0.5
+                anchors.margins: (Qt.application.font.pixelSize / 2) * 0.5
+                spacing: Qt.application.font.pixelSize * 0.5
 
                 QGCLabel {
                     text: "TRIM"
-                    font.pointSize: ScreenTools.defaultFontPointSize * 0.6
+                    font.pointSize: Qt.application.font.pointSize * 0.6
                     color: "#aaa"
                 }
 
@@ -397,7 +396,7 @@ Item {
                     QGCLabel {
                         anchors.centerIn: parent
                         text: "UP"
-                        font.pointSize: ScreenTools.defaultFontPointSize * 0.6
+                        font.pointSize: Qt.application.font.pointSize * 0.6
                         color: "white"
                         horizontalAlignment: Text.AlignHCenter
                     }
@@ -425,7 +424,7 @@ Item {
                     QGCLabel {
                         anchors.centerIn: parent
                         text: "DN"
-                        font.pointSize: ScreenTools.defaultFontPointSize * 0.6
+                        font.pointSize: Qt.application.font.pointSize * 0.6
                         color: "white"
                         horizontalAlignment: Text.AlignHCenter
                     }
@@ -440,20 +439,20 @@ Item {
 
         // Light Control Panel
         Rectangle {
-            width: ScreenTools.defaultFontPixelWidth * 6
-            height: ScreenTools.defaultFontPixelHeight * 15
+            width: (Qt.application.font.pixelSize / 2) * 6
+            height: Qt.application.font.pixelSize * 15
             color: Qt.rgba(0.1, 0.1, 0.1, 0.7)
-            radius: ScreenTools.defaultFontPixelWidth
+            radius: (Qt.application.font.pixelSize / 2)
             border.color: Qt.rgba(1, 1, 1, 0.2)
 
             Column {
                 anchors.fill: parent
-                anchors.margins: ScreenTools.defaultFontPixelWidth * 0.5
-                spacing: ScreenTools.defaultFontPixelHeight * 0.5
+                anchors.margins: (Qt.application.font.pixelSize / 2) * 0.5
+                spacing: Qt.application.font.pixelSize * 0.5
 
                 QGCLabel {
                     text: "LIGHT"
-                    font.pointSize: ScreenTools.defaultFontPointSize * 0.6
+                    font.pointSize: Qt.application.font.pointSize * 0.6
                     color: "#aaa"
                 }
 
@@ -474,7 +473,7 @@ Item {
                     QGCLabel {
                         anchors.centerIn: parent
                         text: "NAV"
-                        font.pointSize: ScreenTools.defaultFontPointSize * 0.6
+                        font.pointSize: Qt.application.font.pointSize * 0.6
                         color: "white"
                         horizontalAlignment: Text.AlignHCenter
                     }
@@ -501,7 +500,7 @@ Item {
                     QGCLabel {
                         anchors.centerIn: parent
                         text: "SIREN"
-                        font.pointSize: ScreenTools.defaultFontPointSize * 0.6
+                        font.pointSize: Qt.application.font.pointSize * 0.6
                         color: "white"
                         horizontalAlignment: Text.AlignHCenter
                     }
@@ -528,7 +527,7 @@ Item {
                     QGCLabel {
                         anchors.centerIn: parent
                         text: "HEAD"
-                        font.pointSize: ScreenTools.defaultFontPointSize * 0.6
+                        font.pointSize: Qt.application.font.pointSize * 0.6
                         color: "white"
                         horizontalAlignment: Text.AlignHCenter
                     }
@@ -555,7 +554,7 @@ Item {
                     QGCLabel {
                         anchors.centerIn: parent
                         text: "PORT\nSTBD"
-                        font.pointSize: ScreenTools.defaultFontPointSize * 0.6
+                        font.pointSize: Qt.application.font.pointSize * 0.6
                         color: "white"
                         horizontalAlignment: Text.AlignHCenter
                     }

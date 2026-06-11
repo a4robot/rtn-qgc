@@ -167,6 +167,7 @@ public:
     Q_PROPERTY(bool                 multiRotor                  READ multiRotor                                                     NOTIFY vehicleTypeChanged)
     Q_PROPERTY(bool                 vtol                        READ vtol                                                           NOTIFY vehicleTypeChanged)
     Q_PROPERTY(bool                 rover                       READ rover                                                          NOTIFY vehicleTypeChanged)
+    Q_PROPERTY(FactGroup*           apmRoverInfo                READ apmRoverInfo                                                       NOTIFY apmRoverInfoChanged)
     Q_PROPERTY(bool                 sub                         READ sub                                                            NOTIFY vehicleTypeChanged)
     Q_PROPERTY(VehicleSupports*     supports                    READ supports                                                       CONSTANT)
     Q_PROPERTY(QString              prearmError                 READ prearmError                WRITE setPrearmError                NOTIFY prearmErrorChanged)
@@ -463,6 +464,8 @@ public:
     bool multiRotor() const;
     bool vtol() const;
     bool rover() const;
+    FactGroup*              apmRoverInfo                () { return _apmRoverInfo; }
+    void setApmRoverInfo(FactGroup* info) { _apmRoverInfo = info; emit apmRoverInfoChanged(); }
     bool sub() const;
     bool spacecraft() const;
 
@@ -737,6 +740,7 @@ public slots:
     Q_INVOKABLE void sendGripperAction(GRIPPER_ACTIONS gripperOption);
 
 signals:
+    void apmRoverInfoChanged();
     void coordinateChanged              (QGeoCoordinate coordinate);
     void mavlinkMessageReceived         (const mavlink_message_t& message);
     void homePositionChanged            (const QGeoCoordinate& homePosition);
@@ -1004,6 +1008,7 @@ private:
 \
     bool _checkLatestStableFWDone = false;
     int _firmwareMajorVersion = versionNotSetValue;
+    FactGroup*              _apmRoverInfo = nullptr;
     int _firmwareMinorVersion = versionNotSetValue;
     int _firmwarePatchVersion = versionNotSetValue;
     int _firmwareCustomMajorVersion = versionNotSetValue;

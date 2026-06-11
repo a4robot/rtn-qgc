@@ -89,7 +89,7 @@ void ArduRoverFirmwarePlugin::initializeVehicle(Vehicle *vehicle)
 
     // Create the fact group safely per-vehicle and expose it as a dynamic property before UI loads
     APMRoverFactGroup* group = new APMRoverFactGroup(vehicle);
-    vehicle->setProperty("apmRoverInfo", QVariant::fromValue(static_cast<QObject*>(group)));
+    vehicle->setApmRoverInfo(static_cast<FactGroup*>(group));
 }
 
 void ArduRoverFirmwarePlugin::guidedModeChangeAltitude(Vehicle* /*vehicle*/, double /*altitudeChange*/, bool /*pauseVehicle*/)
@@ -154,7 +154,7 @@ void ArduRoverFirmwarePlugin::_handleNamedValueFloat(Vehicle *vehicle, mavlink_m
     int len = qstrnlen(value.name, 10);
     QString name = QString::fromLocal8Bit(value.name, len);
 
-    APMRoverFactGroup* group = qobject_cast<APMRoverFactGroup*>(vehicle->property("apmRoverInfo").value<QObject*>());
+    APMRoverFactGroup* group = qobject_cast<APMRoverFactGroup*>(vehicle->apmRoverInfo());
     if (!group) return;
 
     if (name == "TRIM_ANG") {
