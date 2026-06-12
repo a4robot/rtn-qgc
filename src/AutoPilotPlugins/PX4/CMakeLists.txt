@@ -79,6 +79,16 @@ foreach(_name IN LISTS _config_generated_qml_names)
     list(APPEND _config_generated_qml "${CONFIG_QML_GEN_DIR}/${_name}")
 endforeach()
 
+# Run generator at configure time so files exist on disk for qt_add_qml_module / qmlimportscanner
+file(MAKE_DIRECTORY "${CONFIG_QML_GEN_DIR}")
+execute_process(
+    COMMAND ${Python3_EXECUTABLE} -m tools.generators.config_qml.generate_pages
+            --pages-dir "${CONFIG_PAGES_DIR}"
+            --output-dir "${CONFIG_QML_GEN_DIR}"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    COMMAND_ERROR_IS_FATAL ANY
+)
+
 add_custom_command(
     OUTPUT  ${_config_generated_qml}
     COMMAND ${Python3_EXECUTABLE} -m tools.generators.config_qml.generate_pages
