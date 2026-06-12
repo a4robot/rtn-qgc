@@ -38,4 +38,16 @@ Item {
         bottomEdgeCenterInset:  parentToolInsets.bottomEdgeCenterInset
         bottomEdgeRightInset:   parentToolInsets.bottomEdgeRightInset
     }
+
+    Loader {
+        anchors.fill: parent
+        active: true
+        z: 9999
+        sourceComponent: customBoatComponent
+    }
+
+    Component {
+        id: customBoatComponent
+        CustomBoatFlyView { }
+    }
 }

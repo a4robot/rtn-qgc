@@ -2,6 +2,42 @@
 
 #include "APMFirmwarePlugin.h"
 
+#include "FactGroup.h"
+#include "Fact.h"
+#include <QMap>
+
+class APMRoverFactGroup : public FactGroup
+{
+    Q_OBJECT
+    Q_PROPERTY(Fact *trimAngle   READ trimAngle   CONSTANT)
+    Q_PROPERTY(Fact *rudderAngle READ rudderAngle CONSTANT)
+    Q_PROPERTY(Fact *batteryVolt READ batteryVolt CONSTANT)
+    Q_PROPERTY(Fact *fuelLevel   READ fuelLevel   CONSTANT)
+    Q_PROPERTY(Fact *lightsStat  READ lightsStat  CONSTANT)
+    Q_PROPERTY(Fact *trimStat    READ trimStat    CONSTANT)
+    Q_PROPERTY(Fact *rpm         READ rpm         CONSTANT)
+
+public:
+    explicit APMRoverFactGroup(QObject *parent = nullptr);
+    ~APMRoverFactGroup() override {}
+
+    Fact *trimAngle() { return &_trimAngleFact; }
+    Fact *rudderAngle() { return &_rudderAngleFact; }
+    Fact *batteryVolt() { return &_batteryVoltFact; }
+    Fact *fuelLevel() { return &_fuelLevelFact; }
+    Fact *lightsStat() { return &_lightsStatFact; }
+    Fact *trimStat() { return &_trimStatFact; }
+    Fact *rpm() { return &_rpmFact; }
+
+private:
+    Fact _trimAngleFact{0, QStringLiteral("trimAngle"), FactMetaData::valueTypeDouble};
+    Fact _rudderAngleFact{0, QStringLiteral("rudderAngle"), FactMetaData::valueTypeDouble};
+    Fact _batteryVoltFact{0, QStringLiteral("batteryVolt"), FactMetaData::valueTypeDouble};
+    Fact _fuelLevelFact{0, QStringLiteral("fuelLevel"), FactMetaData::valueTypeDouble};
+    Fact _lightsStatFact{0, QStringLiteral("lightsStat"), FactMetaData::valueTypeDouble};
+    Fact _trimStatFact{0, QStringLiteral("trimStat"), FactMetaData::valueTypeDouble};
+    Fact _rpmFact{0, QStringLiteral("rpm"), FactMetaData::valueTypeDouble};
+};
 struct APMRoverMode
 {
     enum Mode : uint32_t{
@@ -31,6 +67,7 @@ public:
     explicit ArduRoverFirmwarePlugin(QObject *parent = nullptr);
     ~ArduRoverFirmwarePlugin();
 
+    void initializeVehicle(Vehicle* vehicle) override;
     void guidedModeChangeAltitude(Vehicle* vehicle, double altitudeChange, bool pauseVehicle) override;
     int remapParamNameHigestMinorVersionNumber(int majorVersionNumber) const override;
     const FirmwarePlugin::remapParamNameMajorVersionMap_t& paramNameRemapMajorVersionMap() const override { return _remapParamName; }
@@ -42,6 +79,12 @@ public:
     QString followFlightMode() const override;
     QString stabilizedFlightMode() const override;
     void updateAvailableFlightModes(FlightModeList &modeList) override;
+
+    bool adjustIncomingMavlinkMessage(Vehicle* vehicle, mavlink_message_t* message) override;
+
+protected:
+    void _handleNamedValueFloat(Vehicle* vehicle, mavlink_message_t* message);
+
 
 protected:
     uint32_t _convertToCustomFlightModeEnum(uint32_t val) const override;
@@ -66,3 +109,5 @@ private:
     static bool _remapParamNameIntialized;
     static FirmwarePlugin::remapParamNameMajorVersionMap_t _remapParamName;
 };
+
+Q_DECLARE_METATYPE(APMRoverFactGroup*)
