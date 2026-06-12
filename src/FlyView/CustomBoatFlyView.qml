@@ -28,11 +28,11 @@ Item {
     property var _roverInfo: _activeVehicle ? _activeVehicle.apmRoverInfo : null
 
     // Safe getters for telemetry with fallback
-    property real rpmValue: _roverInfo && _roverInfo.getFact("rpm") ? _roverInfo.getFact("rpm").value : 0
-    property real rudderValue: _roverInfo && _roverInfo.getFact("rudderAngle") ? _roverInfo.getFact("rudderAngle").value : 0
-    property real trimValue: _roverInfo && _roverInfo.getFact("trimAngle") ? _roverInfo.getFact("trimAngle").value : 0
-    property real fuelValue: _roverInfo && _roverInfo.getFact("fuelLevel") ? _roverInfo.getFact("fuelLevel").value : 0
-    property real battValue: _roverInfo && _roverInfo.getFact("batteryVolt") ? _roverInfo.getFact("batteryVolt").value : 0
+    property real rpmValue: { var f = _roverInfo && _roverInfo.getFact("rpm"); return f ? f.value : 0 }
+    property real rudderValue: { var f = _roverInfo && _roverInfo.getFact("rudderAngle"); return f ? f.value : 0 }
+    property real trimValue: { var f = _roverInfo && _roverInfo.getFact("trimAngle"); return f ? f.value : 0 }
+    property real fuelValue: { var f = _roverInfo && _roverInfo.getFact("fuelLevel"); return f ? f.value : 0 }
+    property real battValue: { var f = _roverInfo && _roverInfo.getFact("batteryVolt"); return f ? f.value : 0 }
     property int lightsStat: _roverInfo && _roverInfo.getFact("lightsStat") ? _roverInfo.getFact("lightsStat").value : 0
     property int trimStat: _roverInfo && _roverInfo.getFact("trimStat") ? _roverInfo.getFact("trimStat").value : 0
 
@@ -136,7 +136,11 @@ Item {
 
                             // Needle
                             var maxRpm = 4000;
-                            var mappedVal = Math.max(0, Math.min(rpmValue, maxRpm));
+                            var isError = (rpmValue <= -999.0);
+                            ctx.strokeStyle = isError ? "gray" : "white";
+                            ctx.fillStyle = isError ? "gray" : "white";
+                            var displayRpmValue = isError ? 0 : rpmValue;
+                            var mappedVal = Math.max(0, Math.min(displayRpmValue, maxRpm));
                             var needleAngle = Math.PI - (mappedVal/maxRpm)*Math.PI;
                             ctx.beginPath();
                             ctx.moveTo(cx, cy);
@@ -145,8 +149,8 @@ Item {
 
                             ctx.beginPath();
                             ctx.arc(cx, cy, 3, 0, 2*Math.PI);
-                            ctx.fillStyle = "white";
-                            ctx.fill();
+                            ctx.fillStyle = isError ? "gray" : "white";
+                                    ctx.fill();
                         }
                     }
                 }
@@ -164,7 +168,9 @@ Item {
                             ctx.clearRect(0, 0, width, height);
                             var cy = height/2;
 
-                            ctx.strokeStyle = "white";
+                            var isError = (rudderValue <= -999.0);
+                            ctx.strokeStyle = isError ? "gray" : "white";
+                            ctx.fillStyle = isError ? "gray" : "white";
                             ctx.lineWidth = 2;
 
                             // Line
@@ -181,15 +187,17 @@ Item {
 
                             // Indicator
                             var maxRudder = 45; // 45 deg
-                            var mappedRudd = Math.max(-maxRudder, Math.min(rudderValue, maxRudder));
+
+                            var displayRudderValue = isError ? 0 : rudderValue;
+                            var mappedRudd = Math.max(-maxRudder, Math.min(displayRudderValue, maxRudder));
                             var indX = width/2 + (mappedRudd/maxRudder) * (width/2 - 5);
 
                             ctx.beginPath();
                             ctx.moveTo(indX, cy-5);
                             ctx.lineTo(indX-5, cy+5);
                             ctx.lineTo(indX+5, cy+5);
-                            ctx.fillStyle = "white";
-                            ctx.fill();
+                            ctx.fillStyle = isError ? "gray" : "white";
+                                    ctx.fill();
                         }
                     }
 
@@ -229,7 +237,9 @@ Item {
                                 onPaint: {
                                     var ctx = getContext("2d");
                                     ctx.clearRect(0, 0, width, height);
-                                    ctx.strokeStyle = "white";
+                                    var isError = (trimValue <= -999.0);
+                                    ctx.strokeStyle = isError ? "gray" : "white";
+                                    ctx.fillStyle = isError ? "gray" : "white";
                                     ctx.lineWidth = 2;
                                     var cx = width/2;
 
@@ -245,7 +255,8 @@ Item {
 
                                     // Indicator
                                     var maxTrim = 10;
-                                    var mapped = Math.max(-maxTrim, Math.min(trimValue, maxTrim));
+                                    var displayTrimValue = isError ? 0 : trimValue;
+                                    var mapped = Math.max(-maxTrim, Math.min(displayTrimValue, maxTrim));
                                     // negative trim = down, positive = up
                                     var indY = height/2 - (mapped/maxTrim) * (height/2 - 5);
 
@@ -253,7 +264,7 @@ Item {
                                     ctx.moveTo(cx-8, indY-5);
                                     ctx.lineTo(cx, indY);
                                     ctx.lineTo(cx-8, indY+5);
-                                    ctx.fillStyle = "white";
+                                    ctx.fillStyle = isError ? "gray" : "white";
                                     ctx.fill();
                                 }
                             }
@@ -281,7 +292,9 @@ Item {
                                 onPaint: {
                                     var ctx = getContext("2d");
                                     ctx.clearRect(0, 0, width, height);
-                                    ctx.strokeStyle = "white";
+                                    var isError = (fuelValue <= -999.0);
+                                    ctx.strokeStyle = isError ? "gray" : "white";
+                                    ctx.fillStyle = isError ? "gray" : "white";
                                     ctx.lineWidth = 2;
                                     var cx = width/2;
 
@@ -296,13 +309,14 @@ Item {
                                     ctx.beginPath(); ctx.moveTo(cx-5, height-5); ctx.lineTo(cx+5, height-5); ctx.stroke();
 
                                     // Fill
-                                    var mapped = Math.max(0, Math.min(fuelValue, 100));
+                                    var displayFuelValue = isError ? 0 : fuelValue;
+                                    var mapped = Math.max(0, Math.min(displayFuelValue, 100));
                                     var fillH = (mapped/100) * (height-10);
 
                                     ctx.beginPath();
                                     ctx.moveTo(cx, height-5);
                                     ctx.lineTo(cx, height-5 - fillH);
-                                    ctx.strokeStyle = "white";
+                                    ctx.strokeStyle = isError ? "gray" : "white";
                                     ctx.lineWidth = 4;
                                     ctx.stroke();
                                 }
@@ -331,7 +345,9 @@ Item {
                                 onPaint: {
                                     var ctx = getContext("2d");
                                     ctx.clearRect(0, 0, width, height);
-                                    ctx.strokeStyle = "white";
+                                    var isError = (battValue <= -999.0);
+                                    ctx.strokeStyle = isError ? "gray" : "white";
+                                    ctx.fillStyle = isError ? "gray" : "white";
                                     ctx.lineWidth = 2;
                                     var cx = width/2;
 
@@ -348,13 +364,14 @@ Item {
                                     // Fill
                                     var maxBatt = 16.8;
                                     var minBatt = 10.0;
-                                    var mapped = Math.max(0, Math.min((battValue-minBatt)/(maxBatt-minBatt)*100, 100));
+                                    var displayBattValue = isError ? minBatt : battValue;
+                                    var mapped = Math.max(0, Math.min((displayBattValue-minBatt)/(maxBatt-minBatt)*100, 100));
                                     var fillH = (mapped/100) * (height-10);
 
                                     ctx.beginPath();
                                     ctx.moveTo(cx, height-5);
                                     ctx.lineTo(cx, height-5 - fillH);
-                                    ctx.strokeStyle = "white";
+                                    ctx.strokeStyle = isError ? "gray" : "white";
                                     ctx.lineWidth = 4;
                                     ctx.stroke();
                                 }
