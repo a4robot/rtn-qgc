@@ -28,13 +28,20 @@ Item {
     property var _roverInfo: _activeVehicle ? _activeVehicle.apmRoverInfo : null
 
     // Safe getters for telemetry with fallback
-    property real rpmValue: { var f = _roverInfo && _roverInfo.getFact("rpm"); return f ? f.value : 0 }
-    property real rudderValue: { var f = _roverInfo && _roverInfo.getFact("rudderAngle"); return f ? f.value : 0 }
-    property real trimValue: { var f = _roverInfo && _roverInfo.getFact("trimAngle"); return f ? f.value : 0 }
-    property real fuelValue: { var f = _roverInfo && _roverInfo.getFact("fuelLevel"); return f ? f.value : 0 }
-    property real battValue: { var f = _roverInfo && _roverInfo.getFact("batteryVolt"); return f ? f.value : 0 }
-    property int lightsStat: _roverInfo && _roverInfo.getFact("lightsStat") ? _roverInfo.getFact("lightsStat").value : 0
-    property int trimStat: _roverInfo && _roverInfo.getFact("trimStat") ? _roverInfo.getFact("trimStat").value : 0
+    property var _rpmFact: _roverInfo ? _roverInfo.getFact("rpm") : null
+    property real rpmValue: _rpmFact ? _rpmFact.value : 0
+    property var _rudderFact: _roverInfo ? _roverInfo.getFact("rudderAngle") : null
+    property real rudderValue: _rudderFact ? _rudderFact.value : 0
+    property var _trimFact: _roverInfo ? _roverInfo.getFact("trimAngle") : null
+    property real trimValue: _trimFact ? _trimFact.value : 0
+    property var _fuelFact: _roverInfo ? _roverInfo.getFact("fuelLevel") : null
+    property real fuelValue: _fuelFact ? _fuelFact.value : 0
+    property var _battFact: _roverInfo ? _roverInfo.getFact("batteryVolt") : null
+    property real battValue: _battFact ? _battFact.value : 0
+    property var _lightsStatFact: _roverInfo ? _roverInfo.getFact("lightsStat") : null
+    property int lightsStat: _lightsStatFact ? _lightsStatFact.value : 0
+    property var _trimStatFact: _roverInfo ? _roverInfo.getFact("trimStat") : null
+    property int trimStat: _trimStatFact ? _trimStatFact.value : 0
 
     onRpmValueChanged: if (rpmCanvas) rpmCanvas.requestPaint()
     onRudderValueChanged: if (rudderCanvas) rudderCanvas.requestPaint()
@@ -150,7 +157,7 @@ Item {
                             ctx.beginPath();
                             ctx.arc(cx, cy, 3, 0, 2*Math.PI);
                             ctx.fillStyle = isError ? "gray" : "white";
-                                    ctx.fill();
+                            ctx.fill();
                         }
                     }
                 }
@@ -197,7 +204,7 @@ Item {
                             ctx.lineTo(indX-5, cy+5);
                             ctx.lineTo(indX+5, cy+5);
                             ctx.fillStyle = isError ? "gray" : "white";
-                                    ctx.fill();
+                            ctx.fill();
                         }
                     }
 
