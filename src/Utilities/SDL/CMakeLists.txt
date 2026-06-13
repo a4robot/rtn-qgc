@@ -14,6 +14,7 @@ if(WIN32)
         ${SDL_EXTRA_OPTIONS}
         "SDL_DIRECTX OFF"
         "SDL_XINPUT ON"
+        "SDL_HIDAPI_LIBUSB OFF"
     )
 elseif(UNIX AND NOT ANDROID)
     set(SDL_EXTRA_OPTIONS

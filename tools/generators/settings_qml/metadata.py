@@ -55,11 +55,12 @@ def load_settings_metadata(settings_dir: Path) -> dict[str, dict]:
         stem = json_path.name.replace(".SettingsGroup.json", "")
         accessor = stem_to_accessor(stem)
         if valid and accessor not in valid:
-            print(
-                f"warning: {json_path.name} maps to {accessor!r} but no matching "
-                f"Q_PROPERTY exists in SettingsManager.h; skipping.",
-                file=sys.stderr,
-            )
+            if stem != "Joystick":
+                print(
+                    f"warning: {json_path.name} maps to {accessor!r} but no matching "
+                    f"Q_PROPERTY exists in SettingsManager.h; skipping.",
+                    file=sys.stderr,
+                )
             continue
         with open(json_path, encoding="utf-8") as f:
             data = json.load(f)
