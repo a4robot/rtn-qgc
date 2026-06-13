@@ -3,6 +3,25 @@
 # Handles platform-specific installation and packaging
 # ============================================================================
 
+if(WIN32)
+    # Automatically locate the MSVC redistributable folder and copy dlls to expected VC143 path
+    file(GLOB _redist_dirs
+        "C:/Program Files (x86)/Microsoft Visual Studio/18/BuildTools/VC/Redist/MSVC/*/x64/Microsoft.VC*.CRT"
+        "C:/Program Files/Microsoft Visual Studio/2022/*/VC/Redist/MSVC/*/x64/Microsoft.VC*.CRT"
+    )
+    if(_redist_dirs)
+        list(GET _redist_dirs 0 _redist_src_dir)
+        set(_redist_dest_dir "${CMAKE_BINARY_DIR}/redist/x64/Microsoft.VC143.CRT")
+        file(MAKE_DIRECTORY "${_redist_dest_dir}")
+        file(GLOB _redist_dlls "${_redist_src_dir}/*.dll")
+        foreach(_dll IN LISTS _redist_dlls)
+            get_filename_component(_dll_name "${_dll}" NAME)
+            configure_file("${_dll}" "${_redist_dest_dir}/${_dll_name}" COPYONLY)
+        endforeach()
+        set(MSVC_REDIST_DIR "${CMAKE_BINARY_DIR}/redist")
+    endif()
+endif()
+
 include(InstallRequiredSystemLibraries)
 
 # Note: Installer generation could be conditioned on Release builds

@@ -174,7 +174,13 @@ void ParameterMetaData::setEnumFromPairs(FactMetaData *metaData, const QList<Val
             enumValues << enumValue;
             enumStrings << description;
         } else {
-            qCWarning(ParameterMetaDataLog) << "Skipping invalid enum value for" << metaData->name() << "code:" << code << "error:" << errorString;
+            // Provide a fallback converting directly if validation failed but conversion could be possible without strict validation
+            if (metaData->convertAndValidateRaw(code, true, enumValue, errorString)) {
+                enumValues << enumValue;
+                enumStrings << description;
+            } else {
+                qCWarning(ParameterMetaDataLog) << "Skipping invalid enum value for" << metaData->name() << "code:" << code << "error:" << errorString;
+            }
         }
     }
 
@@ -207,7 +213,12 @@ void ParameterMetaData::setBitmaskFromPairs(FactMetaData *metaData, const QList<
             bitmaskValues << bitmaskValue;
             bitmaskStrings << description;
         } else {
-            qCWarning(ParameterMetaDataLog) << "Skipping invalid bitmask value for" << metaData->name() << "bit:" << bitIndex << "error:" << errorString;
+            if (metaData->convertAndValidateRaw(rawValue, true, bitmaskValue, errorString)) {
+                bitmaskValues << bitmaskValue;
+                bitmaskStrings << description;
+            } else {
+                qCWarning(ParameterMetaDataLog) << "Skipping invalid bitmask value for" << metaData->name() << "bit:" << bitIndex << "error:" << errorString;
+            }
         }
     }
 

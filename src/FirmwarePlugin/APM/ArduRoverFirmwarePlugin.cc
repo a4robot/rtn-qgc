@@ -4,7 +4,7 @@
 
 
 APMRoverFactGroup::APMRoverFactGroup(QObject *parent)
-    : FactGroup(1000, "", parent)
+    : FactGroup(1000, parent)
 {
     _addFact(&_trimAngleFact,   QStringLiteral("trimAngle"));
     _addFact(&_rudderAngleFact, QStringLiteral("rudderAngle"));

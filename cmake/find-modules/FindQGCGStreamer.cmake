@@ -1116,6 +1116,10 @@ foreach(plugin IN LISTS GSTREAMER_PLUGINS)
         set(GST_PLUGIN_${plugin}_FOUND FALSE)
     endif()
 endforeach()
+# Modern GStreamer versions (>= 1.22.0) on Windows have replaced the legacy dxva plugin with d3d11/d3d12 decoders.
+if(WIN32 AND GStreamer_VERSION VERSION_GREATER_EQUAL "1.22.0")
+    list(REMOVE_ITEM GSTREAMER_PLUGINS dxva)
+endif()
 
 if(NOT GStreamer_USE_STATIC_LIBS AND NOT GStreamer_USE_XCFRAMEWORK AND EXISTS "${GSTREAMER_PLUGIN_PATH}")
     set(_gst_missing_plugins)
