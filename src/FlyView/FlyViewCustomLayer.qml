@@ -48,6 +48,6 @@ Item {
 
     Component {
         id: customBoatComponent
-        CustomBoatFlyView { }
+        CustomBoatFlyView { parentToolInsets: _root.parentToolInsets }
     }
 }

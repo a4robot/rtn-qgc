@@ -6,6 +6,15 @@
         <file alias="NanumGothic-Bold">resources/fonts/NanumGothic-Bold.ttf</file>
     </qresource>
     <qresource prefix="/res">
+        <file alias="camera-right.svg">resources/camera-right.svg</file>
+        <file alias="camera-left.svg">resources/camera-left.svg</file>
+        <file alias="arrow-up-outline.svg">resources/arrow-up-outline.svg</file>
+        <file alias="arrow-up-solid.svg">resources/arrow-up-solid.svg</file>
+        <file alias="arrow-down-outline.svg">resources/arrow-down-outline.svg</file>
+        <file alias="arrow-down-solid.svg">resources/arrow-down-solid.svg</file>
+        <file alias="lightbulb-outline.svg">resources/lightbulb-outline.svg</file>
+        <file alias="lightbulb-solid.svg">resources/lightbulb-solid.svg</file>
+
         <file alias="BingNoTileBytes.dat">resources/BingNoTileBytes.dat</file>
         <file alias="CameraGimbal.png">resources/CameraGimbal.png</file>
         <file alias="chevron-double-right.svg">resources/chevron-double-right.svg</file>

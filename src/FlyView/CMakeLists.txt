@@ -45,7 +45,7 @@ qt_add_qml_module(FlyViewModule
         GuidedActionPause.qml
         GuidedActionRTL.qml
         GuidedActionsController.qml
-        GuidedActionTakeoff.qml
+        GuidedActionArm.qml
         GuidedToolStripAction.qml
         GuidedValueSlider.qml
         MultiRotorChecklist.qml
