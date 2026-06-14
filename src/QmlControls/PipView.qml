@@ -13,9 +13,8 @@ Item {
     property var    item1:                  null    // Required
     property var    item2:                  null    // Optional, may come and go
     property string item1IsFullSettingsKey          // Settings key to save whether item1 was saved in full mode
+    property string pipExpandedSettingsKey: "IsPIPVisible" // Settings key to save whether pip is expanded
     property bool   show:                   true
-
-    readonly property string _pipExpandedSettingsKey: "IsPIPVisible"
 
     property var    _fullItem
     property var    _pipOrWindowItem
@@ -52,7 +51,7 @@ Item {
             _fullItem = item1
             _pipOrWindowItem = null
         }
-        _setPipIsExpanded(QGroundControl.loadBoolGlobalSetting(_pipExpandedSettingsKey, true))
+        _setPipIsExpanded(QGroundControl.loadBoolGlobalSetting(pipExpandedSettingsKey, true))
     }
 
     function _swapPip() {
@@ -74,7 +73,7 @@ Item {
     }
 
     function _setPipIsExpanded(isExpanded) {
-        QGroundControl.saveBoolGlobalSetting(_pipExpandedSettingsKey, isExpanded)
+        QGroundControl.saveBoolGlobalSetting(pipExpandedSettingsKey, isExpanded)
         _isExpanded = isExpanded
     }
 

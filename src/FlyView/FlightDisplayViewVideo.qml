@@ -27,6 +27,8 @@ Item {
     property int    _fitMode:           QGroundControl.settingsManager.videoSettings.videoFit.rawValue
     property bool   _showStreamLoader:  QGroundControl.videoManager.decoding
     property bool   _showUvcLoader:     QGroundControl.videoManager.isUvc
+    property string videoReceiverName: "videoContent"
+    property string thermalVideoReceiverName: "thermalVideo"
 
     property bool   _isMode_FIT_WIDTH:  _fitMode === 0
     property bool   _isMode_FIT_HEIGHT: _fitMode === 1
@@ -114,6 +116,7 @@ Item {
         Component {
             id: videoOutputComponent
             FlightDisplayViewVideoOutput {
+                videoReceiverName: _root.videoReceiverName
             }
         }
         //-- UVC Video (USB Camera or Video Device)
@@ -199,11 +202,13 @@ Item {
                 anchors.fill:   parent
                 opacity:        _camera ? (_camera.thermalMode === MavlinkCameraControlInterface.THERMAL_BLEND ? _camera.thermalOpacity / 100 : 1.0) : 0
                 sourceComponent: thermalOutputComponent
-                onLoaded: { if (item) item.objectName = "thermalVideo" }
+                onLoaded: { if (item) item.objectName = _root.thermalVideoReceiverName }
 
                 Component {
                     id: thermalOutputComponent
-                    FlightDisplayViewVideoOutput {}
+                    FlightDisplayViewVideoOutput {
+                        videoReceiverName: _root.thermalVideoReceiverName
+                    }
                 }
             }
         }

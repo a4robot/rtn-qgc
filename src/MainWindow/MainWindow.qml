@@ -441,7 +441,7 @@ ApplicationWindow {
 
     function showCriticalVehicleMessage(message) {
         closeIndicatorDrawer()
-        if (criticalVehicleMessagePopup.visible || QGroundControl.videoManager.fullScreen) {
+        if (criticalVehicleMessagePopup.visible || QGroundControl.videoManager.fullScreen || QGroundControl.videoManager2.fullScreen) {
             // We received additional warning message while an older warning message was still displayed.
             // When the user close the older one drop the message indicator tool so they can see the rest of them.
             criticalVehicleMessagePopup.additionalCriticalMessagesReceived = true

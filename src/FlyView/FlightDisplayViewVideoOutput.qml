@@ -4,7 +4,8 @@ import QtMultimedia
 import QGroundControl
 
 VideoOutput {
-    objectName: "videoContent"
+    property string videoReceiverName: "videoContent"
+    objectName: videoReceiverName
 
     // Do NOT set `orientation` here — VideoOutput composes orientation on top of the
     // QVideoFrame's own rotation()/mirrored() metadata that GstAppSinkAdapter forwards from
