@@ -10,13 +10,7 @@ ToolStripActionList {
     signal displayPreFlightChecklist
 
     model: [
-        Viewer3DShowAction { },
-        PreFlightCheckListShowAction { onTriggered: displayPreFlightChecklist() },
-        GuidedActionTakeoff { },
-        GuidedActionLand { },
-        GuidedActionRTL { },
-        GuidedActionPause { },
-        FlyViewAdditionalActionsButton { },
-        FlyViewGripperButton { }
+        GuidedActionArm { },
+        GuidedActionRTL { }
     ]
 }

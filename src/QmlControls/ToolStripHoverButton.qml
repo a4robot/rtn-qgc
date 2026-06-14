@@ -34,6 +34,12 @@ Button {
 
     onCheckedChanged: { if (toolStripAction) toolStripAction.checked = checked }
 
+    onPressedChanged: {
+        if (toolStripAction && typeof toolStripAction.isPressed !== "undefined") {
+            toolStripAction.isPressed = pressed
+        }
+    }
+
     onClicked: {
         if (mainWindow.allowViewSwitch()) {
             dropPanel.hide()
@@ -73,7 +79,9 @@ Button {
                 sourceSize.width:           width
                 anchors.horizontalCenter:   parent.horizontalCenter
                 source:                     control.imageSource
+                mirror:                     toolStripAction && typeof toolStripAction.mirrorIcon !== "undefined" && toolStripAction.mirrorIcon
                 visible:                    source != "" && !!modelData && modelData.fullColorIcon
+                transform: Translate { y: toolStripAction && typeof toolStripAction.imageVerticalOffset !== "undefined" ? toolStripAction.imageVerticalOffset * innerImageColorful.height : 0 }
             }
 
             QGCColoredImage {
@@ -88,7 +96,9 @@ Button {
                 sourceSize.height:          height
                 sourceSize.width:           width
                 anchors.horizontalCenter:   parent.horizontalCenter
+                mirror:                     toolStripAction && typeof toolStripAction.mirrorIcon !== "undefined" && toolStripAction.mirrorIcon
                 visible:                    source != "" && !(modelData && modelData.fullColorIcon)
+                transform: Translate { y: toolStripAction && typeof toolStripAction.imageVerticalOffset !== "undefined" ? toolStripAction.imageVerticalOffset * innerImage.height : 0 }
 
                 QGCColoredImage {
                     id:                         innerImageSecondColor
@@ -103,7 +113,9 @@ Button {
                     sourceSize.height:          height
                     sourceSize.width:           width
                     anchors.horizontalCenter:   parent.horizontalCenter
+                    mirror:                     toolStripAction && typeof toolStripAction.mirrorIcon !== "undefined" && toolStripAction.mirrorIcon
                     visible:                    source != "" && !!modelData && modelData.biColorIcon
+                    transform: Translate { y: toolStripAction && typeof toolStripAction.imageVerticalOffset !== "undefined" ? toolStripAction.imageVerticalOffset * innerImageSecondColor.height : 0 }
                 }
             }
 
@@ -115,6 +127,17 @@ Button {
                 font.bold:                  !innerImage.visible && !innerImageColorful.visible
                 opacity:                    !innerImage.visible ? 0.8 : 1.0
             }
+        }
+
+        Rectangle {
+            width: 6
+            height: 6
+            radius: 3
+            color: "white"
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.margins: 2
+            visible: toolStripAction && typeof toolStripAction.isOn !== "undefined" && toolStripAction.isOn
         }
     }
 

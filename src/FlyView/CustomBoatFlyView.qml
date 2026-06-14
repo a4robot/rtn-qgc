@@ -9,20 +9,12 @@ Item {
     id: _root
     anchors.fill: parent
 
-    Text {
-        id: _measureText
-        text: "X"
-        font.pointSize: 10
-        opacity: 0
-    }
-    // Provide a solid fallback in case contentWidth evaluates to 0 momentarily
-    property real myFontPixelWidth: Math.max(_measureText.contentWidth, 10)
-    property real myFontPixelHeight: Math.max(_measureText.contentHeight, 15)
-    property real myFontPointSize: 10
+    QGCPalette { id: qgcPal; colorGroupEnabled: true }
 
-
-
-
+    // Configuration
+    property real tabWidth: ScreenTools.defaultFontPixelWidth * 7
+    property real panelSpacing: ScreenTools.defaultFontPixelHeight * 0.5
+    property real panelRadius: ScreenTools.defaultFontPixelWidth / 2
 
     property var _activeVehicle: QGroundControl.multiVehicleManager.activeVehicle
     property var _roverInfo: _activeVehicle ? _activeVehicle.apmRoverInfo : null
@@ -43,21 +35,17 @@ Item {
     property var _trimStatFact: _roverInfo ? _roverInfo.getFact("trimStat") : null
     property int trimStat: _trimStatFact ? _trimStatFact.value : 0
 
-    onRpmValueChanged: if (rpmCanvas) rpmCanvas.requestPaint()
-    onRudderValueChanged: if (rudderCanvas) rudderCanvas.requestPaint()
-    onTrimValueChanged: if (trimCanvas) trimCanvas.requestPaint()
-    onFuelValueChanged: if (fuelCanvas) fuelCanvas.requestPaint()
-    onBattValueChanged: if (battCanvas) battCanvas.requestPaint()
-
-    // MAV_CMD definitions
-    readonly property int mavCmdDoSetServo: 183
-    readonly property int mavCmdDoSetRelay: 181
+    onRpmValueChanged: if (gaugeCanvas) gaugeCanvas.requestPaint()
+    onRudderValueChanged: if (gaugeCanvas) gaugeCanvas.requestPaint()
+    onTrimValueChanged: if (gaugeCanvas) gaugeCanvas.requestPaint()
+    onFuelValueChanged: if (gaugeCanvas) gaugeCanvas.requestPaint()
+    onBattValueChanged: if (gaugeCanvas) gaugeCanvas.requestPaint()
 
     // Command sending helper
     function sendCommand(cmd, param1, param2, param3, param4, param5, param6, param7) {
         if (_activeVehicle) {
-            _activeVehicle.sendMavCommand(
-                _activeVehicle.defaultComponentId,
+            _activeVehicle.sendCommand(
+                1, // MAV_COMP_ID_AUTOPILOT1
                 cmd,
                 true, // showError
                 param1, param2, param3, param4, param5, param6, param7
@@ -65,542 +53,375 @@ Item {
         }
     }
 
-    // Toggle lighting via AUX channels (using DO_SET_SERVO as standard for AUX out in APM)
-    // The exact channel number might be 9 for AUX1, 10 for AUX2 etc.
-    function toggleLight(auxIndex, bitMask) {
-        var isCurrentlyOn = (lightsStat & bitMask) !== 0
-        var pwm = isCurrentlyOn ? 1000 : 2000
-        sendCommand(mavCmdDoSetServo, auxIndex, pwm, 0, 0, 0, 0, 0)
+    property var relayStates: [false, false, false, false, false]
+
+    function toggleLight(relayIndex) {
+        var isCurrentlyOn = relayStates[relayIndex]
+        var newState = !isCurrentlyOn
+        var newArray = []
+        for(var i = 0; i < 5; i++) {
+            newArray.push(i === relayIndex ? newState : relayStates[i])
+        }
+        relayStates = newArray
+        sendCommand(181, relayIndex, newState ? 1 : 0, 0, 0, 0, 0, 0)
     }
 
-    // Container for all left-anchored UI
+    property bool fpvState: false
+    function toggleFpv() {
+        fpvState = !fpvState
+        sendCommand(181, 5, fpvState ? 1 : 0, 0, 0, 0, 0, 0)
+    }
+
+    Timer {
+        id: trimNoneTimer
+        interval: 1000
+        repeat: true
+        running: true
+        onTriggered: {
+            sendCommand(31010, 0, 0, 0, 0, 0, 0, 0)
+        }
+    }
+
+    Timer {
+        id: trimActiveTimer
+        interval: 500
+        repeat: true
+        property int activeDirection: 0
+        onTriggered: {
+            if (activeDirection !== 0) {
+                sendCommand(31010, activeDirection, 0, 0, 0, 0, 0, 0)
+            }
+        }
+    }
+
+    function setTrimActive(direction, active) {
+        if (active) {
+            trimNoneTimer.stop()
+            trimActiveTimer.activeDirection = direction
+            trimActiveTimer.start()
+            sendCommand(31010, direction, 0, 0, 0, 0, 0, 0)
+        } else {
+            if (trimActiveTimer.activeDirection === direction) {
+                trimActiveTimer.stop()
+                trimActiveTimer.activeDirection = 0
+                trimNoneTimer.restart()
+                sendCommand(31010, 0, 0, 0, 0, 0, 0, 0)
+            }
+        }
+    }
+
+    property var parentToolInsets: parent && parent.parent ? parent.parent.parentToolInsets : null
+
+    // Left Panel Tabs
     Column {
-        id: leftPanel
-        visible: true
+        id: leftTabs
         anchors.left: parent.left
         anchors.top: parent.top
-        anchors.leftMargin: myFontPixelWidth * 1.5
-        anchors.topMargin: myFontPixelHeight * 4 // avoid top toolbar
-        spacing: myFontPixelHeight * 1.5
-        width: myFontPixelWidth * 12
+        anchors.topMargin: (parentToolInsets ? parentToolInsets.topEdgeLeftInset : 0) + panelSpacing
+        spacing: panelSpacing
 
-        // Telemetry Panel
-        Rectangle {
-            width: parent.width
-            height: myFontPixelHeight * 28
-            color: Qt.rgba(0.1, 0.1, 0.1, 0.7)
-            radius: myFontPixelWidth
-            border.color: Qt.rgba(1, 1, 1, 0.2)
-
-            Column {
-                anchors.fill: parent
-                anchors.margins: myFontPixelWidth
-                spacing: myFontPixelHeight * 1.5
-
-                // RPM Gauge
-                Item {
-                    width: parent.width
-                    height: myFontPixelHeight * 6
-
-                    QGCLabel {
-                        anchors.bottom: parent.bottom
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: (rpmValue / 1000).toFixed(1) + "k"
-                        font.pointSize: myFontPointSize * 1.2
-                        font.bold: true
-                        color: "white"
+        // FPV and Trim Tab
+        ToolStrip {
+            maxHeight: _root.height
+            ToolStripActionList {
+                id: fpvTrimActionList
+                model: [
+                    ToolStripAction {
+                        property bool mirrorIcon: fpvState
+                        text: "FPV"
+                        iconSource: "/InstrumentValueIcons/video-camera.svg"
+                        onTriggered: toggleFpv()
+                    },
+                    ToolStripAction {
+                        property bool isPressed: false
+                        property real imageVerticalOffset: (lightsStat & 1) ? -0.5 : 0
+                        onIsPressedChanged: setTrimActive(1, isPressed)
+                        text: "Trim Up"
+                        iconSource: "/InstrumentValueIcons/cheveron-up.svg"
+                    },
+                    ToolStripAction {
+                        property bool isPressed: false
+                        property real imageVerticalOffset: (lightsStat & 2) ? 0.5 : 0
+                        onIsPressedChanged: setTrimActive(2, isPressed)
+                        text: "Trim Dn"
+                        iconSource: "/InstrumentValueIcons/cheveron-down.svg"
                     }
+                ]
+            }
+            model: fpvTrimActionList.model
+        }
 
-                    Canvas {
-                        id: rpmCanvas
-                        anchors.fill: parent
-                        onPaint: {
-                            var ctx = getContext("2d");
-                            ctx.clearRect(0, 0, width, height);
-                            var cx = width / 2;
-                            var cy = height * 0.8;
-                            var radius = width * 0.4;
-
-                            // Scale Arc
-                            ctx.beginPath();
-                            ctx.arc(cx, cy, radius, Math.PI, 0);
-                            ctx.strokeStyle = "white";
-                            ctx.lineWidth = 2;
-                            ctx.stroke();
-
-                            // Ticks
-                            for (var i=0; i<=4; i++) {
-                                var angle = Math.PI - i * (Math.PI/4);
-                                var x1 = cx + radius * Math.cos(angle);
-                                var y1 = cy - radius * Math.sin(angle);
-                                var x2 = cx + (radius-5) * Math.cos(angle);
-                                var y2 = cy - (radius-5) * Math.sin(angle);
-                                ctx.beginPath();
-                                ctx.moveTo(x1, y1);
-                                ctx.lineTo(x2, y2);
-                                ctx.stroke();
-                            }
-
-                            // Needle
-                            var maxRpm = 4000;
-                            var isError = (rpmValue <= -999.0);
-                            ctx.strokeStyle = isError ? "gray" : "white";
-                            ctx.fillStyle = isError ? "gray" : "white";
-                            var displayRpmValue = isError ? 0 : rpmValue;
-                            var mappedVal = Math.max(0, Math.min(displayRpmValue, maxRpm));
-                            var needleAngle = Math.PI - (mappedVal/maxRpm)*Math.PI;
-                            ctx.beginPath();
-                            ctx.moveTo(cx, cy);
-                            ctx.lineTo(cx + (radius-2) * Math.cos(needleAngle), cy - (radius-2) * Math.sin(needleAngle));
-                            ctx.stroke();
-
-                            ctx.beginPath();
-                            ctx.arc(cx, cy, 3, 0, 2*Math.PI);
-                            ctx.fillStyle = isError ? "gray" : "white";
-                            ctx.fill();
-                        }
+        // Lights Tab
+        ToolStrip {
+            maxHeight: _root.height
+            ToolStripActionList {
+                id: lightsActionList
+                model: [
+                    ToolStripAction {
+                        property bool isOn: relayStates[0]
+                        text: "Head"
+                        iconSource: "/InstrumentValueIcons/light-bulb.svg"
+                        onTriggered: toggleLight(0)
+                    },
+                    ToolStripAction {
+                        property bool isOn: relayStates[1]
+                        text: "Nav."
+                        iconSource: "/InstrumentValueIcons/light-bulb.svg"
+                        onTriggered: toggleLight(1)
+                    },
+                    ToolStripAction {
+                        property bool isOn: relayStates[2]
+                        text: "Siren"
+                        iconSource: "/InstrumentValueIcons/light-bulb.svg"
+                        onTriggered: toggleLight(2)
+                    },
+                    ToolStripAction {
+                        property bool isOn: relayStates[3]
+                        text: "Port"
+                        iconSource: "/InstrumentValueIcons/light-bulb.svg"
+                        onTriggered: toggleLight(3)
+                    },
+                    ToolStripAction {
+                        property bool isOn: relayStates[4]
+                        text: "Stbd."
+                        iconSource: "/InstrumentValueIcons/light-bulb.svg"
+                        onTriggered: toggleLight(4)
                     }
+                ]
+            }
+            model: lightsActionList.model
+        }
+    }
+
+    // Top Right Info UI - Matches HTML gauge-panel design
+    Rectangle {
+        id: rightInfoPanel
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 0.75
+        anchors.topMargin: ScreenTools.defaultFontPixelHeight * 0.75
+        width: infoPanelColumn.width + _panelPadding * 2
+        height: infoPanelColumn.height + _panelPadding * 2
+        color: "#333333"
+        radius: ScreenTools.defaultFontPixelWidth / 2
+
+        property real _panelPadding: ScreenTools.defaultFontPixelWidth * 0.4
+
+        DeadMouseArea { anchors.fill: parent }
+
+        Column {
+            id: infoPanelColumn
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.top: parent.top
+            anchors.topMargin: rightInfoPanel._panelPadding
+            width: Math.max(barRow.width, rudderGaugeItem.width)
+            spacing: 1
+
+            // === TOP: TRIM Header ===
+            QGCLabel {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: {
+                    var isErr = (trimValue <= -999.0)
+                    return "RDR " + (isErr ? "--" : (trimValue.toFixed(0) + "%"))
                 }
+                font.pointSize: ScreenTools.largeFontPointSize * 0.7
+                font.bold: true
+                color: "white"
+            }
 
-                // Rudder
-                Item {
-                    width: parent.width
-                    height: myFontPixelHeight * 3
+            // === MIDDLE: Rudder Gauge (SVG-style semicircle) ===
+            Item {
+                id: rudderGaugeItem
+                width: barRow.width * 1.3
+                height: width * 0.6
+                anchors.horizontalCenter: parent.horizontalCenter
 
-                    Canvas {
-                        id: rudderCanvas
-                        anchors.fill: parent
-                        onPaint: {
-                            var ctx = getContext("2d");
-                            ctx.clearRect(0, 0, width, height);
-                            var cy = height/2;
+                Canvas {
+                    id: gaugeCanvas
+                    anchors.fill: parent
+                    onPaint: {
+                        var ctx = getContext("2d");
+                        ctx.clearRect(0, 0, width, height);
 
-                            var isError = (rudderValue <= -999.0);
-                            ctx.strokeStyle = isError ? "gray" : "white";
-                            ctx.fillStyle = isError ? "gray" : "white";
-                            ctx.lineWidth = 2;
+                        // Match SVG viewBox proportions: 200x120, pivot at (100,20)
+                        var scale = width / 200;
+                        var pivotX = 100 * scale;
+                        var pivotY = 20 * scale;
+                        var arcRadius = 80 * scale;
 
-                            // Line
+                        ctx.strokeStyle = "white";
+                        ctx.fillStyle = "white";
+                        ctx.lineWidth = 3 * scale;
+                        ctx.lineCap = "butt";
+
+                        // Draw the arc (120 degree arc opening downward)
+                        // SVG path: M 31,60 A 80,80 0 0,0 169,60
+                        // This is an arc from angle 30deg to 150deg (measured from pivot)
+                        // In canvas terms from pivot: start angle = 30deg, end angle = 150deg
+                        var startAngle = 30 * Math.PI / 180;  // 30 degrees
+                        var endAngle = 150 * Math.PI / 180;   // 150 degrees
+                        ctx.beginPath();
+                        ctx.arc(pivotX, pivotY, arcRadius, startAngle, endAngle, false);
+                        ctx.stroke();
+
+                        // Draw 5 tick marks at -60, -30, 0, 30, 60 degrees from vertical
+                        // In canvas angle: 90-60=30, 90-30=60, 90, 90+30=120, 90+60=150
+                        var tickAngles = [30, 60, 90, 120, 150];
+                        var tickInnerR = (98.5 - 10) * scale;  // inner edge
+                        var tickOuterR = 98.5 * scale;         // outer edge (near arc)
+                        // Actually from SVG: tick line from y=88 to y=98.5, rotated around (100,20)
+                        // Distance from pivot: 88-20=68 to 98.5-20=78.5
+                        tickInnerR = 68 * scale;
+                        tickOuterR = 78.5 * scale;
+
+                        ctx.lineWidth = 3 * scale;
+                        for (var i = 0; i < tickAngles.length; i++) {
+                            var a = tickAngles[i] * Math.PI / 180;
+                            var x1 = pivotX + tickInnerR * Math.cos(a);
+                            var y1 = pivotY + tickInnerR * Math.sin(a);
+                            var x2 = pivotX + tickOuterR * Math.cos(a);
+                            var y2 = pivotY + tickOuterR * Math.sin(a);
                             ctx.beginPath();
-                            ctx.moveTo(5, cy);
-                            ctx.lineTo(width-5, cy);
+                            ctx.moveTo(x1, y1);
+                            ctx.lineTo(x2, y2);
                             ctx.stroke();
-
-                            // Center tick
-                            ctx.beginPath();
-                            ctx.moveTo(width/2, cy-5);
-                            ctx.lineTo(width/2, cy+5);
-                            ctx.stroke();
-
-                            // Indicator
-                            var maxRudder = 45; // 45 deg
-
-                            var displayRudderValue = isError ? 0 : rudderValue;
-                            var mappedRudd = Math.max(-maxRudder, Math.min(displayRudderValue, maxRudder));
-                            var indX = width/2 + (mappedRudd/maxRudder) * (width/2 - 5);
-
-                            ctx.beginPath();
-                            ctx.moveTo(indX, cy-5);
-                            ctx.lineTo(indX-5, cy+5);
-                            ctx.lineTo(indX+5, cy+5);
-                            ctx.fillStyle = isError ? "gray" : "white";
-                            ctx.fill();
                         }
-                    }
 
-                    QGCLabel {
-                        anchors.bottom: parent.bottom
-                        anchors.left: parent.left
-                        text: "L"
-                        font.pointSize: myFontPointSize * 0.7
-                        color: "white"
-                    }
-                    QGCLabel {
-                        anchors.bottom: parent.bottom
-                        anchors.right: parent.right
-                        text: "R"
-                        font.pointSize: myFontPointSize * 0.7
-                        color: "white"
-                    }
-                }
+                        // Pivot circle (r=8 in SVG)
+                        ctx.beginPath();
+                        ctx.arc(pivotX, pivotY, 8 * scale, 0, 2 * Math.PI);
+                        ctx.fillStyle = "white";
+                        ctx.fill();
 
-                // Vertical Scales Container
-                Row {
-                    width: parent.width
-                    height: parent.height - y // fill remaining
-                    spacing: (width - 3*myFontPixelWidth * 2.5) / 2
+                        // Needle - triangular, points from pivot down toward arc
+                        // SVG: polygon points="97,20 103,20 100,80" rotated by rudder angle
+                        var isErr = (rudderValue <= -999.0);
+                        var maxRudder = 45;
+                        var displayVal = isErr ? 0 : rudderValue;
+                        var mappedVal = Math.max(-maxRudder, Math.min(displayVal, maxRudder));
+                        // Map rudder to rotation: 0 = straight down (90deg), +-45 = +-60deg
+                        var needleRotDeg = (mappedVal / maxRudder) * 60;
+                        var needleRotRad = needleRotDeg * Math.PI / 180;
 
-                    // Trim Scale
-                    Column {
-                        width: myFontPixelWidth * 2.5
-                        height: parent.height
+                        // Triangle vertices in SVG coords (relative to pivot)
+                        var halfBase = 3 * scale;
+                        var needleLen = 60 * scale;  // from pivot to tip
 
-                        Item {
-                            width: parent.width
-                            height: parent.height - trimLbl.height - 5
-                            Canvas {
-                                id: trimCanvas
-                                anchors.fill: parent
-                                onPaint: {
-                                    var ctx = getContext("2d");
-                                    ctx.clearRect(0, 0, width, height);
-                                    var isError = (trimValue <= -999.0);
-                                    ctx.strokeStyle = isError ? "gray" : "white";
-                                    ctx.fillStyle = isError ? "gray" : "white";
-                                    ctx.lineWidth = 2;
-                                    var cx = width/2;
+                        ctx.save();
+                        ctx.translate(pivotX, pivotY);
+                        ctx.rotate(needleRotRad);
 
-                                    ctx.beginPath();
-                                    ctx.moveTo(cx, 5);
-                                    ctx.lineTo(cx, height-5);
-                                    ctx.stroke();
+                        ctx.beginPath();
+                        ctx.moveTo(-halfBase, 0);
+                        ctx.lineTo(halfBase, 0);
+                        ctx.lineTo(0, needleLen);
+                        ctx.closePath();
+                        ctx.fillStyle = isErr ? "#666666" : "white";
+                        ctx.fill();
 
-                                    // Ticks
-                                    ctx.beginPath(); ctx.moveTo(cx-5, 5); ctx.lineTo(cx+5, 5); ctx.stroke();
-                                    ctx.beginPath(); ctx.moveTo(cx-5, height/2); ctx.lineTo(cx+5, height/2); ctx.stroke();
-                                    ctx.beginPath(); ctx.moveTo(cx-5, height-5); ctx.lineTo(cx+5, height-5); ctx.stroke();
-
-                                    // Indicator
-                                    var maxTrim = 10;
-                                    var displayTrimValue = isError ? 0 : trimValue;
-                                    var mapped = Math.max(-maxTrim, Math.min(displayTrimValue, maxTrim));
-                                    // negative trim = down, positive = up
-                                    var indY = height/2 - (mapped/maxTrim) * (height/2 - 5);
-
-                                    ctx.beginPath();
-                                    ctx.moveTo(cx-8, indY-5);
-                                    ctx.lineTo(cx, indY);
-                                    ctx.lineTo(cx-8, indY+5);
-                                    ctx.fillStyle = isError ? "gray" : "white";
-                                    ctx.fill();
-                                }
-                            }
-                        }
-                        QGCLabel {
-                            id: trimLbl
-                            text: "TRM"
-                            font.pointSize: myFontPointSize * 0.7
-                            color: "#ccc"
-                            anchors.horizontalCenter: parent.horizontalCenter
-                        }
-                    }
-
-                    // Fuel Scale
-                    Column {
-                        width: myFontPixelWidth * 2.5
-                        height: parent.height
-
-                        Item {
-                            width: parent.width
-                            height: parent.height - fuelLbl.height - 5
-                            Canvas {
-                                id: fuelCanvas
-                                anchors.fill: parent
-                                onPaint: {
-                                    var ctx = getContext("2d");
-                                    ctx.clearRect(0, 0, width, height);
-                                    var isError = (fuelValue <= -999.0);
-                                    ctx.strokeStyle = isError ? "gray" : "white";
-                                    ctx.fillStyle = isError ? "gray" : "white";
-                                    ctx.lineWidth = 2;
-                                    var cx = width/2;
-
-                                    ctx.beginPath();
-                                    ctx.moveTo(cx, 5);
-                                    ctx.lineTo(cx, height-5);
-                                    ctx.stroke();
-
-                                    // Ticks
-                                    ctx.beginPath(); ctx.moveTo(cx-5, 5); ctx.lineTo(cx+5, 5); ctx.stroke();
-                                    ctx.beginPath(); ctx.moveTo(cx-3, height/2); ctx.lineTo(cx+3, height/2); ctx.stroke();
-                                    ctx.beginPath(); ctx.moveTo(cx-5, height-5); ctx.lineTo(cx+5, height-5); ctx.stroke();
-
-                                    // Fill
-                                    var displayFuelValue = isError ? 0 : fuelValue;
-                                    var mapped = Math.max(0, Math.min(displayFuelValue, 100));
-                                    var fillH = (mapped/100) * (height-10);
-
-                                    ctx.beginPath();
-                                    ctx.moveTo(cx, height-5);
-                                    ctx.lineTo(cx, height-5 - fillH);
-                                    ctx.strokeStyle = isError ? "gray" : "white";
-                                    ctx.lineWidth = 4;
-                                    ctx.stroke();
-                                }
-                            }
-                        }
-                        QGCLabel {
-                            id: fuelLbl
-                            text: "FUL"
-                            font.pointSize: myFontPointSize * 0.7
-                            color: "#ccc"
-                            anchors.horizontalCenter: parent.horizontalCenter
-                        }
-                    }
-
-                    // Battery Scale
-                    Column {
-                        width: myFontPixelWidth * 2.5
-                        height: parent.height
-
-                        Item {
-                            width: parent.width
-                            height: parent.height - battLbl.height - 5
-                            Canvas {
-                                id: battCanvas
-                                anchors.fill: parent
-                                onPaint: {
-                                    var ctx = getContext("2d");
-                                    ctx.clearRect(0, 0, width, height);
-                                    var isError = (battValue <= -999.0);
-                                    ctx.strokeStyle = isError ? "gray" : "white";
-                                    ctx.fillStyle = isError ? "gray" : "white";
-                                    ctx.lineWidth = 2;
-                                    var cx = width/2;
-
-                                    ctx.beginPath();
-                                    ctx.moveTo(cx, 5);
-                                    ctx.lineTo(cx, height-5);
-                                    ctx.stroke();
-
-                                    // Ticks
-                                    ctx.beginPath(); ctx.moveTo(cx-5, 5); ctx.lineTo(cx+5, 5); ctx.stroke();
-                                    ctx.beginPath(); ctx.moveTo(cx-3, height/2); ctx.lineTo(cx+3, height/2); ctx.stroke();
-                                    ctx.beginPath(); ctx.moveTo(cx-5, height-5); ctx.lineTo(cx+5, height-5); ctx.stroke();
-
-                                    // Fill
-                                    var maxBatt = 16.8;
-                                    var minBatt = 10.0;
-                                    var displayBattValue = isError ? minBatt : battValue;
-                                    var mapped = Math.max(0, Math.min((displayBattValue-minBatt)/(maxBatt-minBatt)*100, 100));
-                                    var fillH = (mapped/100) * (height-10);
-
-                                    ctx.beginPath();
-                                    ctx.moveTo(cx, height-5);
-                                    ctx.lineTo(cx, height-5 - fillH);
-                                    ctx.strokeStyle = isError ? "gray" : "white";
-                                    ctx.lineWidth = 4;
-                                    ctx.stroke();
-                                }
-                            }
-                        }
-                        QGCLabel {
-                            id: battLbl
-                            text: "BAT"
-                            font.pointSize: myFontPointSize * 0.7
-                            color: "#ccc"
-                            anchors.horizontalCenter: parent.horizontalCenter
-                        }
+                        ctx.restore();
                     }
                 }
             }
-        }
 
-        // Helper component for buttons
+            // === BOTTOM: 3 Bar Gauges ===
+            Row {
+                id: barRow
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: ScreenTools.defaultFontPixelWidth * 0.5
 
+                property real barWidth: ScreenTools.defaultFontPixelWidth * 3.2
+                property real barHeight: ScreenTools.defaultFontPixelHeight * 7
 
-        // Trim Control Panel
-        Rectangle {
-            width: myFontPixelWidth * 6
-            height: myFontPixelHeight * 8
-            color: Qt.rgba(0.1, 0.1, 0.1, 0.7)
-            radius: myFontPixelWidth
-            border.color: Qt.rgba(1, 1, 1, 0.2)
+                Repeater {
+                    model: [
+                        { title: "FUEL",  val: fuelValue,  min: 0,   max: 100,   unit: "%",  decimals: 0, hasScale: true,  scaleTop: "F", scaleBot: "E" },
+                        { title: "VOLTS", val: battValue,   min: 10,  max: 15,    unit: "V",  decimals: 1, hasScale: false, scaleTop: "",  scaleBot: "" },
+                        { title: "RPM",   val: rpmValue,   min: 0,   max: 5000,  unit: "",   decimals: 0, hasScale: false, scaleTop: "",  scaleBot: "" }
+                    ]
 
-            Column {
-                anchors.fill: parent
-                anchors.margins: myFontPixelWidth * 0.5
-                spacing: myFontPixelHeight * 0.5
+                    Column {
+                        spacing: ScreenTools.defaultFontPixelWidth * 0.25
 
-                QGCLabel {
-                    text: "TRIM"
-                    font.pointSize: myFontPointSize * 0.6
-                    color: "#aaa"
-                }
+                        // Title
+                        QGCLabel {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: modelData.title
+                            font.pointSize: ScreenTools.smallFontPointSize
+                            font.bold: true
+                            color: "white"
+                        }
 
+                        // Bar with optional scale markers
+                        Item {
+                            width: barRow.barWidth + (modelData.hasScale ? ScreenTools.defaultFontPixelWidth * 1.5 : 0)
+                            height: barRow.barHeight
+                            anchors.horizontalCenter: parent.horizontalCenter
 
-                Rectangle {
-                    width: parent.width
-                    height: width
-                    color: "transparent"
-                    border.color: (trimStat & 1) !== 0 ? "#3498db" : Qt.rgba(1,1,1,0.3)
-                    radius: 4
+                            // Scale marker top (e.g. "F")
+                            QGCLabel {
+                                visible: modelData.hasScale
+                                anchors.right: barRect.left
+                                anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 0.3
+                                anchors.top: barRect.top
+                                text: modelData.scaleTop
+                                font.pointSize: ScreenTools.smallFontPointSize * 0.9
+                                font.bold: true
+                                color: "#cccccc"
+                            }
 
-                    Rectangle {
-                        anchors.fill: parent
-                        color: (trimStat & 1) !== 0 ? Qt.rgba(41/255, 128/255, 185/255, 0.4) : "transparent"
-                        radius: 4
-                    }
+                            // Scale marker bottom (e.g. "E")
+                            QGCLabel {
+                                visible: modelData.hasScale
+                                anchors.right: barRect.left
+                                anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 0.3
+                                anchors.bottom: barRect.bottom
+                                text: modelData.scaleBot
+                                font.pointSize: ScreenTools.smallFontPointSize * 0.9
+                                font.bold: true
+                                color: "#cccccc"
+                            }
 
-                    QGCLabel {
-                        anchors.centerIn: parent
-                        text: "UP"
-                        font.pointSize: myFontPointSize * 0.6
-                        color: "white"
-                        horizontalAlignment: Text.AlignHCenter
-                    }
+                            // The bar itself
+                            Rectangle {
+                                id: barRect
+                                anchors.right: parent.right
+                                width: barRow.barWidth
+                                height: parent.height
+                                color: "#1a1a1a"
+                                border.color: "#555555"
+                                border.width: 2
+                                radius: ScreenTools.defaultFontPixelWidth * 0.3
 
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: sendCommand(mavCmdDoSetServo, 8, 2000, 0, 0, 0, 0, 0)
-                    }
-                }
+                                property bool isErr: modelData.val <= -999.0
+                                property real mapped: isErr ? 0 : Math.max(modelData.min, Math.min(modelData.val, modelData.max))
+                                property real fillFrac: (mapped - modelData.min) / (modelData.max - modelData.min)
 
+                                // White fill from bottom
+                                Rectangle {
+                                    visible: !barRect.isErr
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.bottom: parent.bottom
+                                    anchors.margins: parent.border.width
+                                    height: Math.max(0, barRect.fillFrac * (parent.height - parent.border.width * 2))
+                                    color: "white"
+                                    radius: parent.radius > 0 ? parent.radius - parent.border.width : 0
+                                }
+                            }
+                        }
 
-                Rectangle {
-                    width: parent.width
-                    height: width
-                    color: "transparent"
-                    border.color: (trimStat & 2) !== 0 ? "#3498db" : Qt.rgba(1,1,1,0.3)
-                    radius: 4
-
-                    Rectangle {
-                        anchors.fill: parent
-                        color: (trimStat & 2) !== 0 ? Qt.rgba(41/255, 128/255, 185/255, 0.4) : "transparent"
-                        radius: 4
-                    }
-
-                    QGCLabel {
-                        anchors.centerIn: parent
-                        text: "DN"
-                        font.pointSize: myFontPointSize * 0.6
-                        color: "white"
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: sendCommand(mavCmdDoSetServo, 8, 1000, 0, 0, 0, 0, 0)
-                    }
-                }
-            }
-        }
-
-        // Light Control Panel
-        Rectangle {
-            width: myFontPixelWidth * 6
-            height: myFontPixelHeight * 15
-            color: Qt.rgba(0.1, 0.1, 0.1, 0.7)
-            radius: myFontPixelWidth
-            border.color: Qt.rgba(1, 1, 1, 0.2)
-
-            Column {
-                anchors.fill: parent
-                anchors.margins: myFontPixelWidth * 0.5
-                spacing: myFontPixelHeight * 0.5
-
-                QGCLabel {
-                    text: "LIGHT"
-                    font.pointSize: myFontPointSize * 0.6
-                    color: "#aaa"
-                }
-
-
-                Rectangle {
-                    width: parent.width
-                    height: width
-                    color: "transparent"
-                    border.color: (lightsStat & 1) !== 0 ? "#3498db" : Qt.rgba(1,1,1,0.3)
-                    radius: 4
-
-                    Rectangle {
-                        anchors.fill: parent
-                        color: (lightsStat & 1) !== 0 ? Qt.rgba(41/255, 128/255, 185/255, 0.4) : "transparent"
-                        radius: 4
-                    }
-
-                    QGCLabel {
-                        anchors.centerIn: parent
-                        text: "NAV"
-                        font.pointSize: myFontPointSize * 0.6
-                        color: "white"
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: toggleLight(9, 1)
-                    }
-                }
-
-                Rectangle {
-                    width: parent.width
-                    height: width
-                    color: "transparent"
-                    border.color: (lightsStat & 2) !== 0 ? "#3498db" : Qt.rgba(1,1,1,0.3)
-                    radius: 4
-
-                    Rectangle {
-                        anchors.fill: parent
-                        color: (lightsStat & 2) !== 0 ? Qt.rgba(41/255, 128/255, 185/255, 0.4) : "transparent"
-                        radius: 4
-                    }
-
-                    QGCLabel {
-                        anchors.centerIn: parent
-                        text: "SIREN"
-                        font.pointSize: myFontPointSize * 0.6
-                        color: "white"
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: toggleLight(10, 2)
-                    }
-                }
-
-                Rectangle {
-                    width: parent.width
-                    height: width
-                    color: "transparent"
-                    border.color: (lightsStat & 4) !== 0 ? "#3498db" : Qt.rgba(1,1,1,0.3)
-                    radius: 4
-
-                    Rectangle {
-                        anchors.fill: parent
-                        color: (lightsStat & 4) !== 0 ? Qt.rgba(41/255, 128/255, 185/255, 0.4) : "transparent"
-                        radius: 4
-                    }
-
-                    QGCLabel {
-                        anchors.centerIn: parent
-                        text: "HEAD"
-                        font.pointSize: myFontPointSize * 0.6
-                        color: "white"
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: toggleLight(11, 4)
-                    }
-                }
-
-                Rectangle {
-                    width: parent.width
-                    height: width
-                    color: "transparent"
-                    border.color: (lightsStat & 16) !== 0 ? "#3498db" : Qt.rgba(1,1,1,0.3)
-                    radius: 4
-
-                    Rectangle {
-                        anchors.fill: parent
-                        color: (lightsStat & 16) !== 0 ? Qt.rgba(41/255, 128/255, 185/255, 0.4) : "transparent"
-                        radius: 4
-                    }
-
-                    QGCLabel {
-                        anchors.centerIn: parent
-                        text: "PORT\nSTBD"
-                        font.pointSize: myFontPointSize * 0.6
-                        color: "white"
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: toggleLight(13, 16)
+                        // Value below bar
+                        QGCLabel {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: {
+                                if (modelData.val <= -999.0) return "--"
+                                return modelData.val.toFixed(modelData.decimals) + modelData.unit
+                            }
+                            font.pointSize: ScreenTools.smallFontPointSize
+                            font.bold: true
+                            color: "white"
+                        }
                     }
                 }
             }

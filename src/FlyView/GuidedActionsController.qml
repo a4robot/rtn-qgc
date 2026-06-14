@@ -125,7 +125,7 @@ Item {
     property bool showEmergenyStop:         _guidedActionsEnabled && !_hideEmergenyStop && _vehicleArmed && _vehicleFlying
     property bool showArm:                  _guidedActionsEnabled && !_vehicleArmed && _canArm
     property bool showForceArm:             _guidedActionsEnabled && !_vehicleArmed
-    property bool showDisarm:               _guidedActionsEnabled && _vehicleArmed && !_vehicleFlying
+    property bool showDisarm:               _guidedActionsEnabled && _vehicleArmed && (!_vehicleFlying || (_activeVehicle && (_activeVehicle.rover || _activeVehicle.sub)))
     property bool showRTL:                  _guidedActionsEnabled && _vehicleArmed && _activeVehicle.supports.guidedMode && _vehicleFlying && !_vehicleInRTLMode
     property bool showTakeoff:              _guidedActionsEnabled && (_activeVehicle.supports.guidedTakeoffWithAltitude || _activeVehicle.supports.guidedTakeoffWithoutAltitude) && !_vehicleFlying && _canTakeoff
     property bool showLand:                 _guidedActionsEnabled && _activeVehicle.supports.guidedMode && _vehicleArmed && !_activeVehicle.fixedWing && !_vehicleInLandMode
@@ -406,7 +406,7 @@ Item {
             confirmDialog.hideTrigger = Qt.binding(function() { return !showForceArm })
             break;
         case actionDisarm:
-            if (_vehicleFlying) {
+            if (_vehicleFlying && !(_activeVehicle && (_activeVehicle.rover || _activeVehicle.sub))) {
                 return
             }
             confirmDialog.title = disarmTitle
