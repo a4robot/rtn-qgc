@@ -214,7 +214,7 @@ Item {
 
         SoundEffect {
             id: alertPlayer
-            source: "qrc:///res/audio/alert.wav"
+            source: "qrc:///res/audio/beep.wav"
             volume: 1.0
         }
 
