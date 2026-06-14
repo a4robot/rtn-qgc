@@ -12,7 +12,9 @@ ToolStripActionList {
     model: [
         Viewer3DShowAction { },
         PreFlightCheckListShowAction { onTriggered: displayPreFlightChecklist() },
-        GuidedActionTakeoff { },
+        GuidedActionArm { },
+        CustomBoatTrimAction { },
+        CustomBoatLightAction { },
         GuidedActionLand { },
         GuidedActionRTL { },
         GuidedActionPause { },

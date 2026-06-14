@@ -18,7 +18,9 @@ Item {
     // Provide a solid fallback in case contentWidth evaluates to 0 momentarily
     property real myFontPixelWidth: Math.max(_measureText.contentWidth, 10)
     property real myFontPixelHeight: Math.max(_measureText.contentHeight, 15)
-    property real myFontPointSize: 10
+        property real myFontPointSize: 10
+    property var qgcPal: QGroundControl.globalPalette
+
 
 
 
@@ -75,12 +77,12 @@ Item {
 
     // Container for all left-anchored UI
     Column {
-        id: leftPanel
+        id: rightPanel
         visible: true
-        anchors.left: parent.left
+        anchors.right: parent.right
         anchors.top: parent.top
-        anchors.leftMargin: myFontPixelWidth * 1.5
-        anchors.topMargin: myFontPixelHeight * 4 // avoid top toolbar
+        anchors.rightMargin: myFontPixelWidth * 1.5
+        anchors.topMargin: myFontPixelHeight * 1 // Match bottom right map/video top edge, maybe standard margin
         spacing: myFontPixelHeight * 1.5
         width: myFontPixelWidth * 12
 
@@ -88,9 +90,9 @@ Item {
         Rectangle {
             width: parent.width
             height: myFontPixelHeight * 28
-            color: Qt.rgba(0.1, 0.1, 0.1, 0.7)
+            color: qgcPal.windowShade
             radius: myFontPixelWidth
-            border.color: Qt.rgba(1, 1, 1, 0.2)
+            border.color: qgcPal.text
 
             Column {
                 anchors.fill: parent
@@ -108,7 +110,7 @@ Item {
                         text: (rpmValue / 1000).toFixed(1) + "k"
                         font.pointSize: myFontPointSize * 1.2
                         font.bold: true
-                        color: "white"
+                        color: qgcPal.text
                     }
 
                     Canvas {
@@ -124,7 +126,7 @@ Item {
                             // Scale Arc
                             ctx.beginPath();
                             ctx.arc(cx, cy, radius, Math.PI, 0);
-                            ctx.strokeStyle = "white";
+                            ctx.strokeStyle = qgcPal.text;
                             ctx.lineWidth = 2;
                             ctx.stroke();
 
@@ -144,8 +146,8 @@ Item {
                             // Needle
                             var maxRpm = 4000;
                             var isError = (rpmValue <= -999.0);
-                            ctx.strokeStyle = isError ? "gray" : "white";
-                            ctx.fillStyle = isError ? "gray" : "white";
+                            ctx.strokeStyle = isError ? qgcPal.colorGrey : qgcPal.text;
+                            ctx.fillStyle = isError ? qgcPal.colorGrey : qgcPal.text;
                             var displayRpmValue = isError ? 0 : rpmValue;
                             var mappedVal = Math.max(0, Math.min(displayRpmValue, maxRpm));
                             var needleAngle = Math.PI - (mappedVal/maxRpm)*Math.PI;
@@ -156,7 +158,7 @@ Item {
 
                             ctx.beginPath();
                             ctx.arc(cx, cy, 3, 0, 2*Math.PI);
-                            ctx.fillStyle = isError ? "gray" : "white";
+                            ctx.fillStyle = isError ? qgcPal.colorGrey : qgcPal.text;
                             ctx.fill();
                         }
                     }
@@ -176,8 +178,8 @@ Item {
                             var cy = height/2;
 
                             var isError = (rudderValue <= -999.0);
-                            ctx.strokeStyle = isError ? "gray" : "white";
-                            ctx.fillStyle = isError ? "gray" : "white";
+                            ctx.strokeStyle = isError ? qgcPal.colorGrey : qgcPal.text;
+                            ctx.fillStyle = isError ? qgcPal.colorGrey : qgcPal.text;
                             ctx.lineWidth = 2;
 
                             // Line
@@ -203,7 +205,7 @@ Item {
                             ctx.moveTo(indX, cy-5);
                             ctx.lineTo(indX-5, cy+5);
                             ctx.lineTo(indX+5, cy+5);
-                            ctx.fillStyle = isError ? "gray" : "white";
+                            ctx.fillStyle = isError ? qgcPal.colorGrey : qgcPal.text;
                             ctx.fill();
                         }
                     }
@@ -213,14 +215,14 @@ Item {
                         anchors.left: parent.left
                         text: "L"
                         font.pointSize: myFontPointSize * 0.7
-                        color: "white"
+                        color: qgcPal.text
                     }
                     QGCLabel {
                         anchors.bottom: parent.bottom
                         anchors.right: parent.right
                         text: "R"
                         font.pointSize: myFontPointSize * 0.7
-                        color: "white"
+                        color: qgcPal.text
                     }
                 }
 
@@ -245,8 +247,8 @@ Item {
                                     var ctx = getContext("2d");
                                     ctx.clearRect(0, 0, width, height);
                                     var isError = (trimValue <= -999.0);
-                                    ctx.strokeStyle = isError ? "gray" : "white";
-                                    ctx.fillStyle = isError ? "gray" : "white";
+                                    ctx.strokeStyle = isError ? qgcPal.colorGrey : qgcPal.text;
+                                    ctx.fillStyle = isError ? qgcPal.colorGrey : qgcPal.text;
                                     ctx.lineWidth = 2;
                                     var cx = width/2;
 
@@ -271,7 +273,7 @@ Item {
                                     ctx.moveTo(cx-8, indY-5);
                                     ctx.lineTo(cx, indY);
                                     ctx.lineTo(cx-8, indY+5);
-                                    ctx.fillStyle = isError ? "gray" : "white";
+                                    ctx.fillStyle = isError ? qgcPal.colorGrey : qgcPal.text;
                                     ctx.fill();
                                 }
                             }
@@ -280,7 +282,7 @@ Item {
                             id: trimLbl
                             text: "TRM"
                             font.pointSize: myFontPointSize * 0.7
-                            color: "#ccc"
+                            color: qgcPal.text
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                     }
@@ -300,8 +302,8 @@ Item {
                                     var ctx = getContext("2d");
                                     ctx.clearRect(0, 0, width, height);
                                     var isError = (fuelValue <= -999.0);
-                                    ctx.strokeStyle = isError ? "gray" : "white";
-                                    ctx.fillStyle = isError ? "gray" : "white";
+                                    ctx.strokeStyle = isError ? qgcPal.colorGrey : qgcPal.text;
+                                    ctx.fillStyle = isError ? qgcPal.colorGrey : qgcPal.text;
                                     ctx.lineWidth = 2;
                                     var cx = width/2;
 
@@ -323,7 +325,7 @@ Item {
                                     ctx.beginPath();
                                     ctx.moveTo(cx, height-5);
                                     ctx.lineTo(cx, height-5 - fillH);
-                                    ctx.strokeStyle = isError ? "gray" : "white";
+                                    ctx.strokeStyle = isError ? qgcPal.colorGrey : qgcPal.text;
                                     ctx.lineWidth = 4;
                                     ctx.stroke();
                                 }
@@ -333,7 +335,7 @@ Item {
                             id: fuelLbl
                             text: "FUL"
                             font.pointSize: myFontPointSize * 0.7
-                            color: "#ccc"
+                            color: qgcPal.text
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                     }
@@ -353,8 +355,8 @@ Item {
                                     var ctx = getContext("2d");
                                     ctx.clearRect(0, 0, width, height);
                                     var isError = (battValue <= -999.0);
-                                    ctx.strokeStyle = isError ? "gray" : "white";
-                                    ctx.fillStyle = isError ? "gray" : "white";
+                                    ctx.strokeStyle = isError ? qgcPal.colorGrey : qgcPal.text;
+                                    ctx.fillStyle = isError ? qgcPal.colorGrey : qgcPal.text;
                                     ctx.lineWidth = 2;
                                     var cx = width/2;
 
@@ -378,7 +380,7 @@ Item {
                                     ctx.beginPath();
                                     ctx.moveTo(cx, height-5);
                                     ctx.lineTo(cx, height-5 - fillH);
-                                    ctx.strokeStyle = isError ? "gray" : "white";
+                                    ctx.strokeStyle = isError ? qgcPal.colorGrey : qgcPal.text;
                                     ctx.lineWidth = 4;
                                     ctx.stroke();
                                 }
@@ -388,7 +390,7 @@ Item {
                             id: battLbl
                             text: "BAT"
                             font.pointSize: myFontPointSize * 0.7
-                            color: "#ccc"
+                            color: qgcPal.text
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
                     }
@@ -399,211 +401,5 @@ Item {
         // Helper component for buttons
 
 
-        // Trim Control Panel
-        Rectangle {
-            width: myFontPixelWidth * 6
-            height: myFontPixelHeight * 8
-            color: Qt.rgba(0.1, 0.1, 0.1, 0.7)
-            radius: myFontPixelWidth
-            border.color: Qt.rgba(1, 1, 1, 0.2)
-
-            Column {
-                anchors.fill: parent
-                anchors.margins: myFontPixelWidth * 0.5
-                spacing: myFontPixelHeight * 0.5
-
-                QGCLabel {
-                    text: "TRIM"
-                    font.pointSize: myFontPointSize * 0.6
-                    color: "#aaa"
-                }
-
-
-                Rectangle {
-                    width: parent.width
-                    height: width
-                    color: "transparent"
-                    border.color: (trimStat & 1) !== 0 ? "#3498db" : Qt.rgba(1,1,1,0.3)
-                    radius: 4
-
-                    Rectangle {
-                        anchors.fill: parent
-                        color: (trimStat & 1) !== 0 ? Qt.rgba(41/255, 128/255, 185/255, 0.4) : "transparent"
-                        radius: 4
-                    }
-
-                    QGCLabel {
-                        anchors.centerIn: parent
-                        text: "UP"
-                        font.pointSize: myFontPointSize * 0.6
-                        color: "white"
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: sendCommand(mavCmdDoSetServo, 8, 2000, 0, 0, 0, 0, 0)
-                    }
-                }
-
-
-                Rectangle {
-                    width: parent.width
-                    height: width
-                    color: "transparent"
-                    border.color: (trimStat & 2) !== 0 ? "#3498db" : Qt.rgba(1,1,1,0.3)
-                    radius: 4
-
-                    Rectangle {
-                        anchors.fill: parent
-                        color: (trimStat & 2) !== 0 ? Qt.rgba(41/255, 128/255, 185/255, 0.4) : "transparent"
-                        radius: 4
-                    }
-
-                    QGCLabel {
-                        anchors.centerIn: parent
-                        text: "DN"
-                        font.pointSize: myFontPointSize * 0.6
-                        color: "white"
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: sendCommand(mavCmdDoSetServo, 8, 1000, 0, 0, 0, 0, 0)
-                    }
-                }
             }
-        }
-
-        // Light Control Panel
-        Rectangle {
-            width: myFontPixelWidth * 6
-            height: myFontPixelHeight * 15
-            color: Qt.rgba(0.1, 0.1, 0.1, 0.7)
-            radius: myFontPixelWidth
-            border.color: Qt.rgba(1, 1, 1, 0.2)
-
-            Column {
-                anchors.fill: parent
-                anchors.margins: myFontPixelWidth * 0.5
-                spacing: myFontPixelHeight * 0.5
-
-                QGCLabel {
-                    text: "LIGHT"
-                    font.pointSize: myFontPointSize * 0.6
-                    color: "#aaa"
-                }
-
-
-                Rectangle {
-                    width: parent.width
-                    height: width
-                    color: "transparent"
-                    border.color: (lightsStat & 1) !== 0 ? "#3498db" : Qt.rgba(1,1,1,0.3)
-                    radius: 4
-
-                    Rectangle {
-                        anchors.fill: parent
-                        color: (lightsStat & 1) !== 0 ? Qt.rgba(41/255, 128/255, 185/255, 0.4) : "transparent"
-                        radius: 4
-                    }
-
-                    QGCLabel {
-                        anchors.centerIn: parent
-                        text: "NAV"
-                        font.pointSize: myFontPointSize * 0.6
-                        color: "white"
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: toggleLight(9, 1)
-                    }
-                }
-
-                Rectangle {
-                    width: parent.width
-                    height: width
-                    color: "transparent"
-                    border.color: (lightsStat & 2) !== 0 ? "#3498db" : Qt.rgba(1,1,1,0.3)
-                    radius: 4
-
-                    Rectangle {
-                        anchors.fill: parent
-                        color: (lightsStat & 2) !== 0 ? Qt.rgba(41/255, 128/255, 185/255, 0.4) : "transparent"
-                        radius: 4
-                    }
-
-                    QGCLabel {
-                        anchors.centerIn: parent
-                        text: "SIREN"
-                        font.pointSize: myFontPointSize * 0.6
-                        color: "white"
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: toggleLight(10, 2)
-                    }
-                }
-
-                Rectangle {
-                    width: parent.width
-                    height: width
-                    color: "transparent"
-                    border.color: (lightsStat & 4) !== 0 ? "#3498db" : Qt.rgba(1,1,1,0.3)
-                    radius: 4
-
-                    Rectangle {
-                        anchors.fill: parent
-                        color: (lightsStat & 4) !== 0 ? Qt.rgba(41/255, 128/255, 185/255, 0.4) : "transparent"
-                        radius: 4
-                    }
-
-                    QGCLabel {
-                        anchors.centerIn: parent
-                        text: "HEAD"
-                        font.pointSize: myFontPointSize * 0.6
-                        color: "white"
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: toggleLight(11, 4)
-                    }
-                }
-
-                Rectangle {
-                    width: parent.width
-                    height: width
-                    color: "transparent"
-                    border.color: (lightsStat & 16) !== 0 ? "#3498db" : Qt.rgba(1,1,1,0.3)
-                    radius: 4
-
-                    Rectangle {
-                        anchors.fill: parent
-                        color: (lightsStat & 16) !== 0 ? Qt.rgba(41/255, 128/255, 185/255, 0.4) : "transparent"
-                        radius: 4
-                    }
-
-                    QGCLabel {
-                        anchors.centerIn: parent
-                        text: "PORT\nSTBD"
-                        font.pointSize: myFontPointSize * 0.6
-                        color: "white"
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: toggleLight(13, 16)
-                    }
-                }
-            }
-        }
-    }
 }
