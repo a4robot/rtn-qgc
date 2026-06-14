@@ -20,5 +20,6 @@
         <file alias="TrashDelete.svg">resources/TrashDelete.svg</file>
         <file alias="XDelete.svg">resources/XDelete.svg</file>
         <file alias="qgroundcontrol.ico">resources/icons/qgroundcontrol.ico</file>
+        <file alias="audio/beep.wav">resources/audio/beep.wav</file>
     </qresource>
 </RCC>
