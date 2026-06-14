@@ -17,7 +17,11 @@ static constexpr bool kGstEnabled = false;
 #include "UVCReceiver.h"
 #endif
 
-DECLARE_SETTINGGROUP(Video2, "Video2")
+const char* VideoSettings2::name = "Video2";
+const char* VideoSettings2::settingsGroup = "Video2";
+
+VideoSettings2::VideoSettings2(QObject* parent)
+    : SettingsGroup(name, settingsGroup, parent)
 {
     // Setup enum values for videoSource settings into meta data
     QVariantList videoSourceList;
