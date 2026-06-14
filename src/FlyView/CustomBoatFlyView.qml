@@ -212,10 +212,10 @@ Item {
         property bool fuelBelow20: isFuelValid && fuelValue < 20.0 && fuelValue >= 10.0
         property bool fuelBelow10: isFuelValid && fuelValue < 10.0
 
-        MediaPlayer {
+        SoundEffect {
             id: alertPlayer
-            source: "qrc:/res/audio/alert.wav"
-            audioOutput: AudioOutput {}
+            source: "qrc:///res/audio/alert.wav"
+            volume: 1.0
         }
 
         SequentialAnimation {

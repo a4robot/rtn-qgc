@@ -1,8 +1,0 @@
---- qgcresources.qrc
-+++ qgcresources.qrc
-@@ -21,4 +21,5 @@
-         <file alias="TrashDelete.svg">resources/TrashDelete.svg</file>
-         <file alias="XDelete.svg">resources/XDelete.svg</file>
-         <file alias="qgroundcontrol.ico">resources/icons/qgroundcontrol.ico</file>
-+        <file alias="audio/alert.wav">resources/audio/alert.wav</file>
-     </qresource>
