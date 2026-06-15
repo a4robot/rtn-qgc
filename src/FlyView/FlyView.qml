@@ -93,6 +93,12 @@ Item {
             pipView:    _pipView2
         }
 
+        Item {
+            id:         dummyMap2
+            anchors.fill: parent
+            property Item pipState: PipState { pipView: _pipView2; isDark: true }
+        }
+
         PipView {
             id:                     _pipView
             anchors.left:           parent.left
@@ -117,10 +123,10 @@ Item {
             anchors.margins:        _toolsMargin
             item1IsFullSettingsKey: "MainFlyWindowIsVideo2"
             pipExpandedSettingsKey: "IsPIPVisible2"
-            item1:                  videoControl2
+            item1:                  dummyMap2
             item2:                  QGroundControl.videoManager2.hasVideo ? videoControl2 : null
             show:                   QGroundControl.videoManager2.hasVideo && !QGroundControl.videoManager2.fullScreen &&
-                                        (videoControl2.pipState.state === videoControl2.pipState.pipState)
+                                        (videoControl2.pipState.state === videoControl2.pipState.pipState || dummyMap2.pipState.state === dummyMap2.pipState.pipState)
             z:                      QGroundControl.zOrderWidgets
 
             property real leftEdgeBottomInset: visible ? (anchors.leftMargin + width + anchors.margins + (_pipView.visible ? _pipView.width + _pipView.anchors.margins : 0)) : 0
