@@ -122,7 +122,6 @@ Item {
         PipView {
             id:                     _pipView2
             anchors.left:           _pipView.visible ? _pipView.right : parent.left
-            anchors.leftMargin:     _pipView.visible ? _toolsMargin : 0
             anchors.bottom:         parent.bottom
             anchors.margins:        _toolsMargin
             item1IsFullSettingsKey: "MainFlyWindowIsVideo2"

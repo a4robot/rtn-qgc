@@ -250,11 +250,7 @@ void VideoManager2::_onGstInitComplete(bool success)
     }
 
 #ifdef QGC_GST_STREAMING
-    if (_videoSettings2) {
-        const auto decoderOption = static_cast<GStreamer::VideoDecoderOptions>(
-            _videoSettings2->forceVideoDecoder()->rawValue().toInt());
-        GStreamer::setCodecPriorities(decoderOption);
-    }
+    // VideoManager handles codec priorities globally.
 #endif
 
     switch (_initState) {

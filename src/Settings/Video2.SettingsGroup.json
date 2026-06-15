@@ -13,10 +13,10 @@
         },
         {
             "name": "udpUrl",
-            "shortDesc": "Network address and port for UDP video stream (e.g. 0.0.0.0:5600).",
-            "longDesc": "UDP url address and port to bind to for video stream. Example: 0.0.0.0:5600",
+            "shortDesc": "Network address and port for UDP video stream (e.g. 0.0.0.0:5601).",
+            "longDesc": "UDP url address and port to bind to for video stream. Example: 0.0.0.0:5601",
             "type": "string",
-            "default": "0.0.0.0:5600",
+            "default": "0.0.0.0:5601",
             "label": "UDP URL",
             "keywords": "udp,mpegts,video url,stream url"
         },
