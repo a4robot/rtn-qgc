@@ -138,14 +138,14 @@ Item {
                     },
                     ToolStripAction {
                         property bool isPressed: false
-                        property real imageVerticalOffset: (lightsStat & 1) ? -0.25 : 0
+                        property real imageVerticalOffset: (trimStat & 1) ? -0.25 : 0
                         onIsPressedChanged: setTrimActive(1, isPressed)
                         text: "Trim Up"
                         iconSource: "/InstrumentValueIcons/cheveron-up.svg"
                     },
                     ToolStripAction {
                         property bool isPressed: false
-                        property real imageVerticalOffset: (lightsStat & 2) ? 0.25 : 0
+                        property real imageVerticalOffset: (trimStat & 2) ? 0.25 : 0
                         onIsPressedChanged: setTrimActive(2, isPressed)
                         text: "Trim Dn"
                         iconSource: "/InstrumentValueIcons/cheveron-down.svg"
