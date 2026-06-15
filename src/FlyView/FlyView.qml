@@ -93,9 +93,13 @@ Item {
             pipView:    _pipView2
         }
 
-        Item {
+        ShaderEffectSource {
             id:         dummyMap2
             anchors.fill: parent
+            sourceItem: mapControl
+            live:       true
+            hideSource: false
+            visible:    pipState.state === pipState.pipState
             property Item pipState: PipState { pipView: _pipView2; isDark: true }
         }
 

@@ -47,6 +47,8 @@ Item {
         visible:        QGroundControl.videoManager2.isStreamSource || QGroundControl.videoManager2.isUvc
         videoReceiverName: "videoContent2"
         thermalVideoReceiverName: "thermalVideo2"
+        videoManager:   QGroundControl.videoManager2
+        videoSettings:  QGroundControl.settingsManager.videoSettings2
     }
 
     QGCLabel {

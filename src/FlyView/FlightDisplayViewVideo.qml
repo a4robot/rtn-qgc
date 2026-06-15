@@ -11,22 +11,24 @@ Item {
     clip:   true
 
     property bool useSmallFont: true
+    property var  videoManager: QGroundControl.videoManager
+    property var  videoSettings: QGroundControl.settingsManager.videoSettings
 
     property double _ar:                (cameraLoader.visible && cameraLoader.status === Loader.Ready)
                                             ? cameraLoader.item.implicitWidth / cameraLoader.item.implicitHeight
-                                            : QGroundControl.videoManager.gstreamerEnabled
-                                                ? QGroundControl.videoManager.videoSize.width / QGroundControl.videoManager.videoSize.height
-                                                : QGroundControl.videoManager.aspectRatio
-    property bool   _showGrid:          QGroundControl.settingsManager.videoSettings.gridLines.rawValue
+                                            : videoManager.gstreamerEnabled
+                                                ? videoManager.videoSize.width / videoManager.videoSize.height
+                                                : videoManager.aspectRatio
+    property bool   _showGrid:          videoSettings.gridLines.rawValue
     property var    _dynamicCameras:    globals.activeVehicle ? globals.activeVehicle.cameraManager : null
     property bool   _connected:         globals.activeVehicle ? !globals.activeVehicle.communicationLost : false
     property int    _curCameraIndex:    _dynamicCameras ? _dynamicCameras.currentCamera : 0
     property bool   _isCamera:          _dynamicCameras ? _dynamicCameras.cameras.count > 0 : false
     property var    _camera:            _isCamera ? _dynamicCameras.cameras.get(_curCameraIndex) : null
     property bool   _hasZoom:           _camera && _camera.hasZoom
-    property int    _fitMode:           QGroundControl.settingsManager.videoSettings.videoFit.rawValue
-    property bool   _showStreamLoader:  QGroundControl.videoManager.decoding
-    property bool   _showUvcLoader:     QGroundControl.videoManager.isUvc
+    property int    _fitMode:           videoSettings.videoFit.rawValue
+    property bool   _showStreamLoader:  videoManager.decoding
+    property bool   _showUvcLoader:     videoManager.isUvc
     property string videoReceiverName: "videoContent"
     property string thermalVideoReceiverName: "thermalVideo"
 
@@ -62,7 +64,7 @@ Item {
 
             QGCLabel {
                 id:                 noVideoLabel
-                text:               QGroundControl.settingsManager.videoSettings.streamEnabled.rawValue ? qsTr("WAITING FOR VIDEO") : qsTr("VIDEO DISABLED")
+                text:               videoSettings.streamEnabled.rawValue ? qsTr("WAITING FOR VIDEO") : qsTr("VIDEO DISABLED")
                 font.bold:          true
                 color:              "white"
                 font.pointSize:     useSmallFont ? ScreenTools.smallFontPointSize : ScreenTools.largeFontPointSize
@@ -111,12 +113,14 @@ Item {
             visible:            _showStreamLoader
             sourceComponent:    videoOutputComponent
 
-            property bool videoDisabled: QGroundControl.settingsManager.videoSettings.videoSource.rawValue === QGroundControl.settingsManager.videoSettings.disabledVideoSource
+            property bool videoDisabled: videoSettings.videoSource.rawValue === videoSettings.disabledVideoSource
         }
         Component {
             id: videoOutputComponent
             FlightDisplayViewVideoOutput {
-                videoReceiverName: _root.videoReceiverName
+                videoReceiverName: root.videoReceiverName
+                videoManager: root.videoManager
+                videoSettings: root.videoSettings
             }
         }
         //-- UVC Video (USB Camera or Video Device)
@@ -124,7 +128,7 @@ Item {
             id:             cameraLoader
             anchors.fill:   videoContentArea
             visible:        _showUvcLoader
-            source:         QGroundControl.videoManager.uvcEnabled ? "qrc:/qml/QGroundControl/FlyView/FlightDisplayViewUVC.qml" : "qrc:/qml/QGroundControl/FlyView//FlightDisplayViewDummy.qml"
+            source:         videoManager.uvcEnabled ? "qrc:/qml/QGroundControl/FlyView/FlightDisplayViewUVC.qml" : "qrc:/qml/QGroundControl/FlyView//FlightDisplayViewDummy.qml"
         }
 
         Item {
@@ -137,7 +141,7 @@ Item {
             // grid lines
             Item {
                 anchors.fill:   parent
-                visible:        _showGrid && !QGroundControl.videoManager.fullScreen
+                visible:        _showGrid && !videoManager.fullScreen
 
                 Rectangle {
                     color:  Qt.rgba(1,1,1,0.5)
@@ -202,12 +206,14 @@ Item {
                 anchors.fill:   parent
                 opacity:        _camera ? (_camera.thermalMode === MavlinkCameraControlInterface.THERMAL_BLEND ? _camera.thermalOpacity / 100 : 1.0) : 0
                 sourceComponent: thermalOutputComponent
-                onLoaded: { if (item) item.objectName = _root.thermalVideoReceiverName }
+                onLoaded: { if (item) item.objectName = root.thermalVideoReceiverName }
 
                 Component {
                     id: thermalOutputComponent
                     FlightDisplayViewVideoOutput {
-                        videoReceiverName: _root.thermalVideoReceiverName
+                        videoReceiverName: root.thermalVideoReceiverName
+                        videoManager: root.videoManager
+                        videoSettings: root.videoSettings
                     }
                 }
             }
