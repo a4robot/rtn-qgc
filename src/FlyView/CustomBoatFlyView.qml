@@ -161,31 +161,31 @@ Item {
                     ToolStripAction {
                         property bool isOn: relayStates[0]
                         text: "Head"
-                        iconSource: "/InstrumentValueIcons/light-bulb.svg"
+                        iconSource: (lightsStat & 1) ? "/InstrumentValueIcons/light-bulb-solid.svg" : "/InstrumentValueIcons/light-bulb.svg"
                         onTriggered: toggleLight(0)
                     },
                     ToolStripAction {
                         property bool isOn: relayStates[1]
                         text: "Nav."
-                        iconSource: "/InstrumentValueIcons/light-bulb.svg"
+                        iconSource: (lightsStat & 2) ? "/InstrumentValueIcons/light-bulb-solid.svg" : "/InstrumentValueIcons/light-bulb.svg"
                         onTriggered: toggleLight(1)
                     },
                     ToolStripAction {
                         property bool isOn: relayStates[2]
                         text: "Siren"
-                        iconSource: "/InstrumentValueIcons/light-bulb.svg"
+                        iconSource: (lightsStat & 4) ? "/InstrumentValueIcons/light-bulb-solid.svg" : "/InstrumentValueIcons/light-bulb.svg"
                         onTriggered: toggleLight(2)
                     },
                     ToolStripAction {
                         property bool isOn: relayStates[3]
                         text: "Port"
-                        iconSource: "/InstrumentValueIcons/light-bulb.svg"
+                        iconSource: (lightsStat & 8) ? "/InstrumentValueIcons/light-bulb-solid.svg" : "/InstrumentValueIcons/light-bulb.svg"
                         onTriggered: toggleLight(3)
                     },
                     ToolStripAction {
                         property bool isOn: relayStates[4]
                         text: "Stbd."
-                        iconSource: "/InstrumentValueIcons/light-bulb.svg"
+                        iconSource: (lightsStat & 16) ? "/InstrumentValueIcons/light-bulb-solid.svg" : "/InstrumentValueIcons/light-bulb.svg"
                         onTriggered: toggleLight(4)
                     }
                 ]
