@@ -93,14 +93,19 @@ Item {
             pipView:    _pipView2
         }
 
-        ShaderEffectSource {
+        Rectangle {
             id:         dummyMap2
             anchors.fill: parent
-            sourceItem: mapControl
-            live:       true
-            hideSource: false
+            color:      qgcPal.window
             visible:    pipState.state === pipState.pipState
             property Item pipState: PipState { pipView: _pipView2; isDark: true }
+
+            QGCLabel {
+                text:               qsTr("MAP")
+                font.pointSize:     ScreenTools.largeFontPointSize
+                anchors.centerIn:   parent
+                color:              qgcPal.text
+            }
         }
 
         PipView {

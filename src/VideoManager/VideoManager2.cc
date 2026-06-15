@@ -748,15 +748,9 @@ void VideoManager2::_setActiveVehicle(Vehicle *vehicle)
         }
 
         for (VideoReceiver *receiver : std::as_const(_videoReceivers)) {
-            if (_activeVehicle->cameraManager()) {
-                if (receiver->isThermal()) {
-                    receiver->setVideoStreamInfo(_activeVehicle->cameraManager()->thermalStreamInstance());
-                } else {
-                    receiver->setVideoStreamInfo(_activeVehicle->cameraManager()->currentStreamInstance());
-                }
-            } else {
-                receiver->setVideoStreamInfo(nullptr);
-            }
+            // VideoManager2 is purely manual or uses a secondary camera.
+            // Do not bind it to currentStreamInstance() to avoid conflicting with VideoManager.
+            receiver->setVideoStreamInfo(nullptr);
             // connect(receiver->videoStreamInfo(), &QGCVideoStreamInfo::infoChanged, ))
         }
     } else {
