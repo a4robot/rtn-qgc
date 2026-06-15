@@ -143,8 +143,11 @@ Item {
         anchors.left:           parent.left
         anchors.top:            parent.top
         z:                      QGroundControl.zOrderWidgets
-        maxHeight:              parent.height - y - parentToolInsets.bottomEdgeLeftInset - _toolsMargin
+        maxHeight:              (parent.height - y - parentToolInsets.bottomEdgeLeftInset - _toolsMargin) / 0.8
         visible:                !QGroundControl.videoManager.fullScreen
+
+        scale: 0.8
+        transformOrigin: Item.TopLeft
 
         onDisplayPreFlightChecklist: {
             if (!preFlightChecklistLoader.active) {
@@ -153,8 +156,8 @@ Item {
             preFlightChecklistLoader.item.open()
         }
 
-        property real topEdgeLeftInset:     visible ? y + height : 0
-        property real leftEdgeTopInset:     visible ? x + width : 0
+        property real topEdgeLeftInset:     visible ? y + (height * scale) : 0
+        property real leftEdgeTopInset:     visible ? x + (width * scale) : 0
         property real leftEdgeCenterInset:  leftEdgeTopInset
     }
 
