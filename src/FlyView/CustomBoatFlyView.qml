@@ -121,6 +121,9 @@ Item {
         anchors.topMargin: (parentToolInsets ? parentToolInsets.topEdgeLeftInset : 0) + panelSpacing
         spacing: panelSpacing
 
+        scale: 0.8
+        transformOrigin: Item.TopLeft
+
         // FPV and Trim Tab
         ToolStrip {
             maxHeight: _root.height
@@ -135,14 +138,14 @@ Item {
                     },
                     ToolStripAction {
                         property bool isPressed: false
-                        property real imageVerticalOffset: (lightsStat & 1) ? -0.5 : 0
+                        property real imageVerticalOffset: (lightsStat & 1) ? -0.25 : 0
                         onIsPressedChanged: setTrimActive(1, isPressed)
                         text: "Trim Up"
                         iconSource: "/InstrumentValueIcons/cheveron-up.svg"
                     },
                     ToolStripAction {
                         property bool isPressed: false
-                        property real imageVerticalOffset: (lightsStat & 2) ? 0.5 : 0
+                        property real imageVerticalOffset: (lightsStat & 2) ? 0.25 : 0
                         onIsPressedChanged: setTrimActive(2, isPressed)
                         text: "Trim Dn"
                         iconSource: "/InstrumentValueIcons/cheveron-down.svg"
