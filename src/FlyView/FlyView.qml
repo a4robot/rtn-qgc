@@ -63,8 +63,8 @@ Item {
         topEdgeLeftInset:       toolbar.height
         topEdgeCenterInset:     topEdgeLeftInset
         topEdgeRightInset:      topEdgeLeftInset
-        leftEdgeBottomInset:    _pipView.leftEdgeBottomInset
-        bottomEdgeLeftInset:    _pipView.bottomEdgeLeftInset
+        leftEdgeBottomInset:    Math.max(_pipView.leftEdgeBottomInset, _pipView2.leftEdgeBottomInset)
+        bottomEdgeLeftInset:    Math.max(_pipView.bottomEdgeLeftInset, _pipView2.bottomEdgeLeftInset)
     }
 
     Item {
@@ -88,6 +88,26 @@ Item {
             pipView:    _pipView
         }
 
+        FlyViewVideo2 {
+            id:         videoControl2
+            pipView:    _pipView2
+        }
+
+        Rectangle {
+            id:         dummyMap2
+            anchors.fill: parent
+            color:      qgcPal.window
+            visible:    pipState.state === pipState.pipState
+            property Item pipState: PipState { pipView: _pipView2; isDark: true }
+
+            QGCLabel {
+                text:               qsTr("MAP")
+                font.pointSize:     ScreenTools.largeFontPointSize
+                anchors.centerIn:   parent
+                color:              qgcPal.text
+            }
+        }
+
         PipView {
             id:                     _pipView
             anchors.left:           parent.left
@@ -104,6 +124,23 @@ Item {
             property real bottomEdgeLeftInset: visible ? height + anchors.margins : 0
         }
 
+        PipView {
+            id:                     _pipView2
+            anchors.left:           _pipView.visible ? _pipView.right : parent.left
+            anchors.bottom:         parent.bottom
+            anchors.margins:        _toolsMargin
+            item1IsFullSettingsKey: "MainFlyWindowIsVideo2"
+            pipExpandedSettingsKey: "IsPIPVisible2"
+            item1:                  dummyMap2
+            item2:                  QGroundControl.videoManager2.hasVideo ? videoControl2 : null
+            show:                   QGroundControl.videoManager2.hasVideo && !QGroundControl.videoManager2.fullScreen &&
+                                        (videoControl2.pipState.state === videoControl2.pipState.pipState || dummyMap2.pipState.state === dummyMap2.pipState.pipState)
+            z:                      QGroundControl.zOrderWidgets
+
+            property real leftEdgeBottomInset: visible ? (anchors.leftMargin + width + anchors.margins + (_pipView.visible ? _pipView.width + _pipView.anchors.margins : 0)) : 0
+            property real bottomEdgeLeftInset: visible ? height + anchors.margins : 0
+        }
+
         FlyViewWidgetLayer {
             id:                     widgetLayer
             anchors.top:            parent.top
@@ -115,7 +152,7 @@ Item {
             z:                      _fullItemZorder + 2
             parentToolInsets:       _toolInsets
             mapControl:             _mapControl
-            visible:                !QGroundControl.videoManager.fullScreen
+            visible:                !QGroundControl.videoManager.fullScreen && !QGroundControl.videoManager2.fullScreen
         }
 
         FlyViewCustomLayer {
@@ -124,7 +161,7 @@ Item {
             z:                  _fullItemZorder + 2
             parentToolInsets:   widgetLayer.totalToolInsets
             mapControl:         _mapControl
-            visible:            !QGroundControl.videoManager.fullScreen
+            visible:            !QGroundControl.videoManager.fullScreen && !QGroundControl.videoManager2.fullScreen
         }
 
         // Development tool for visualizing the insets for a paticular layer, show if needed
@@ -174,6 +211,6 @@ Item {
     FlyViewToolBar {
         id:                 toolbar
         guidedValueSlider:  _guidedValueSlider
-        visible:            !QGroundControl.videoManager.fullScreen
+        visible:            !QGroundControl.videoManager.fullScreen && !QGroundControl.videoManager2.fullScreen
     }
 }

@@ -15,6 +15,7 @@
 #include "MAVLinkSigningKeys.h"
 #include "MissionCommandTree.h"
 #include "VideoManager.h"
+#include "VideoManager2.h"
 #include "MultiVehicleManager.h"
 #include "LoggingCategoryModel.h"
 #ifndef QGC_NO_SERIAL_LINK
@@ -46,6 +47,7 @@ QGroundControlQmlGlobal::QGroundControlQmlGlobal(QObject *parent)
     , _missionCommandTree(MissionCommandTree::instance())
     , _mavlinkSigningKeys(MAVLinkSigningKeys::instance())
     , _videoManager(VideoManager::instance())
+    , _videoManager2(VideoManager2::instance())
     , _linkManager(LinkManager::instance())
     , _multiVehicleManager(MultiVehicleManager::instance())
     , _settingsManager(SettingsManager::instance())

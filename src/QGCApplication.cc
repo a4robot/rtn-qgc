@@ -42,6 +42,7 @@
 #include "Vehicle.h"
 #include "VehicleComponent.h"
 #include "VideoManager.h"
+#include "VideoManager2.h"
 
 #ifndef QGC_NO_SERIAL_LINK
 #include "SerialLink.h"
@@ -255,6 +256,9 @@ bool QGCApplication::_initVideo()
     VideoManager *videoManager = VideoManager::instance();
     videoManager->startGStreamerInit();
     const bool initSucceeded = !_simpleBootTest || videoManager->waitForGStreamerInit();
+    VideoManager2 *videoManager2 = VideoManager2::instance();
+    videoManager2->startGStreamerInit();
+    videoManager2->waitForGStreamerInit();
     _videoManagerInitialized = true;
     return initSucceeded;
 }
@@ -281,6 +285,7 @@ void QGCApplication::_initForNormalAppBoot()
     QGCPositionManager::instance()->init();
     LinkManager::instance()->init();
     VideoManager::instance()->init(mainRootWindow());
+    VideoManager2::instance()->init(mainRootWindow());
 
     // Set the window icon now that custom plugin has a chance to override it
 #ifdef Q_OS_LINUX
@@ -679,6 +684,7 @@ void QGCApplication::shutdown()
 
     if (_videoManagerInitialized) {
         VideoManager::instance()->cleanup();
+        VideoManager2::instance()->cleanup();
     }
 
     QGCCorePlugin::instance()->cleanup();

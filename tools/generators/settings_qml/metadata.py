@@ -13,7 +13,7 @@ import sys
 from functools import cache
 from pathlib import Path  # noqa: TC003
 
-_ACCESSOR_RE = re.compile(r"Q_PROPERTY\s*\(\s*QObject\s*\*\s*(\w+Settings)\s+READ")
+_ACCESSOR_RE = re.compile(r"Q_PROPERTY\s*\(\s*QObject\s*\*\s*(\w+Settings\d*)\s+READ")
 
 
 def stem_to_accessor(stem: str) -> str:
@@ -34,6 +34,8 @@ def stem_to_accessor(stem: str) -> str:
         head = stem[:run].lower() + stem[run:]
     else:
         head = stem[: run - 1].lower() + stem[run - 1 :]
+    if stem.endswith("2"):
+        return stem[:-1].lower() + "Settings2"
     return head + "Settings"
 
 
