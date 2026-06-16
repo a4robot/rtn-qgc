@@ -121,6 +121,9 @@ Item {
         anchors.topMargin: (parentToolInsets ? parentToolInsets.topEdgeLeftInset : 0) + panelSpacing
         spacing: panelSpacing
 
+        scale: 0.8
+        transformOrigin: Item.TopLeft
+
         // FPV and Trim Tab
         ToolStrip {
             maxHeight: _root.height
@@ -135,14 +138,14 @@ Item {
                     },
                     ToolStripAction {
                         property bool isPressed: false
-                        property real imageVerticalOffset: (lightsStat & 1) ? -0.5 : 0
+                        property real imageVerticalOffset: (trimStat & 1) ? -0.25 : 0
                         onIsPressedChanged: setTrimActive(1, isPressed)
                         text: "Trim Up"
                         iconSource: "/InstrumentValueIcons/cheveron-up.svg"
                     },
                     ToolStripAction {
                         property bool isPressed: false
-                        property real imageVerticalOffset: (lightsStat & 2) ? 0.5 : 0
+                        property real imageVerticalOffset: (trimStat & 2) ? 0.25 : 0
                         onIsPressedChanged: setTrimActive(2, isPressed)
                         text: "Trim Dn"
                         iconSource: "/InstrumentValueIcons/cheveron-down.svg"
@@ -161,31 +164,31 @@ Item {
                     ToolStripAction {
                         property bool isOn: relayStates[0]
                         text: "Head"
-                        iconSource: "/InstrumentValueIcons/light-bulb.svg"
+                        iconSource: (lightsStat & 1) ? "/InstrumentValueIcons/light-bulb-solid.svg" : "/InstrumentValueIcons/light-bulb.svg"
                         onTriggered: toggleLight(0)
                     },
                     ToolStripAction {
                         property bool isOn: relayStates[1]
                         text: "Nav."
-                        iconSource: "/InstrumentValueIcons/light-bulb.svg"
+                        iconSource: (lightsStat & 2) ? "/InstrumentValueIcons/light-bulb-solid.svg" : "/InstrumentValueIcons/light-bulb.svg"
                         onTriggered: toggleLight(1)
                     },
                     ToolStripAction {
                         property bool isOn: relayStates[2]
                         text: "Siren"
-                        iconSource: "/InstrumentValueIcons/light-bulb.svg"
+                        iconSource: (lightsStat & 4) ? "/InstrumentValueIcons/light-bulb-solid.svg" : "/InstrumentValueIcons/light-bulb.svg"
                         onTriggered: toggleLight(2)
                     },
                     ToolStripAction {
                         property bool isOn: relayStates[3]
                         text: "Port"
-                        iconSource: "/InstrumentValueIcons/light-bulb.svg"
+                        iconSource: (lightsStat & 8) ? "/InstrumentValueIcons/light-bulb-solid.svg" : "/InstrumentValueIcons/light-bulb.svg"
                         onTriggered: toggleLight(3)
                     },
                     ToolStripAction {
                         property bool isOn: relayStates[4]
                         text: "Stbd."
-                        iconSource: "/InstrumentValueIcons/light-bulb.svg"
+                        iconSource: (lightsStat & 16) ? "/InstrumentValueIcons/light-bulb-solid.svg" : "/InstrumentValueIcons/light-bulb.svg"
                         onTriggered: toggleLight(4)
                     }
                 ]
