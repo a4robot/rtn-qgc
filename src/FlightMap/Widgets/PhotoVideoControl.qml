@@ -19,8 +19,9 @@ Rectangle {
     property real _margins: ScreenTools.defaultFontPixelHeight / 2
     property real _smallMargins: ScreenTools.defaultFontPixelWidth / 2
     property var _activeVehicle: globals.activeVehicle
-    property var _cameraManager: _activeVehicle.cameraManager
-    property var _camera: _cameraManager.currentCameraInstance
+    property var _cameraManager: _activeVehicle ? _activeVehicle.cameraManager : null
+    property var camera: null
+    property var _camera: camera ? camera : (_cameraManager ? _cameraManager.currentCameraInstance : null)
     property bool _cameraInPhotoMode: _camera.cameraMode === MavlinkCameraControlInterface.CAM_MODE_PHOTO || _camera.cameraMode === MavlinkCameraControlInterface.CAM_MODE_SURVEY
     property bool _cameraInVideoMode: !_cameraInPhotoMode
     property bool _videoCaptureIdle: _camera.captureVideoState === MavlinkCameraControlInterface.CaptureVideoStateIdle

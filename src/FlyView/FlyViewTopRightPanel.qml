@@ -191,24 +191,55 @@ Rectangle {
                 MvPanelPage {
 
                     id:                  photoVideoPage
-                    implicitHeight:      photoVideoControlLoader.implicitHeight + ScreenTools.defaultFontPixelHeight * 2
-                    implicitWidth:       photoVideoControlLoader.implicitWidth + ScreenTools.defaultFontPixelHeight * 2
+                    implicitHeight:      photoVideoRow.implicitHeight + ScreenTools.defaultFontPixelHeight * 2
+                    implicitWidth:       photoVideoRow.implicitWidth + ScreenTools.defaultFontPixelHeight * 2
 
-                    // We use a Loader to load the photoVideoControlComponent only when the active vehicle is not null
-                    // This make it easier to implement PhotoVideoControl without having to check for the mavlink camera
-                    // to be null all over the place
+                    RowLayout {
+                        id: photoVideoRow
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        spacing: ScreenTools.defaultFontPixelWidth * 0.75
 
-                    Loader {
-                        id:                         photoVideoControlLoader
-                        anchors.horizontalCenter:   parent.horizontalCenter
-                        sourceComponent:            globals.activeVehicle ? photoVideoControlComponent : undefined
+                        // We use a Loader to load the photoVideoControlComponent only when the active vehicle is not null
+                        // This make it easier to implement PhotoVideoControl without having to check for the mavlink camera
+                        // to be null all over the place
+                        Loader {
+                            id:                         photoVideoControlLoader
+                            sourceComponent:            globals.activeVehicle && globals.activeVehicle.cameraManager && globals.activeVehicle.cameraManager.cameras.count > 0 ? photoVideoControlComponent : undefined
 
-                        property real rightEdgeCenterInset: visible ? parent.width - x : 0
+                            property real rightEdgeCenterInset: visible ? parent.width - x : 0
 
-                        Component {
-                            id: photoVideoControlComponent
+                            Component {
+                                id: photoVideoControlComponent
 
-                            PhotoVideoControl {
+                                PhotoVideoControl {
+                                    camera: globals.activeVehicle.cameraManager.cameras.get(0)
+                                }
+                            }
+                        }
+
+                        Loader {
+                            id:                         photoVideoControlLoader2
+                            sourceComponent:            globals.activeVehicle && globals.activeVehicle.cameraManager && globals.activeVehicle.cameraManager.cameras.count > 1 ? photoVideoControlComponent2 : undefined
+
+                            property real rightEdgeCenterInset: visible ? parent.width - x : 0
+
+                            Component {
+                                id: photoVideoControlComponent2
+
+                                PhotoVideoControl {
+                                    camera: globals.activeVehicle.cameraManager.cameras.get(1)
+                                }
+                            }
+                        }
+
+                        Loader {
+                            id: telemetryPanelLoader
+                            sourceComponent: globals.activeVehicle && globals.activeVehicle.rover ? telemetryPanelComponent : undefined
+                            visible: status === Loader.Ready
+
+                            Component {
+                                id: telemetryPanelComponent
+                                CustomBoatTelemetryPanel { }
                             }
                         }
                     }

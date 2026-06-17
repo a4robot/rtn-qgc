@@ -15,7 +15,7 @@ MapQuickItem {
     property double altitude:       Number.NaN                                      ///< NAN to not show
     property string callsign:       ""                                              ///< Vehicle callsign
     property double heading:        vehicle ? vehicle.heading.value : Number.NaN    ///< Vehicle heading, NAN for none
-    property real   size:           ScreenTools.defaultFontPixelHeight * 3          /// Default size for icon, most usage overrides this
+    property real   size:           _adsbVehicle ? (ScreenTools.defaultFontPixelHeight * 3 * 0.6) : (ScreenTools.defaultFontPixelHeight * 3)          /// Default size for icon, most usage overrides this
     property bool   alert:          false                                           /// Collision alert
 
     anchorPoint.x:  vehicleItem.width  / 2
@@ -110,7 +110,7 @@ MapQuickItem {
 
         Image {
             id:                 vehicleIcon
-            source:             _adsbVehicle ? (alert ? "/qmlimages/AlertAircraft.svg" : "/qmlimages/AwarenessAircraft.svg") : vehicle.vehicleImageOpaque
+            source:             _adsbVehicle ? "/qmlimages/adsbVehicle.svg" : vehicle.vehicleImageOpaque
             mipmap:             true
             width:              _root.size
             sourceSize.width:   _root.size
