@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import QtMultimedia
 
 import QGroundControl
 import QGroundControl.Controls
