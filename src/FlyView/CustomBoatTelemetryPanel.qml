@@ -3,8 +3,6 @@ import QtQuick.Layouts
 
 import QGroundControl
 import QGroundControl.Controls
-import QGroundControl.ScreenTools
-import QGroundControl.Vehicle
 
 Rectangle {
     id: rightInfoPanel
