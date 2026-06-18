@@ -205,6 +205,8 @@ Rectangle {
                         Loader {
                             id:                         photoVideoControlLoader
                             sourceComponent:            globals.activeVehicle && globals.activeVehicle.cameraManager && globals.activeVehicle.cameraManager.cameras.count > 0 ? photoVideoControlComponent : undefined
+                            Layout.preferredWidth: item ? item.width : 0
+                            Layout.preferredHeight: item ? item.height : 0
 
                             property real rightEdgeCenterInset: visible ? parent.width - x : 0
 
@@ -220,6 +222,8 @@ Rectangle {
                         Loader {
                             id:                         photoVideoControlLoader2
                             sourceComponent:            globals.activeVehicle && globals.activeVehicle.cameraManager && globals.activeVehicle.cameraManager.cameras.count > 1 ? photoVideoControlComponent2 : undefined
+                            Layout.preferredWidth: item ? item.width : 0
+                            Layout.preferredHeight: item ? item.height : 0
 
                             property real rightEdgeCenterInset: visible ? parent.width - x : 0
 
@@ -236,6 +240,8 @@ Rectangle {
                             id: telemetryPanelLoader
                             sourceComponent: globals.activeVehicle && globals.activeVehicle.rover ? telemetryPanelComponent : undefined
                             visible: status === Loader.Ready
+                            Layout.preferredWidth: item ? item.width : 0
+                            Layout.preferredHeight: item ? item.height : 0
 
                             Component {
                                 id: telemetryPanelComponent
