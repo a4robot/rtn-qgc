@@ -114,13 +114,9 @@ void qtGstLog(GstDebugCategory *category,
         log.info(GStreamerAPILog, "%s %s", object_info.get(), gst_debug_message_get(message));
         break;
     case GST_LEVEL_DEBUG:
-#ifdef QT_DEBUG
-    // In release builds LOG/TRACE/MEMDUMP are intentionally dropped to reduce
-    // noise. Only debug builds route these verbose levels through Qt logging.
     case GST_LEVEL_LOG:
     case GST_LEVEL_TRACE:
     case GST_LEVEL_MEMDUMP:
-#endif
         log.debug(GStreamerAPILog, "%s %s", object_info.get(), gst_debug_message_get(message));
         break;
     default:

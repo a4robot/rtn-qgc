@@ -18,7 +18,7 @@ public:
         : QObject(parent)
     {}
 
-    bool isThermal() const { return (_name == QStringLiteral("thermalVideo")); }
+    bool isThermal() const { return (_name.startsWith(QStringLiteral("thermalVideo"))); }
 
     void *sink() { return _sink; }
     QQuickItem *widget() { return _widget; }

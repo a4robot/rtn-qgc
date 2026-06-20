@@ -12,6 +12,7 @@ ADSBVehicle::ADSBVehicle(const ADSB::VehicleInfo_t &vehicleInfo, QObject *parent
     // qCDebug(ADSBVehicleLog) << Q_FUNC_INFO << this;
 
     _info.icaoAddress = vehicleInfo.icaoAddress;
+    _info.isVessel = vehicleInfo.isVessel;
     update(vehicleInfo);
 }
 

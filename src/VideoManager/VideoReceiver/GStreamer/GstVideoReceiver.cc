@@ -22,6 +22,7 @@
 #include <QtCore/QDateTime>
 #include <QtCore/QUrl>
 #include <QtQuick/QQuickItem>
+#include <thread>
 
 #include <gst/gst.h>
 #include <gst/video/video.h>
@@ -133,6 +134,16 @@ void GstVideoReceiver::start(uint32_t timeout)
             break;
         }
 
+        // Make the recorder queue leaky. If the SD card is slow or the muxer errors out,
+        // the queue will drop old buffers rather than blocking the tee (which would freeze
+        // the live video display and crash the stream).
+        g_object_set(recorderQueue,
+                     "leaky", 2, // 2 = downstream (drop oldest buffers)
+                     "max-size-time", (guint64)(3 * GST_SECOND),
+                     "max-size-buffers", 0,
+                     "max-size-bytes", 0,
+                     nullptr);
+
         _recorderValve = gst_element_factory_make("valve", nullptr);
         if (!_recorderValve) {
             qCCritical(GstVideoReceiverLog) << "gst_element_factory_make('valve') failed";
@@ -196,6 +207,41 @@ void GstVideoReceiver::start(uint32_t timeout)
         if (!gst_element_link_many(_tee, recorderQueue, _recorderValve, nullptr)) {
             qCCritical(GstVideoReceiverLog) << "Unable to link recorder queue";
             break;
+        }
+
+        // Block upstream RECONFIGURE events on both valve sink pads.
+        //
+        // Without this, caps renegotiation inside decodebin3/videoSink (decoder branch)
+        // or mp4mux (recorder branch) sends GST_EVENT_RECONFIGURE backward through the tee
+        // and into the source (parsebin/rtspsrc). The source then re-emits "pad-added",
+        // which triggers another gst_element_link(_source, _tee) call. That second link
+        // attempt fails ("gst_element_link_pads() failed"), corrupts the pipeline state,
+        // and causes the entire stream + recording to stop.
+        //
+        // The valves are the natural chokepoints: all upstream events from decoder or
+        // recorder branches pass through their respective valve sink pads before reaching
+        // the shared tee/source. Dropping RECONFIGURE here is safe — it only affects
+        // downstream caps re-negotiation, which should never need to ripple back into a
+        // live source that is already streaming.
+        static auto dropReconfigure = [](GstPad*, GstPadProbeInfo *info, gpointer) -> GstPadProbeReturn {
+            if (GST_EVENT_TYPE(GST_PAD_PROBE_INFO_EVENT(info)) == GST_EVENT_RECONFIGURE) {
+                return GST_PAD_PROBE_DROP;
+            }
+            return GST_PAD_PROBE_OK;
+        };
+
+        GstPad *decoderValveSink = gst_element_get_static_pad(_decoderValve, "sink");
+        if (decoderValveSink) {
+            gst_pad_add_probe(decoderValveSink, GST_PAD_PROBE_TYPE_EVENT_UPSTREAM,
+                              dropReconfigure, nullptr, nullptr);
+            gst_object_unref(decoderValveSink);
+        }
+
+        GstPad *recorderValveSink = gst_element_get_static_pad(_recorderValve, "sink");
+        if (recorderValveSink) {
+            gst_pad_add_probe(recorderValveSink, GST_PAD_PROBE_TYPE_EVENT_UPSTREAM,
+                              dropReconfigure, nullptr, nullptr);
+            gst_object_unref(recorderValveSink);
         }
 
         GstBus *bus = gst_pipeline_get_bus(GST_PIPELINE(_pipeline));
@@ -542,6 +588,31 @@ void GstVideoReceiver::stopRecording()
         return;
     }
 
+    // If we are still waiting for the first keyframe (we haven't written anything to the file),
+    // we can immediately shut down the recording branch instead of sending an EOS that will
+    // get stuck because caps were not negotiated yet.
+    if (_keyframeWatchId != 0) {
+        qCDebug(GstVideoReceiverLog) << "Stop recording requested before first keyframe. Shutting down immediately.";
+        _recordingStopRequested = true;
+        _shutdownRecordingBranch();
+        return;
+    }
+
+    // Check if the recorder valve is already unlinked. If so, shut down immediately.
+    GstPad *srcPad = gst_element_get_static_pad(_recorderValve, "src");
+    if (srcPad) {
+        GstPad *peerPad = gst_pad_get_peer(srcPad);
+        if (!peerPad) {
+            qCDebug(GstVideoReceiverLog) << "Recorder branch is already unlinked. Shutting down immediately.";
+            gst_clear_object(&srcPad);
+            _recordingStopRequested = true;
+            _shutdownRecordingBranch();
+            return;
+        }
+        gst_clear_object(&peerPad);
+        gst_clear_object(&srcPad);
+    }
+
     g_object_set(_recorderValve,
                  "drop", TRUE,
                  nullptr);
@@ -557,6 +628,18 @@ void GstVideoReceiver::stopRecording()
     // EOS event propagates valve→mux→filesink; _shutdownRecordingBranch emits the
     // complete signal once the muxer index is written and the file is closed.
     _recordingStopRequested = true;
+
+    // Fallback timer: force shutdown if EOS is not received within 3 s.
+    // mp4mux/qtmux needs time to flush buffered data and write the moov atom (container index).
+    // 200 ms was too short and caused the muxer to be killed before finalizing, producing corrupt files.
+    QTimer::singleShot(3000, [this]() {
+        _worker->dispatch([this]() {
+            if (_removingRecorder) {
+                qCWarning(GstVideoReceiverLog) << "Recording stop timed out (EOS got stuck). Forcing shutdown.";
+                _shutdownRecordingBranch();
+            }
+        });
+    });
 }
 
 void GstVideoReceiver::takeScreenshot(const QString &imageFile)
@@ -590,7 +673,11 @@ void GstVideoReceiver::_watchdog()
             qCDebug(GstVideoReceiverLog) << "Stream timeout, no frames for" << elapsed << _uri;
             GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "pipeline-watchdog-timeout");
             _dispatchSignal([this]() { emit timeout(); });
-            stop();
+            if (!_recording) {
+                stop();
+            } else {
+                qCDebug(GstVideoReceiverLog) << "Recording is active, keeping pipeline alive during timeout" << _uri;
+            }
         }
 
         if (_decoding && !_removingDecoder) {
@@ -603,7 +690,11 @@ void GstVideoReceiver::_watchdog()
                 qCDebug(GstVideoReceiverLog) << "Video decoder timeout, no frames for" << elapsed << _uri;
                 GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "pipeline-watchdog-timeout");
                 _dispatchSignal([this]() { emit timeout(); });
-                stop();
+                if (!_recording) {
+                    stop();
+                } else {
+                    qCDebug(GstVideoReceiverLog) << "Recording is active, keeping decoder branch alive during timeout" << _uri;
+                }
             }
         }
     });
@@ -636,35 +727,42 @@ gboolean GstVideoReceiver::_filterParserCaps(GstElement *bin, GstPad *pad, GstEl
         return FALSE;
     }
 
-    GstCaps *srcCaps;
+    GstCaps *srcCaps = nullptr;
     gst_query_parse_caps(query, &srcCaps);
     if (!srcCaps || gst_caps_is_any(srcCaps)) {
         return FALSE;
     }
 
-    GstCaps *sinkCaps = nullptr;
-    GstCaps *filter = nullptr;
-    GstStructure *structure = gst_caps_get_structure(srcCaps, 0);
-    if (gst_structure_has_name(structure, "video/x-h265")) {
-        filter = gst_caps_from_string("video/x-h265");
-        if (gst_caps_can_intersect(srcCaps, filter)) {
-            sinkCaps = gst_caps_from_string("video/x-h265,stream-format=hvc1");
+    gchar *srcCapsStr = gst_caps_to_string(srcCaps);
+    qCWarning(GstVideoReceiverLog) << "_filterParserCaps: srcCaps =" << srcCapsStr;
+    g_free(srcCapsStr);
+
+    GstCaps *sinkCaps = gst_caps_copy(srcCaps);
+    sinkCaps = gst_caps_make_writable(sinkCaps);
+    bool modified = false;
+
+    for (guint i = 0; i < gst_caps_get_size(sinkCaps); ++i) {
+        GstStructure *structure = gst_caps_get_structure(sinkCaps, i);
+        if (gst_structure_has_name(structure, "video/x-h265")) {
+            gst_structure_set(structure, "stream-format", G_TYPE_STRING, "hvc1", nullptr);
+            modified = true;
+        } else if (gst_structure_has_name(structure, "video/x-h264")) {
+            gst_structure_set(structure, "stream-format", G_TYPE_STRING, "avc", nullptr);
+            modified = true;
         }
-        gst_clear_caps(&filter);
-    } else if (gst_structure_has_name(structure, "video/x-h264")) {
-        filter = gst_caps_from_string("video/x-h264");
-        if (gst_caps_can_intersect(srcCaps, filter)) {
-            sinkCaps = gst_caps_from_string("video/x-h264,stream-format=avc");
-        }
-        gst_clear_caps(&filter);
     }
 
-    if (sinkCaps) {
+    if (modified) {
+        gchar *sinkCapsStr = gst_caps_to_string(sinkCaps);
+        qCWarning(GstVideoReceiverLog) << "_filterParserCaps: returning sinkCaps =" << sinkCapsStr;
+        g_free(sinkCapsStr);
+
         gst_query_set_caps_result(query, sinkCaps);
         gst_clear_caps(&sinkCaps);
         return TRUE;
     }
 
+    gst_clear_caps(&sinkCaps);
     return FALSE;
 }
 #endif
@@ -891,10 +989,14 @@ GstElement *GstVideoReceiver::_makeDecoder()
     return decoder;
 }
 
+// Parser properties are left at defaults to allow caps-based passthrough of H264/H265 headers.
+
 GstElement *GstVideoReceiver::_makeFileSink(const QString &videoFile, FILE_FORMAT format)
 {
     GstElement *fileSink = nullptr;
+    GstElement *parser = nullptr;
     GstElement *mux = nullptr;
+    GstPad *muxPad = nullptr;
     GstElement *sink = nullptr;
     GstElement *bin = nullptr;
     bool releaseElements = true;
@@ -905,19 +1007,68 @@ GstElement *GstVideoReceiver::_makeFileSink(const QString &videoFile, FILE_FORMA
             break;
         }
 
-        mux = gst_element_factory_make(_kFileMux[format], nullptr);
+        bool isH265 = false;
+        bool needsParser = true; // assume byte-stream until we inspect caps
+
+        // Inspect the current caps at _recorderValve to decide whether we need
+        // a parser. RTSP streams come through parsebin already converted to
+        // stream-format=avc/hvc1. Adding h264parse on top of avc data causes
+        // mp4mux to reject it ("Could not multiplex stream").
+        if (_recorderValve) {
+            GstPad *valvePad = gst_element_get_static_pad(_recorderValve, "sink");
+            if (valvePad) {
+                GstCaps *caps = gst_pad_get_current_caps(valvePad);
+                if (caps) {
+                    GstStructure *s = gst_caps_get_structure(caps, 0);
+                    if (s) {
+                        const gchar *name = gst_structure_get_name(s);
+                        if (g_strcmp0(name, "video/x-h265") == 0) {
+                            isH265 = true;
+                        }
+                        const gchar *sf = gst_structure_get_string(s, "stream-format");
+                        // avc/hvc1/avc3: already packaged for MP4/TS — no parser needed.
+                        if (sf && (g_strcmp0(sf, "avc")  == 0 ||
+                                   g_strcmp0(sf, "hvc1") == 0 ||
+                                   g_strcmp0(sf, "avc3") == 0)) {
+                            needsParser = false;
+                        }
+                    }
+                    gchar *capsStr = gst_caps_to_string(caps);
+                    qCDebug(GstVideoReceiverLog) << "_makeFileSink: valve caps =" << capsStr
+                                                  << "needsParser =" << needsParser;
+                    g_free(capsStr);
+                    gst_caps_unref(caps);
+                }
+                gst_object_unref(valvePad);
+            }
+        }
+
+        // Fallback codec detection from decoder name
+        if (!isH265 && (_decoderName.contains("265", Qt::CaseInsensitive) ||
+                        _decoderName.contains("hevc", Qt::CaseInsensitive))) {
+            isH265 = true;
+        }
+
+        qCDebug(GstVideoReceiverLog) << "_makeFileSink: isH265 =" << isH265
+                                      << "needsParser =" << needsParser
+                                      << "format =" << format;
+
+        if (needsParser) {
+            // Byte-stream UDP/TCP sources need h264parse/h265parse to convert to
+            // avc/hvc1 and inject codec_data into caps for the muxer.
+            parser = gst_element_factory_make(isH265 ? "h265parse" : "h264parse", nullptr);
+            if (!parser) {
+                qCCritical(GstVideoReceiverLog) << "Failed to create parser for file sink";
+                break;
+            }
+        }
+
+        // Name the mux "sinkbin-mux" so _unlinkBranch can locate it by name
+        // to send EOS directly to its video sink pad when stopping recording.
+        mux = gst_element_factory_make(_kFileMux[format], "sinkbin-mux");
         if (!mux) {
             qCCritical(GstVideoReceiverLog) << "gst_element_factory_make('" << _kFileMux[format] << "') failed";
             break;
-        }
-
-        // mp4mux/qtmux: write moov atom up-front + reserve space for index updates so a crash
-        // mid-recording leaves a playable file. matroskamux is naturally streamable; skip.
-        if (format == FILE_FORMAT_MP4 || format == FILE_FORMAT_MOV) {
-            g_object_set(mux,
-                         "faststart", TRUE,
-                         "reserved-moov-update-period", G_GUINT64_CONSTANT(1000000000),
-                         nullptr);
         }
 
         sink = gst_element_factory_make("filesink", nullptr);
@@ -936,30 +1087,196 @@ GstElement *GstVideoReceiver::_makeFileSink(const QString &videoFile, FILE_FORMA
             break;
         }
 
+        // NOTE: Do NOT set message-forward=TRUE on the sinkbin. The parent pipeline
+        // already has message-forward=TRUE which forwards the sinkbin's EOS as a
+        // GstBinForwarded element message. Setting it on both causes double-forwarding.
+
+        // Add ALL elements to the bin BEFORE linking — GStreamer requires elements
+        // to share the same parent bin before pad links can be established.
+        if (parser) {
+            gst_bin_add_many(GST_BIN(bin), parser, mux, sink, nullptr);
+        } else {
+            gst_bin_add_many(GST_BIN(bin), mux, sink, nullptr);
+        }
+        releaseElements = false;
+
+        // Request a video sink pad on the mux
         GstPadTemplate *padTemplate = gst_element_class_get_pad_template(GST_ELEMENT_GET_CLASS(mux), "video_%u");
         if (!padTemplate) {
             qCCritical(GstVideoReceiverLog) << "gst_element_class_get_pad_template(mux) failed";
             break;
         }
 
-        // FIXME: pad handling is potentially leaking (and other similar places too!)
-        GstPad *pad = gst_element_request_pad(mux, padTemplate, nullptr, nullptr);
-        if (!pad) {
+        muxPad = gst_element_request_pad(mux, padTemplate, nullptr, nullptr);
+        if (!muxPad) {
             qCCritical(GstVideoReceiverLog) << "gst_element_request_pad(mux) failed";
             break;
         }
 
-        gst_bin_add_many(GST_BIN(bin), mux, sink, nullptr);
 
-        releaseElements = false;
 
-        GstPad *ghostpad = gst_ghost_pad_new("sink", pad);
-        (void) gst_element_add_pad(bin, ghostpad);
-        gst_clear_object(&pad);
+        if (parser) {
+            // Link parser src → mux video pad
+            GstPad *parserSrcPad = gst_element_get_static_pad(parser, "src");
+            if (!parserSrcPad) {
+                qCCritical(GstVideoReceiverLog) << "gst_element_get_static_pad(parser,'src') failed";
+                break;
+            }
+            GstPadLinkReturn linkRet = gst_pad_link(parserSrcPad, muxPad);
+            gst_object_unref(parserSrcPad);
+            if (linkRet != GST_PAD_LINK_OK) {
+                qCCritical(GstVideoReceiverLog) << "Failed to link parser src → mux pad, error:" << linkRet;
+                break;
+            }
+        }
 
+        // Link mux → filesink
         if (!gst_element_link(mux, sink)) {
-            qCCritical(GstVideoReceiverLog) << "gst_element_link() failed";
+            qCCritical(GstVideoReceiverLog) << "gst_element_link(mux, filesink) failed";
             break;
+        }
+
+        // Build the ghost pad: expose parser.sink (if present) or mux.video_0 to the outside.
+        GstPad *innerSinkPad = nullptr;
+        if (parser) {
+            innerSinkPad = gst_element_get_static_pad(parser, "sink");
+        } else {
+            // No parser: ghost pad wraps the mux's video request pad directly.
+            // EOS sent to this ghost pad goes straight to the mux → moov is written → file finalized.
+            innerSinkPad = GST_PAD(gst_object_ref(muxPad));
+        }
+
+        if (!innerSinkPad) {
+            qCCritical(GstVideoReceiverLog) << "Failed to get inner sink pad for ghostpad";
+            break;
+        }
+
+        GstPad *ghostpad = gst_ghost_pad_new("sink", innerSinkPad);
+        gst_object_unref(innerSinkPad);
+
+        if (!ghostpad) {
+            qCCritical(GstVideoReceiverLog) << "gst_ghost_pad_new() failed";
+            break;
+        }
+
+        (void) gst_element_add_pad(bin, ghostpad);
+
+        // Block upstream RECONFIGURE events at the sinkbin boundary.
+        // Without this, h264parse (or mp4mux) caps negotiation sends RECONFIGURE upstream:
+        // recorderValve → recorderQueue → tee → decodebin3, causing decodebin3 to
+        // re-emit pad-added and set up a second decoder/video display ("two video" bug).
+        GstPad *ghostSinkForProbe = gst_element_get_static_pad(bin, "sink");
+        if (ghostSinkForProbe) {
+            gst_pad_add_probe(ghostSinkForProbe,
+                GST_PAD_PROBE_TYPE_EVENT_UPSTREAM,
+                [](GstPad*, GstPadProbeInfo *info, gpointer) -> GstPadProbeReturn {
+                    if (GST_EVENT_TYPE(GST_PAD_PROBE_INFO_EVENT(info)) == GST_EVENT_RECONFIGURE) {
+                        return GST_PAD_PROBE_DROP;
+                    }
+                    return GST_PAD_PROBE_OK;
+                },
+                nullptr, nullptr);
+
+            // Unified Data Probe:
+            // 1. Timestamps: Cleanly start timestamps at 0 and mathematically enforce monotonic DTS
+            //    (advancing by 33.3ms for missing/broken timestamps) to prevent 3s playback bugs.
+            // 2. Caps freeze: We freeze the caps format AFTER the first buffer arrives.
+            //    This mathematically guarantees we capture any late-arriving codec_data (like SPS/PPS headers
+            //    needed for CAM1), but strictly prevents any mid-stream caps changes from reaching mp4mux
+            //    after data flow has started, preventing the "Could not multiplex stream" pipeline crash.
+            struct MuxState {
+                GstClockTime lastDts = GST_CLOCK_TIME_NONE;
+                GstClockTime offset = GST_CLOCK_TIME_NONE;
+                int bufferCount = 0;
+                bool capsLocked = false;
+            };
+            auto *muxState = new MuxState();
+            gst_pad_add_probe(ghostSinkForProbe, GST_PAD_PROBE_TYPE_DATA_DOWNSTREAM,
+                [](GstPad*, GstPadProbeInfo *info, gpointer user_data) -> GstPadProbeReturn {
+                    auto *state = static_cast<MuxState*>(user_data);
+
+                    if (info->type & GST_PAD_PROBE_TYPE_BUFFER) {
+                        state->bufferCount++;
+                        // Fallback lock: unconditionally lock the caps format after 10 frames (approx 330ms).
+                        // This protects streams like CAM2 (which never send codec_data) from crashing
+                        // when mid-stream caps changes arrive on subsequent IDR frames.
+                        if (state->bufferCount > 10) {
+                            state->capsLocked = true;
+                        }
+                        
+                        GstBuffer *buf = gst_pad_probe_info_get_buffer(info);
+
+                        if (!GST_CLOCK_TIME_IS_VALID(state->offset)) {
+                            if (GST_CLOCK_TIME_IS_VALID(buf->pts)) {
+                                state->offset = buf->pts;
+                                if (GST_CLOCK_TIME_IS_VALID(buf->dts) && buf->dts < state->offset) {
+                                    state->offset = buf->dts;
+                                }
+                            }
+                        }
+
+                        if (GST_CLOCK_TIME_IS_VALID(state->offset)) {
+                            buf = gst_buffer_make_writable(buf);
+                            GST_PAD_PROBE_INFO_DATA(info) = buf;
+
+                            if (GST_CLOCK_TIME_IS_VALID(buf->pts) && buf->pts >= state->offset) {
+                                buf->pts -= state->offset;
+                            } else {
+                                buf->pts = 0;
+                            }
+
+                            if (GST_CLOCK_TIME_IS_VALID(buf->dts) && buf->dts >= state->offset) {
+                                buf->dts -= state->offset;
+                            } else {
+                                buf->dts = 0;
+                            }
+
+                            if (!GST_CLOCK_TIME_IS_VALID(buf->dts) && GST_CLOCK_TIME_IS_VALID(buf->pts)) {
+                                buf->dts = buf->pts;
+                            }
+
+                            if (GST_CLOCK_TIME_IS_VALID(state->lastDts)) {
+                                if (!GST_CLOCK_TIME_IS_VALID(buf->dts) || buf->dts <= state->lastDts) {
+                                    buf->dts = state->lastDts + 33333333; // 30fps fallback
+                                }
+                            }
+                            state->lastDts = buf->dts;
+
+                            if (GST_CLOCK_TIME_IS_VALID(buf->pts) && buf->pts < buf->dts) {
+                                buf->pts = buf->dts;
+                            }
+                        }
+                        return GST_PAD_PROBE_OK;
+                    }
+
+                    if (info->type & GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM) {
+                        GstEvent *event = gst_pad_probe_info_get_event(info);
+                        if (GST_EVENT_TYPE(event) == GST_EVENT_CAPS) {
+                            if (state->capsLocked) {
+                                qCDebug(GstVideoReceiverLog) << "Dropping mid-stream caps change to prevent crash";
+                                return GST_PAD_PROBE_DROP;
+                            }
+                            
+                            // If we see codec_data, we can confidently lock the format immediately!
+                            // This perfectly protects CAM1 from subsequent IDR frames crashing the pipeline.
+                            GstCaps *caps = nullptr;
+                            gst_event_parse_caps(event, &caps);
+                            if (caps) {
+                                GstStructure *s = gst_caps_get_structure(caps, 0);
+                                if (s && gst_structure_has_field(s, "codec_data")) {
+                                    qCDebug(GstVideoReceiverLog) << "Freezing caps! Valid codec_data found.";
+                                    state->capsLocked = true;
+                                }
+                            }
+                        }
+                    }
+
+                    return GST_PAD_PROBE_OK;
+                },
+                muxState,
+                [](gpointer data) { delete static_cast<MuxState*>(data); });
+
+            gst_object_unref(ghostSinkForProbe);
         }
 
         fileSink = bin;
@@ -968,7 +1285,19 @@ GstElement *GstVideoReceiver::_makeFileSink(const QString &videoFile, FILE_FORMA
 
     if (releaseElements) {
         gst_clear_object(&sink);
-        gst_clear_object(&mux);
+        if (mux) {
+            if (muxPad) {
+                gst_element_release_request_pad(mux, muxPad);
+                gst_clear_object(&muxPad);
+            }
+            gst_clear_object(&mux);
+        }
+        if (parser) {
+            gst_clear_object(&parser);
+        }
+    } else {
+        // Unref the muxPad ref we held — the bin/mux now own it.
+        gst_clear_object(&muxPad);
     }
 
     gst_clear_object(&bin);
@@ -1276,26 +1605,73 @@ bool GstVideoReceiver::_unlinkBranch(GstElement *from)
         return false;
     }
 
+    // Unlink the pads first to prevent further data flow
     if (!gst_pad_unlink(src, sink)) {
-        gst_clear_object(&src);
-        gst_clear_object(&sink);
-        qCCritical(GstVideoReceiverLog) << "gst_pad_unlink() failed";
-        return false;
+        qCWarning(GstVideoReceiverLog) << "gst_pad_unlink() failed";
     }
 
     gst_clear_object(&src);
-
-    // Send EOS at the beginning of the branch
-    const gboolean ret = gst_pad_send_event(sink, gst_event_new_eos());
-
     gst_clear_object(&sink);
 
-    if (!ret) {
-        qCCritical(GstVideoReceiverLog) << "Branch EOS was NOT sent";
+    // Send EOS directly to the mux's video sink pad inside the sinkbin.
+    //
+    // Why NOT gst_pad_send_event(ghostSink, EOS):
+    //   After gst_pad_unlink(), the ghost pad has no upstream peer. In push mode,
+    //   GhostPad event routing depends on the pad being in an active push stream;
+    //   after unlinking, the internal proxy routing may not fire correctly.
+    //
+    // Why NOT gst_element_send_event(_fileSink, EOS):
+    //   GstBin's send_event iterates sink-leaf children (only filesink), completely
+    //   bypassing the mux → moov atom is never written → corrupt MP4.
+    //
+    // Direct pad approach: find the mux inside the sinkbin, get its first video
+    // sink pad, and push EOS there. This routes EOS: mux → filesink, writing moov.
+    // h264parse EOS is handled implicitly — since data flow stopped (valve dropped),
+    // h264parse has no pending buffers, and sending EOS to the mux directly is safe.
+    if (!_fileSink) {
+        qCCritical(GstVideoReceiverLog) << "_fileSink is NULL, cannot send EOS";
         return false;
     }
 
-    qCDebug(GstVideoReceiverLog) << "Branch EOS was sent";
+    // Find the mux by its fixed name "sinkbin-mux" and get its first video sink pad.
+    // We send EOS directly to the mux's pad, bypassing h264parse, because:
+    // - data flow has stopped (valve is in DROP mode, no buffers in-flight)
+    // - the ghost pad may not route events after unlinking
+    // - gst_element_send_event(bin) only sends to leaf sinks (filesink), skipping the mux
+    GstElement *mux = gst_bin_get_by_name(GST_BIN(_fileSink), "sinkbin-mux");
+    if (!mux) {
+        qCCritical(GstVideoReceiverLog) << "Could not find 'sinkbin-mux' element";
+        return false;
+    }
+
+    GstPad *muxSinkPad = nullptr;
+    {
+        GstIterator *it = gst_element_iterate_sink_pads(mux);
+        GValue val = G_VALUE_INIT;
+        if (gst_iterator_next(it, &val) == GST_ITERATOR_OK) {
+            muxSinkPad = GST_PAD(gst_object_ref(g_value_get_object(&val)));
+            g_value_unset(&val);
+        }
+        gst_iterator_free(it);
+    }
+    gst_object_unref(mux);
+
+    if (!muxSinkPad) {
+        qCCritical(GstVideoReceiverLog) << "Could not get mux video sink pad";
+        return false;
+    }
+
+    qCDebug(GstVideoReceiverLog) << "Sending EOS directly to mux sink pad (asynchronously)";
+    
+    std::thread([muxSinkPad]() {
+        const gboolean ret = gst_pad_send_event(muxSinkPad, gst_event_new_eos());
+        if (!ret) {
+            qCCritical(GstVideoReceiverLog) << "Branch EOS was NOT sent";
+        } else {
+            qCDebug(GstVideoReceiverLog) << "Branch EOS was sent successfully.";
+        }
+        gst_object_unref(muxSinkPad);
+    }).detach();
 
     return true;
 }
@@ -1356,6 +1732,13 @@ void GstVideoReceiver::_shutdownDecodingBranch()
 
 void GstVideoReceiver::_shutdownRecordingBranch()
 {
+    // Guard against double invocation: may be called by either the EOS path or the
+    // fallback timer. If _fileSink is already NULL it was already cleaned up.
+    if (!_fileSink) {
+        qCDebug(GstVideoReceiverLog) << "_shutdownRecordingBranch called but _fileSink is already NULL, skipping";
+        return;
+    }
+
     if (_keyframeWatchId != 0 && _recorderValve) {
         GstPad *probepad = gst_element_get_static_pad(_recorderValve, "src");
         if (probepad) {
@@ -1365,9 +1748,9 @@ void GstVideoReceiver::_shutdownRecordingBranch()
         _keyframeWatchId = 0;
     }
 
-    gst_bin_remove(GST_BIN(_pipeline), _fileSink);
-    gst_element_set_state(_fileSink, GST_STATE_NULL);
+    (void) gst_element_set_state(_fileSink, GST_STATE_NULL);
     (void) gst_element_get_state(_fileSink, nullptr, nullptr, GST_CLOCK_TIME_NONE);
+    gst_bin_remove(GST_BIN(_pipeline), _fileSink);
     gst_clear_object(&_fileSink);
 
     _removingRecorder = false;
@@ -1409,8 +1792,8 @@ gboolean GstVideoReceiver::_onBusMessage(GstBus * /* bus */, GstMessage *msg, gp
 
     switch (GST_MESSAGE_TYPE(msg)) {
     case GST_MESSAGE_ERROR: {
-        gchar *debug;
-        GError *error;
+        gchar *debug = nullptr;
+        GError *error = nullptr;
         gst_message_parse_error(msg, &error, &debug);
 
         if (debug) {
@@ -1427,21 +1810,98 @@ gboolean GstVideoReceiver::_onBusMessage(GstBus * /* bus */, GstMessage *msg, gp
             GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(pThis->_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "pipeline-error");
         }
 
-#if defined(QGC_HAS_GST_GLMEMORY_GPU_PATH) || defined(QGC_HAS_GST_D3D11_GPU_PATH) || defined(QGC_HAS_GST_D3D12_GPU_PATH)
-        // Drop bridge-cached devices defensively. D3D11/D3D12 errors are most often device-loss
-        // (DXGI_ERROR_DEVICE_REMOVED on driver reset / TDR / GPU detach); GST_MESSAGE_ERROR
-        // doesn't carry a structured device-lost code, so reset on any error rather than
-        // letting the next pipeline restart re-use a potentially-dead cached device. Cost on
-        // false positives is one device re-discovery on next prime — already paid on cold start.
-        // Render-thread mapTextures calls currentDevice() with transfer-full ownership now,
-        // so an in-flight mapTextures keeps its own ref alive across this reset.
-        GstContextBridgeRegistry::resetAllBridges();
-#endif
+        // Determine whether the error originated from the recording branch (sinkbin)
+        // by walking the GObject ancestry of the error source. If yes, we clean up
+        // only the recording and keep the main stream alive. A mp4mux failure (e.g.
+        // "Could not multiplex stream" from a mid-stream caps change) must NOT kill
+        // the video display — those are completely independent pipeline branches.
+        bool isRecordingBranchError = false;
+        {
+            GstObject *obj = GST_MESSAGE_SRC(msg) ? GST_OBJECT_CAST(gst_object_ref(GST_MESSAGE_SRC(msg))) : nullptr;
+            while (obj && !isRecordingBranchError) {
+                gchar *name = gst_object_get_name(obj);
+                isRecordingBranchError = (name && g_str_has_prefix(name, "sinkbin"));
+                g_free(name);
+                GstObject *parent = gst_object_get_parent(obj);
+                gst_object_unref(obj);
+                obj = parent;
+            }
+            if (obj) {
+                gst_object_unref(obj);
+            }
+        }
 
-        pThis->_worker->dispatch([pThis]() {
-            qCDebug(GstVideoReceiverLog) << "Stopping because of error";
-            pThis->stop();
-        });
+        if (isRecordingBranchError) {
+            qCWarning(GstVideoReceiverLog) << "Recording branch error — cleaning up recording, stream stays alive";
+            pThis->_worker->dispatch([pThis]() {
+                // Close the recorder valve first so no further data flows into
+                // the (now-dead) sinkbin while we tear it down.
+                if (pThis->_recorderValve) {
+                    g_object_set(pThis->_recorderValve, "drop", TRUE, nullptr);
+                }
+                
+                // If mp4mux failed, it returned GST_FLOW_ERROR upstream, which killed
+                // the recorderQueue's source task. We must resurrect the queue task
+                // by cycling it through READY, otherwise the next recording will silently fail.
+                GstElement *recQueue = nullptr;
+                if (pThis->_recorderValve) {
+                    GstPad *valveSink = gst_element_get_static_pad(pThis->_recorderValve, "sink");
+                    if (valveSink) {
+                        GstPad *queueSrc = gst_pad_get_peer(valveSink);
+                        if (queueSrc) {
+                            recQueue = GST_ELEMENT(gst_pad_get_parent(queueSrc));
+                            gst_object_unref(queueSrc);
+                        }
+                        gst_object_unref(valveSink);
+                    }
+                }
+
+                // Detach the valve from the sinkbin without sending EOS
+                // (mp4mux is already in error state; EOS would be ignored).
+                if (pThis->_recorderValve) {
+                    GstPad *valveSrc = gst_element_get_static_pad(pThis->_recorderValve, "src");
+                    if (valveSrc) {
+                        GstPad *peer = gst_pad_get_peer(valveSrc);
+                        if (peer) {
+                            gst_pad_unlink(valveSrc, peer);
+                            gst_object_unref(peer);
+                        }
+                        gst_object_unref(valveSrc);
+                    }
+                }
+                
+                // _shutdownRecordingBranch guards against double-call via _fileSink NULL check.
+                pThis->_removingRecorder = false;
+                pThis->_recordingStopRequested = false;
+                pThis->_shutdownRecordingBranch();
+
+                // Reset the queue now that the downstream is detached
+                if (recQueue) {
+                    gst_element_set_state(recQueue, GST_STATE_READY);
+                    gst_element_set_state(recQueue, GST_STATE_PLAYING);
+                    gst_object_unref(recQueue);
+                }
+
+                pThis->_dispatchSignal([pThis]() {
+                    emit pThis->onStopRecordingComplete(VideoReceiver::STATUS_FAIL);
+                });
+            });
+        } else {
+#if defined(QGC_HAS_GST_GLMEMORY_GPU_PATH) || defined(QGC_HAS_GST_D3D11_GPU_PATH) || defined(QGC_HAS_GST_D3D12_GPU_PATH)
+            // Drop bridge-cached devices defensively. D3D11/D3D12 errors are most often device-loss
+            // (DXGI_ERROR_DEVICE_REMOVED on driver reset / TDR / GPU detach); GST_MESSAGE_ERROR
+            // doesn't carry a structured device-lost code, so reset on any error rather than
+            // letting the next pipeline restart re-use a potentially-dead cached device. Cost on
+            // false positives is one device re-discovery on next prime — already paid on cold start.
+            // Render-thread mapTextures calls currentDevice() with transfer-full ownership now,
+            // so an in-flight mapTextures keeps its own ref alive across this reset.
+            GstContextBridgeRegistry::resetAllBridges();
+#endif
+            pThis->_worker->dispatch([pThis]() {
+                qCDebug(GstVideoReceiverLog) << "Stopping because of error";
+                pThis->stop();
+            });
+        }
         break;
     }
     case GST_MESSAGE_WARNING: {
@@ -1518,10 +1978,20 @@ gboolean GstVideoReceiver::_onBusMessage(GstBus * /* bus */, GstMessage *msg, gp
         }
 
         if (GST_MESSAGE_TYPE(forward_msg) == GST_MESSAGE_EOS) {
-            pThis->_worker->dispatch([pThis]() {
-                qCDebug(GstVideoReceiverLog) << "Received branch EOS";
-                pThis->_handleEOS();
-            });
+            // Only respond to EOS from the sinkbin (recording branch). The message source
+            // of the forwarded inner message is the element that originally posted the EOS.
+            // _handleEOS() guards against spurious calls via _removingRecorder and _fileSink checks.
+            GstObject *msgSrc = GST_MESSAGE_SRC(forward_msg);
+            gchar *srcName = msgSrc ? gst_object_get_name(msgSrc) : nullptr;
+            qCDebug(GstVideoReceiverLog) << "GstBinForwarded EOS from:" << (srcName ? srcName : "(unknown)");
+            g_free(srcName);
+
+            if (pThis->_removingRecorder) {
+                pThis->_worker->dispatch([pThis]() {
+                    qCDebug(GstVideoReceiverLog) << "Received branch EOS from sinkbin";
+                    pThis->_handleEOS();
+                });
+            }
         }
 
         gst_clear_message(&forward_msg);
@@ -1611,8 +2081,21 @@ void GstVideoReceiver::_linkPad(GstElement *element, GstPad *pad, gpointer data)
         return;
     }
 
+    GstPad *sinkPad = gst_element_get_static_pad(GST_ELEMENT(data), "sink");
+    if (sinkPad) {
+        if (gst_pad_is_linked(sinkPad)) {
+            // parsebin can emit multiple pad-added events (e.g. video, audio, rtcp).
+            // Since our parser only has one sink pad, subsequent links will fail.
+            // Silently ignore them to avoid spamming the log.
+            gst_object_unref(sinkPad);
+            g_clear_pointer(&name, g_free);
+            return;
+        }
+        gst_object_unref(sinkPad);
+    }
+
     if (!gst_element_link_pads(element, name, GST_ELEMENT(data), "sink")) {
-        qCCritical(GstVideoReceiverLog) << "gst_element_link_pads() failed";
+        qCCritical(GstVideoReceiverLog) << "gst_element_link_pads() failed for" << name;
     }
 
     g_clear_pointer(&name, g_free);
@@ -1713,23 +2196,28 @@ GstPadProbeReturn GstVideoReceiver::_eosProbe(GstPad *pad, GstPadProbeInfo *info
 
 GstPadProbeReturn GstVideoReceiver::_keyframeWatch(GstPad *pad, GstPadProbeInfo *info, gpointer user_data)
 {
+    Q_UNUSED(pad)
+
     if (!info || !user_data) {
         qCCritical(GstVideoReceiverLog) << "Invalid arguments";
         return GST_PAD_PROBE_DROP;
     }
 
     GstBuffer *buf = gst_pad_probe_info_get_buffer(info);
-    if (GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DELTA_UNIT)) {
+    const gboolean isDelta = GST_BUFFER_FLAG_IS_SET(buf, GST_BUFFER_FLAG_DELTA_UNIT);
+    qCDebug(GstVideoReceiverLog) << "_keyframeWatch: Received buffer PTS =" << (buf ? buf->pts : 0) << "DTS =" << (buf ? buf->dts : 0) << "isDelta =" << isDelta;
+
+    guint dropCount = GPOINTER_TO_UINT(g_object_get_data(G_OBJECT(pad), "drop-count"));
+    if (isDelta && dropCount < 60) {
+        g_object_set_data(G_OBJECT(pad), "drop-count", GUINT_TO_POINTER(dropCount + 1));
         // wait for a keyframe
         return GST_PAD_PROBE_DROP;
     }
 
-    // set media file '0' offset to current timeline position - we don't want to touch other elements in the graph, except these which are downstream!
-    gst_pad_set_offset(pad, -static_cast<gint64>(buf->pts));
-
-    qCDebug(GstVideoReceiverLog) << "Got keyframe, stop dropping buffers";
+    qCDebug(GstVideoReceiverLog) << "Got keyframe (or timed out), stop dropping buffers";
 
     GstVideoReceiver *pThis = static_cast<GstVideoReceiver*>(user_data);
+    pThis->_keyframeWatchId = 0;
     pThis->_dispatchSignal([pThis]() { emit pThis->recordingStarted(pThis->recordingOutput()); });
 
     return GST_PAD_PROBE_REMOVE;

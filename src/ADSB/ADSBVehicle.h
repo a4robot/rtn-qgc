@@ -22,6 +22,7 @@ class ADSBVehicle : public QObject
     Q_PROPERTY(double           verticalVel READ    verticalVel NOTIFY verticalVelChanged)
     Q_PROPERTY(uint16_t         squawk      READ    squawk      NOTIFY squawkChanged)
     Q_PROPERTY(bool             alert       READ    alert       NOTIFY alertChanged)
+    Q_PROPERTY(bool             isVessel    READ    isVessel    CONSTANT)
 
 public:
     explicit ADSBVehicle(const ADSB::VehicleInfo_t &vehicleInfo, QObject *parent = nullptr);
@@ -36,6 +37,7 @@ public:
     double verticalVel() const { return _info.verticalVel; }
     uint16_t squawk() const { return _info.squawk; }
     bool alert() const { return _info.alert; }
+    bool isVessel() const { return _info.isVessel; }
     bool expired() const { return _lastUpdateTimer.hasExpired(_expirationTimeoutMs); }
     void update(const ADSB::VehicleInfo_t &vehicleInfo);
 

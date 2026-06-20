@@ -289,6 +289,7 @@ FlightMap {
             callsign:       object.callsign
             heading:        object.heading
             alert:          object.alert
+            isVessel:       object.isVessel
             map:            _root
             size:           pipMode ? ScreenTools.defaultFontPixelHeight : ScreenTools.defaultFontPixelHeight * 2.5
             z:              QGroundControl.zOrderVehicles

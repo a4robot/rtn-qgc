@@ -17,6 +17,19 @@ Item {
     property real panelSpacing: ScreenTools.defaultFontPixelHeight * 0.5
     property real panelRadius: ScreenTools.defaultFontPixelWidth / 2
 
+    property int video1RecordSeconds: 0
+    property int video2RecordSeconds: 0
+
+    function formatTime(totalSeconds) {
+        var hours = Math.floor(totalSeconds / 3600)
+        var minutes = Math.floor((totalSeconds % 3600) / 60)
+        var seconds = totalSeconds % 60
+        var hh = hours < 10 ? "0" + hours : hours
+        var mm = minutes < 10 ? "0" + minutes : minutes
+        var ss = seconds < 10 ? "0" + seconds : seconds
+        return (hours > 0 ? (hh + ":") : "") + mm + ":" + ss
+    }
+
     property var _activeVehicle: QGroundControl.multiVehicleManager.activeVehicle
     property var _roverInfo: _activeVehicle ? _activeVehicle.apmRoverInfo : null
 
@@ -91,6 +104,32 @@ Item {
         onTriggered: {
             if (activeDirection !== 0) {
                 sendCommand(31010, activeDirection, 0, 0, 0, 0, 0, 0)
+            }
+        }
+    }
+
+    Timer {
+        id: video1RecordTimer
+        interval: 1000
+        repeat: true
+        running: QGroundControl.videoManager.recording
+        onTriggered: video1RecordSeconds++
+        onRunningChanged: {
+            if (running) {
+                video1RecordSeconds = 0
+            }
+        }
+    }
+
+    Timer {
+        id: video2RecordTimer
+        interval: 1000
+        repeat: true
+        running: QGroundControl.videoManager2.recording
+        onTriggered: video2RecordSeconds++
+        onRunningChanged: {
+            if (running) {
+                video2RecordSeconds = 0
             }
         }
     }
@@ -202,8 +241,8 @@ Item {
         id: rightInfoPanel
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 0.75
-        anchors.topMargin: ScreenTools.defaultFontPixelHeight * 0.75
+        anchors.rightMargin: 0
+        anchors.topMargin: 0
         width: infoPanelColumn.width + _panelPadding * 2
         height: infoPanelColumn.height + _panelPadding * 2
         color: Qt.rgba(qgcPal.windowTransparent.r, qgcPal.windowTransparent.g, qgcPal.windowTransparent.b, qgcPal.windowTransparent.a)
@@ -284,14 +323,17 @@ Item {
             width: Math.max(barRow.width, rudderGaugeItem.width)
             spacing: 1
 
-            // === TOP: TRIM Header ===
+            // === TOP: Telemetry Header ===
             QGCLabel {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: {
-                    var isErr = (trimValue <= -999.0)
-                    return "RDR " + (isErr ? "--" : (trimValue.toFixed(0) + "%"))
+                    var rdrErr = (rudderValue <= -999.0)
+                    var trmErr = (trimValue <= -999.0)
+                    var rdrStr = rdrErr ? "--" : rudderValue.toFixed(0)
+                    var trmStr = trmErr ? "--" : trimValue.toFixed(0)
+                    return "RDR " + rdrStr + "° TRM " + trmStr + "%"
                 }
-                font.pointSize: ScreenTools.largeFontPointSize * 0.7
+                font.pointSize: ScreenTools.smallFontPointSize
                 font.bold: true
                 color: "white"
             }
@@ -490,6 +532,179 @@ Item {
                             color: "white"
                         }
                     }
+                }
+            }
+        }
+    }
+
+    // Video Recording Panels
+    Column {
+        id: recordPanelsColumn
+        anchors.right: rightInfoPanel.right
+        anchors.top: rightInfoPanel.bottom
+        anchors.topMargin: panelSpacing
+        spacing: panelSpacing
+        width: rightInfoPanel.width
+        visible: recordPanel1.visible || recordPanel2.visible
+
+        // Record Panel 1
+        Rectangle {
+            id: recordPanel1
+            width: parent.width
+            height: recBtn1.height + (ScreenTools.defaultFontPixelWidth * 0.75) * 2
+            color: Qt.rgba(qgcPal.windowTransparent.r, qgcPal.windowTransparent.g, qgcPal.windowTransparent.b, qgcPal.windowTransparent.a)
+            radius: panelRadius
+            visible: QGroundControl.videoManager.hasVideo
+
+            DeadMouseArea { anchors.fill: parent }
+
+            // Record Button on the left
+            Rectangle {
+                id: recBtn1
+                anchors.left: parent.left
+                anchors.leftMargin: ScreenTools.defaultFontPixelWidth * 0.75
+                anchors.top: parent.top
+                anchors.topMargin: ScreenTools.defaultFontPixelWidth * 0.75
+                width: ScreenTools.defaultFontPixelHeight * 1.8
+                height: width
+                radius: width / 2
+                color: "transparent"
+                border.color: "white"
+                border.width: 2
+
+                Rectangle {
+                    id: redDot1
+                    anchors.centerIn: parent
+                    width: QGroundControl.videoManager.recording ? parent.width * 0.4 : parent.width * 0.6
+                    height: width
+                    radius: QGroundControl.videoManager.recording ? ScreenTools.defaultFontPixelWidth * 0.15 : width / 2
+                    color: "red"
+
+                    // Pulsing animation if recording
+                    SequentialAnimation on opacity {
+                        running: QGroundControl.videoManager.recording
+                        loops: Animation.Infinite
+                        PropertyAnimation { to: 0.4; duration: 600 }
+                        PropertyAnimation { to: 1.0; duration: 600 }
+                    }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: {
+                        if (QGroundControl.videoManager.recording) {
+                            QGroundControl.videoManager.stopRecording()
+                        } else {
+                            QGroundControl.videoManager.startRecording()
+                        }
+                    }
+                }
+            }
+
+            // Text container on the right
+            Column {
+                id: textContainer1
+                anchors.left: recBtn1.right
+                anchors.leftMargin: ScreenTools.defaultFontPixelWidth
+                anchors.verticalCenter: recBtn1.verticalCenter
+                anchors.right: parent.right
+                anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 0.75
+
+                QGCLabel {
+                    id: camLabel1
+                    text: "CAM 1"
+                    font.pointSize: ScreenTools.smallFontPointSize * 0.9
+                    font.bold: true
+                    color: "white"
+                }
+
+                QGCLabel {
+                    id: timeLabel1
+                    text: QGroundControl.videoManager.recording ? formatTime(video1RecordSeconds) : "STANDBY"
+                    font.pointSize: ScreenTools.smallFontPointSize * 0.9
+                    font.bold: true
+                    color: QGroundControl.videoManager.recording ? "red" : "#888888"
+                }
+            }
+        }
+
+        // Record Panel 2
+        Rectangle {
+            id: recordPanel2
+            width: parent.width
+            height: recBtn2.height + (ScreenTools.defaultFontPixelWidth * 0.75) * 2
+            color: Qt.rgba(qgcPal.windowTransparent.r, qgcPal.windowTransparent.g, qgcPal.windowTransparent.b, qgcPal.windowTransparent.a)
+            radius: panelRadius
+            visible: QGroundControl.videoManager2.hasVideo
+
+            DeadMouseArea { anchors.fill: parent }
+
+            // Record Button on the left
+            Rectangle {
+                id: recBtn2
+                anchors.left: parent.left
+                anchors.leftMargin: ScreenTools.defaultFontPixelWidth * 0.75
+                anchors.top: parent.top
+                anchors.topMargin: ScreenTools.defaultFontPixelWidth * 0.75
+                width: ScreenTools.defaultFontPixelHeight * 1.8
+                height: width
+                radius: width / 2
+                color: "transparent"
+                border.color: "white"
+                border.width: 2
+
+                Rectangle {
+                    id: redDot2
+                    anchors.centerIn: parent
+                    width: QGroundControl.videoManager2.recording ? parent.width * 0.4 : parent.width * 0.6
+                    height: width
+                    radius: QGroundControl.videoManager2.recording ? ScreenTools.defaultFontPixelWidth * 0.15 : width / 2
+                    color: "red"
+
+                    // Pulsing animation if recording
+                    SequentialAnimation on opacity {
+                        running: QGroundControl.videoManager2.recording
+                        loops: Animation.Infinite
+                        PropertyAnimation { to: 0.4; duration: 600 }
+                        PropertyAnimation { to: 1.0; duration: 600 }
+                    }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: {
+                        if (QGroundControl.videoManager2.recording) {
+                            QGroundControl.videoManager2.stopRecording()
+                        } else {
+                            QGroundControl.videoManager2.startRecording()
+                        }
+                    }
+                }
+            }
+
+            // Text container on the right
+            Column {
+                id: textContainer2
+                anchors.left: recBtn2.right
+                anchors.leftMargin: ScreenTools.defaultFontPixelWidth
+                anchors.verticalCenter: recBtn2.verticalCenter
+                anchors.right: parent.right
+                anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 0.75
+
+                QGCLabel {
+                    id: camLabel2
+                    text: "CAM 2"
+                    font.pointSize: ScreenTools.smallFontPointSize * 0.9
+                    font.bold: true
+                    color: "white"
+                }
+
+                QGCLabel {
+                    id: timeLabel2
+                    text: QGroundControl.videoManager2.recording ? formatTime(video2RecordSeconds) : "STANDBY"
+                    font.pointSize: ScreenTools.smallFontPointSize * 0.9
+                    font.bold: true
+                    color: QGroundControl.videoManager2.recording ? "red" : "#888888"
                 }
             }
         }

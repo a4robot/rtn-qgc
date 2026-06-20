@@ -90,6 +90,7 @@ void ADSBVehicleManager::_handleAISVessel(const mavlink_message_t &message)
     adsbVehicleMsg.heading = aisVehicleMsg.COG; // COG is course over ground
     adsbVehicleMsg.hor_velocity = aisVehicleMsg.velocity;
     adsbVehicleMsg.tslc = aisVehicleMsg.tslc;
+    adsbVehicleMsg.emitter_type = 18; // Surface vessel
 
     // Map callsign/name
     int nameLen = qstrnlen(aisVehicleMsg.name, sizeof(aisVehicleMsg.name));
@@ -185,8 +186,9 @@ void ADSBVehicleManager::_handleADSBVehicle(const mavlink_message_t &message)
 
     }
 
-    adsbVehicleMsg.altitude_type = adsbVehicleMsg.altitude_type;
-    adsbVehicleMsg.emitter_type = adsbVehicleMsg.emitter_type;
+    vehicleInfo.altitudeeType = static_cast<ADSB_ALTITUDE_TYPE>(adsbVehicleMsg.altitude_type);
+    vehicleInfo.emitterType = static_cast<ADSB_EMITTER_TYPE>(adsbVehicleMsg.emitter_type);
+    vehicleInfo.isVessel = (adsbVehicleMsg.emitter_type == 18);
 
     adsbVehicleUpdate(vehicleInfo);
 }
