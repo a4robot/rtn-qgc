@@ -87,16 +87,6 @@ Item {
     }
 
     Timer {
-        id: trimNoneTimer
-        interval: 1000
-        repeat: true
-        running: true
-        onTriggered: {
-            sendCommand(31010, 0, 0, 0, 0, 0, 0, 0)
-        }
-    }
-
-    Timer {
         id: trimActiveTimer
         interval: 500
         repeat: true
@@ -136,7 +126,6 @@ Item {
 
     function setTrimActive(direction, active) {
         if (active) {
-            trimNoneTimer.stop()
             trimActiveTimer.activeDirection = direction
             trimActiveTimer.start()
             sendCommand(31010, direction, 0, 0, 0, 0, 0, 0)
@@ -144,7 +133,6 @@ Item {
             if (trimActiveTimer.activeDirection === direction) {
                 trimActiveTimer.stop()
                 trimActiveTimer.activeDirection = 0
-                trimNoneTimer.restart()
                 sendCommand(31010, 0, 0, 0, 0, 0, 0, 0)
             }
         }
