@@ -160,7 +160,7 @@ QGCApplication::QGCApplication(int &argc, char *argv[], const QGCCommandLinePars
     QSvgRenderer::setDefaultOptions(QtSvg::Tiny12FeaturesOnly);
 
 #if !defined(QGC_DAILY_BUILD) && !defined(QGC_DISABLE_NEW_VERSION_CHECK)
-    _checkForNewVersion();
+    // _checkForNewVersion();
 #endif
 }
 
