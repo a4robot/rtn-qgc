@@ -199,4 +199,27 @@ void APMParameterMetaData::_postProcessMetaData(const QString &name, FactMetaDat
         (metaData->type() == FactMetaData::valueTypeFloat || metaData->type() == FactMetaData::valueTypeDouble)) {
         metaData->setDecimalPlaces(6);
     }
+
+    // Add custom NMEAMux values for some parameters if not present
+    if (name.startsWith(u"SERIAL") && name.endsWith(u"_PROTOCOL")) {
+        if (!metaData->enumStrings().contains(u"NMEAMux")) {
+            metaData->addEnumInfo(QStringLiteral("NMEAMux"), QVariant(50));
+            metaData->setLongDescription(metaData->longDescription() + QStringLiteral(" Gets data from NMEAmux channel when set to NMEAMux."));
+        }
+    } else if (name == u"ARSPD_TYPE") {
+        if (!metaData->enumStrings().contains(u"NMEAMux")) {
+            metaData->addEnumInfo(QStringLiteral("NMEAMux"), QVariant(17));
+            metaData->setLongDescription(metaData->longDescription() + QStringLiteral(" Gets data from NMEAmux channel when set to NMEAMux."));
+        }
+    } else if (name.startsWith(u"RNGFND") && name.endsWith(u"_TYPE")) {
+        if (!metaData->enumStrings().contains(u"NMEAMux")) {
+            metaData->addEnumInfo(QStringLiteral("NMEAMux"), QVariant(45));
+            metaData->setLongDescription(metaData->longDescription() + QStringLiteral(" Gets data from NMEAmux channel when set to NMEAMux."));
+        }
+    } else if (name == u"WNDVN_TYPE" || name == u"WNDVN_SPEED_TYPE") {
+        if (!metaData->enumStrings().contains(u"NMEAMux")) {
+            metaData->addEnumInfo(QStringLiteral("NMEAMux"), QVariant(5));
+            metaData->setLongDescription(metaData->longDescription() + QStringLiteral(" Gets data from NMEAmux channel when set to NMEAMux."));
+        }
+    }
 }
