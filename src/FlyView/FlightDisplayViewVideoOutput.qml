@@ -22,11 +22,15 @@ VideoOutput {
     Connections {
         target: videoManager
         function onImageFileChanged(filename) {
+            var targetSize = Qt.size(sourceRect.width, sourceRect.height);
+            if (targetSize.width === 0 || targetSize.height === 0) {
+                targetSize = Qt.size(1920, 1080);
+            }
             grabToImage(function(result) {
                 if (!result.saveToFile(filename)) {
                     console.error('Error capturing video frame');
                 }
-            });
+            }, targetSize);
         }
     }
 }

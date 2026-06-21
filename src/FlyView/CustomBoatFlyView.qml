@@ -316,10 +316,8 @@ Item {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: {
                     var rdrErr = (rudderValue <= -999.0)
-                    var trmErr = (trimValue <= -999.0)
                     var rdrStr = rdrErr ? "--" : rudderValue.toFixed(0)
-                    var trmStr = trmErr ? "--" : trimValue.toFixed(0)
-                    return "RDR " + rdrStr + "° TRM " + trmStr + "%"
+                    return "RUDDER " + rdrStr + "°"
                 }
                 font.pointSize: ScreenTools.smallFontPointSize
                 font.bold: true
@@ -551,9 +549,8 @@ Item {
                 id: recBtn1
                 anchors.left: parent.left
                 anchors.leftMargin: ScreenTools.defaultFontPixelWidth * 0.75
-                anchors.top: parent.top
-                anchors.topMargin: ScreenTools.defaultFontPixelWidth * 0.75
-                width: ScreenTools.defaultFontPixelHeight * 1.8
+                anchors.verticalCenter: parent.verticalCenter
+                width: ScreenTools.defaultFontPixelHeight * 1.44
                 height: width
                 radius: width / 2
                 color: "transparent"
@@ -563,6 +560,7 @@ Item {
                 Rectangle {
                     id: redDot1
                     anchors.centerIn: parent
+                    anchors.alignWhenCentered: false
                     width: QGroundControl.videoManager.recording ? parent.width * 0.4 : parent.width * 0.6
                     height: width
                     radius: QGroundControl.videoManager.recording ? ScreenTools.defaultFontPixelWidth * 0.15 : width / 2
@@ -589,13 +587,48 @@ Item {
                 }
             }
 
+            // Snapshot button on the right
+            Rectangle {
+                id: snapBtn1
+                anchors.right: parent.right
+                anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 0.75
+                anchors.verticalCenter: parent.verticalCenter
+                width: ScreenTools.defaultFontPixelHeight * 1.44
+                height: width
+                radius: width / 2
+                color: "transparent"
+                border.color: "white"
+                border.width: 2
+
+                QGCColoredImage {
+                    anchors.centerIn: parent
+                    anchors.alignWhenCentered: false
+                    width: parent.width * 0.55
+                    height: parent.height * 0.55
+                    sourceSize.height: height
+                    source: "/qmlimages/camera_photo.svg"
+                    fillMode: Image.PreserveAspectFit
+                    color: "white"
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    onPressed: snapBtn1.color = Qt.rgba(1, 1, 1, 0.3)
+                    onReleased: snapBtn1.color = "transparent"
+                    onCanceled: snapBtn1.color = "transparent"
+                    onClicked: {
+                        QGroundControl.videoManager.grabImage()
+                    }
+                }
+            }
+
             // Text container on the right
             Column {
                 id: textContainer1
                 anchors.left: recBtn1.right
                 anchors.leftMargin: ScreenTools.defaultFontPixelWidth
                 anchors.verticalCenter: recBtn1.verticalCenter
-                anchors.right: parent.right
+                anchors.right: snapBtn1.left
                 anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 0.75
 
                 QGCLabel {
@@ -632,9 +665,8 @@ Item {
                 id: recBtn2
                 anchors.left: parent.left
                 anchors.leftMargin: ScreenTools.defaultFontPixelWidth * 0.75
-                anchors.top: parent.top
-                anchors.topMargin: ScreenTools.defaultFontPixelWidth * 0.75
-                width: ScreenTools.defaultFontPixelHeight * 1.8
+                anchors.verticalCenter: parent.verticalCenter
+                width: ScreenTools.defaultFontPixelHeight * 1.44
                 height: width
                 radius: width / 2
                 color: "transparent"
@@ -644,6 +676,7 @@ Item {
                 Rectangle {
                     id: redDot2
                     anchors.centerIn: parent
+                    anchors.alignWhenCentered: false
                     width: QGroundControl.videoManager2.recording ? parent.width * 0.4 : parent.width * 0.6
                     height: width
                     radius: QGroundControl.videoManager2.recording ? ScreenTools.defaultFontPixelWidth * 0.15 : width / 2
@@ -670,13 +703,48 @@ Item {
                 }
             }
 
+            // Snapshot button on the right
+            Rectangle {
+                id: snapBtn2
+                anchors.right: parent.right
+                anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 0.75
+                anchors.verticalCenter: parent.verticalCenter
+                width: ScreenTools.defaultFontPixelHeight * 1.44
+                height: width
+                radius: width / 2
+                color: "transparent"
+                border.color: "white"
+                border.width: 2
+
+                QGCColoredImage {
+                    anchors.centerIn: parent
+                    anchors.alignWhenCentered: false
+                    width: parent.width * 0.55
+                    height: parent.height * 0.55
+                    sourceSize.height: height
+                    source: "/qmlimages/camera_photo.svg"
+                    fillMode: Image.PreserveAspectFit
+                    color: "white"
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    onPressed: snapBtn2.color = Qt.rgba(1, 1, 1, 0.3)
+                    onReleased: snapBtn2.color = "transparent"
+                    onCanceled: snapBtn2.color = "transparent"
+                    onClicked: {
+                        QGroundControl.videoManager2.grabImage()
+                    }
+                }
+            }
+
             // Text container on the right
             Column {
                 id: textContainer2
                 anchors.left: recBtn2.right
                 anchors.leftMargin: ScreenTools.defaultFontPixelWidth
                 anchors.verticalCenter: recBtn2.verticalCenter
-                anchors.right: parent.right
+                anchors.right: snapBtn2.left
                 anchors.rightMargin: ScreenTools.defaultFontPixelWidth * 0.75
 
                 QGCLabel {

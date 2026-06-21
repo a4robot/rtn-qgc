@@ -305,18 +305,13 @@ void QtMultimediaReceiver::takeScreenshot(const QString &imageFile)
         return;
     }
 
-    // const QVideoFrameFormat frameFormat = frame.surfaceFormat();
-    // const QImage frameImage = frame.toImage();
-
-    _videoOutput = reinterpret_cast<QQuickVideoOutput*>(_mediaPlayer->videoOutput());
-    const QSize targetSize = _mediaRecorder->videoResolution();
-    QSharedPointer<QQuickItemGrabResult> screenshot = _videoOutput->grabToImage(targetSize);
-    // (void) connect(&screenshot, &QQuickItemGrabResult::ready, this, [screenshot, imageFile]() {
-        // screenshot->saveToFile(imageFile);
-    // }
-    screenshot->saveToFile(imageFile);
-
-    qCDebug(QtMultimediaReceiverLog) << "Screenshot";
-
-    emit onTakeScreenshotComplete(STATUS_NOT_IMPLEMENTED);
+    const QImage frameImage = frame.toImage();
+    if (!frameImage.isNull()) {
+        frameImage.save(imageFile);
+        qCDebug(QtMultimediaReceiverLog) << "Screenshot saved to" << imageFile << "Size:" << frameImage.size();
+        emit onTakeScreenshotComplete(STATUS_OK);
+    } else {
+        qCWarning(QtMultimediaReceiverLog) << "Failed to convert QVideoFrame to QImage";
+        emit onTakeScreenshotComplete(STATUS_FAIL);
+    }
 }

@@ -93,8 +93,8 @@ Rectangle {
                 id:                swipePages
                 anchors.fill:      parent
                 spacing:           ScreenTools.defaultFontPixelHeight
-                implicitHeight:    Math.max(buttonsPage.implicitHeight, photoVideoPage.implicitHeight)
-                implicitWidth:     Math.max(buttonsPage.implicitWidth, photoVideoPage.implicitWidth)
+                implicitHeight:    buttonsPage.implicitHeight
+                implicitWidth:     buttonsPage.implicitWidth
 
                 MvPanelPage {
                     id:                buttonsPage
@@ -188,31 +188,7 @@ Rectangle {
                     }
                 } // Page 1
 
-                MvPanelPage {
 
-                    id:                  photoVideoPage
-                    implicitHeight:      photoVideoControlLoader.implicitHeight + ScreenTools.defaultFontPixelHeight * 2
-                    implicitWidth:       photoVideoControlLoader.implicitWidth + ScreenTools.defaultFontPixelHeight * 2
-
-                    // We use a Loader to load the photoVideoControlComponent only when the active vehicle is not null
-                    // This make it easier to implement PhotoVideoControl without having to check for the mavlink camera
-                    // to be null all over the place
-
-                    Loader {
-                        id:                         photoVideoControlLoader
-                        anchors.horizontalCenter:   parent.horizontalCenter
-                        sourceComponent:            globals.activeVehicle ? photoVideoControlComponent : undefined
-
-                        property real rightEdgeCenterInset: visible ? parent.width - x : 0
-
-                        Component {
-                            id: photoVideoControlComponent
-
-                            PhotoVideoControl {
-                            }
-                        }
-                    }
-                } // Page 2
             } // QGCSwipeView
 
             QGCPageIndicator {
