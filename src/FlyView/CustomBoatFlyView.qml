@@ -580,8 +580,10 @@ Item {
                     onClicked: {
                         if (QGroundControl.videoManager.recording) {
                             QGroundControl.videoManager.stopRecording()
+                            QGroundControl.videoManager.sendViewproCommand(0) // Rec_stop
                         } else {
                             QGroundControl.videoManager.startRecording()
+                            QGroundControl.videoManager.sendViewproCommand(1) // Rec_start
                         }
                     }
                 }
@@ -618,6 +620,7 @@ Item {
                     onCanceled: snapBtn1.color = "transparent"
                     onClicked: {
                         QGroundControl.videoManager.grabImage()
+                        QGroundControl.videoManager.sendViewproCommand(2) // Photograph
                     }
                 }
             }
@@ -696,8 +699,10 @@ Item {
                     onClicked: {
                         if (QGroundControl.videoManager2.recording) {
                             QGroundControl.videoManager2.stopRecording()
+                            QGroundControl.videoManager2.sendViewproCommand(0) // Rec_stop
                         } else {
                             QGroundControl.videoManager2.startRecording()
+                            QGroundControl.videoManager2.sendViewproCommand(1) // Rec_start
                         }
                     }
                 }
@@ -734,6 +739,7 @@ Item {
                     onCanceled: snapBtn2.color = "transparent"
                     onClicked: {
                         QGroundControl.videoManager2.grabImage()
+                        QGroundControl.videoManager2.sendViewproCommand(2) // Photograph
                     }
                 }
             }

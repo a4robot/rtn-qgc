@@ -16,6 +16,8 @@
 #include "VideoSettings.h"
 #include "QtMultimediaReceiver.h"
 #include "UVCReceiver.h"
+#include <QTcpSocket>
+#include <QRegularExpression>
 #ifdef QGC_GST_STREAMING
 #include "GStreamerHelpers.h"
 #include "GStreamer.h"
@@ -377,6 +379,64 @@ void VideoManager::stopRecording()
     for (VideoReceiver *receiver : std::as_const(_videoReceivers)) {
         receiver->stopRecording();
     }
+}
+
+void VideoManager::sendViewproCommand(int commandId)
+{
+    if (!_videoSettings) {
+        return;
+    }
+
+    QString url;
+    if (_videoSettings->videoSource()->rawValue().toString() == VideoSettings::videoSourceRTSP) {
+        url = _videoSettings->rtspUrl()->rawValue().toString();
+    } else if (_videoSettings->videoSource()->rawValue().toString() == VideoSettings::videoSourceUDP) {
+        url = _videoSettings->udpUrl()->rawValue().toString();
+    }
+
+    if (url.isEmpty()) {
+        qCDebug(VideoManagerLog) << "sendViewproCommand: No video URL configured.";
+        return;
+    }
+
+    QRegularExpression re("(?:rtsp|tcp|udp)://([0-9\\.]+)");
+    QRegularExpressionMatch match = re.match(url);
+    if (!match.hasMatch()) {
+        qCDebug(VideoManagerLog) << "sendViewproCommand: Could not parse IP from URL" << url;
+        return;
+    }
+
+    QString ip = match.captured(1);
+
+    QByteArray payload;
+    if (commandId == 0) {
+        // Rec_stop
+        payload = QByteArray::fromHex("7E7E4400007C0000000000000000000000000000000000000000000000000000000000000000000000000000000000BC");
+    } else if (commandId == 1) {
+        // Rec_start
+        payload = QByteArray::fromHex("7E7E4400007C015802000000000000000000000000000000000000000000000000000000000000000000000000000017");
+    } else if (commandId == 2) {
+        // Photograph
+        payload = QByteArray::fromHex("7E7E4400007C0200000000000000000000000000000000000000000000000000000000000000000000000000000000BE");
+    } else {
+        return;
+    }
+
+    qCDebug(VideoManagerLog) << "sendViewproCommand: Sending command" << commandId << "to" << ip << ":2000";
+
+    QTcpSocket* socket = new QTcpSocket(this);
+    connect(socket, &QTcpSocket::connected, socket, [socket, payload]() {
+        socket->write(payload);
+        socket->flush();
+        socket->disconnectFromHost();
+    });
+    connect(socket, &QTcpSocket::disconnected, socket, &QTcpSocket::deleteLater);
+    connect(socket, &QTcpSocket::errorOccurred, socket, [socket](QAbstractSocket::SocketError error) {
+        qCDebug(VideoManagerLog) << "sendViewproCommand TCP error:" << error;
+        socket->deleteLater();
+    });
+
+    socket->connectToHost(ip, 2000);
 }
 
 void VideoManager::grabImage(const QString &imageFile)
