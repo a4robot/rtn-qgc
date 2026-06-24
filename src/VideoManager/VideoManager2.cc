@@ -384,10 +384,13 @@ void VideoManager2::sendViewproCommand(int commandId)
     }
 
     QString url;
-    if (_videoSettings2->videoSource()->rawValue().toString() == VideoSettings2::videoSourceRTSP) {
+    QString source = _videoSettings2->videoSource()->rawValue().toString();
+    if (source == VideoSettings2::videoSourceRTSP) {
         url = _videoSettings2->rtspUrl()->rawValue().toString();
-    } else if (_videoSettings2->videoSource()->rawValue().toString() == VideoSettings2::videoSourceUDP) {
+    } else if (source == VideoSettings2::videoSourceUDPH264 || source == VideoSettings2::videoSourceUDPH265) {
         url = _videoSettings2->udpUrl()->rawValue().toString();
+    } else if (source == VideoSettings2::videoSourceTCP) {
+        url = _videoSettings2->tcpUrl()->rawValue().toString();
     }
 
     if (url.isEmpty()) {
