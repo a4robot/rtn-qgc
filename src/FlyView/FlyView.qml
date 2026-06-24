@@ -115,8 +115,8 @@ Item {
             anchors.margins:        _toolsMargin
             item1IsFullSettingsKey: "MainFlyWindowIsMap"
             item1:                  mapControl
-            item2:                  QGroundControl.videoManager.hasVideo ? videoControl : null
-            show:                   QGroundControl.videoManager.hasVideo && !QGroundControl.videoManager.fullScreen &&
+            item2:                  (QGroundControl.videoManager.isStreamSource || QGroundControl.videoManager.isUvc) ? videoControl : null
+            show:                   (QGroundControl.videoManager.isStreamSource || QGroundControl.videoManager.isUvc) && !QGroundControl.videoManager.fullScreen &&
                                         (videoControl.pipState.state === videoControl.pipState.pipState || mapControl.pipState.state === mapControl.pipState.pipState)
             z:                      QGroundControl.zOrderWidgets
 
@@ -132,8 +132,8 @@ Item {
             item1IsFullSettingsKey: "MainFlyWindowIsVideo2"
             pipExpandedSettingsKey: "IsPIPVisible2"
             item1:                  dummyMap2
-            item2:                  QGroundControl.videoManager2.hasVideo ? videoControl2 : null
-            show:                   QGroundControl.videoManager2.hasVideo && !QGroundControl.videoManager2.fullScreen &&
+            item2:                  (QGroundControl.videoManager2.isStreamSource || QGroundControl.videoManager2.isUvc) ? videoControl2 : null
+            show:                   (QGroundControl.videoManager2.isStreamSource || QGroundControl.videoManager2.isUvc) && !QGroundControl.videoManager2.fullScreen &&
                                         (videoControl2.pipState.state === videoControl2.pipState.pipState || dummyMap2.pipState.state === dummyMap2.pipState.pipState)
             z:                      QGroundControl.zOrderWidgets
 
