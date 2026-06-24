@@ -190,19 +190,19 @@ Item {
                 model: [
                     ToolStripAction {
                         property bool isOn: relayStates[0]
-                        text: "Head"
+                        text: "Siren"
                         iconSource: (lightsStat & 1) ? "/InstrumentValueIcons/light-bulb-solid.svg" : "/InstrumentValueIcons/light-bulb.svg"
                         onTriggered: toggleLight(0)
                     },
                     ToolStripAction {
                         property bool isOn: relayStates[1]
-                        text: "Nav."
+                        text: "All Ard."
                         iconSource: (lightsStat & 2) ? "/InstrumentValueIcons/light-bulb-solid.svg" : "/InstrumentValueIcons/light-bulb.svg"
                         onTriggered: toggleLight(1)
                     },
                     ToolStripAction {
                         property bool isOn: relayStates[2]
-                        text: "Siren"
+                        text: "Nav."
                         iconSource: (lightsStat & 4) ? "/InstrumentValueIcons/light-bulb-solid.svg" : "/InstrumentValueIcons/light-bulb.svg"
                         onTriggered: toggleLight(2)
                     },
@@ -395,7 +395,7 @@ Item {
                         var displayVal = isErr ? 0 : rudderValue;
                         var mappedVal = Math.max(-maxRudder, Math.min(displayVal, maxRudder));
                         // Map rudder to rotation: 0 = straight down (90deg), +-45 = +-60deg
-                        var needleRotDeg = (mappedVal / maxRudder) * 60;
+                        var needleRotDeg = (-mappedVal / maxRudder) * 60;
                         var needleRotRad = needleRotDeg * Math.PI / 180;
 
                         // Triangle vertices in SVG coords (relative to pivot)
