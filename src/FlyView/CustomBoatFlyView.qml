@@ -531,7 +531,6 @@ Item {
         anchors.topMargin: panelSpacing
         spacing: panelSpacing
         width: rightInfoPanel.width
-        visible: recordPanel1.visible || recordPanel2.visible
 
         // Record Panel 1
         Rectangle {
@@ -540,7 +539,7 @@ Item {
             height: recBtn1.height + (ScreenTools.defaultFontPixelWidth * 0.75) * 2
             color: Qt.rgba(qgcPal.windowTransparent.r, qgcPal.windowTransparent.g, qgcPal.windowTransparent.b, qgcPal.windowTransparent.a)
             radius: panelRadius
-            visible: QGroundControl.videoManager.isStreamSource || QGroundControl.videoManager.isUvc
+            visible: QGroundControl.videoManager.isStreamSource
 
             DeadMouseArea { anchors.fill: parent }
 
@@ -659,7 +658,7 @@ Item {
             height: recBtn2.height + (ScreenTools.defaultFontPixelWidth * 0.75) * 2
             color: Qt.rgba(qgcPal.windowTransparent.r, qgcPal.windowTransparent.g, qgcPal.windowTransparent.b, qgcPal.windowTransparent.a)
             radius: panelRadius
-            visible: QGroundControl.videoManager2.isStreamSource || QGroundControl.videoManager2.isUvc
+            visible: QGroundControl.videoManager2.isStreamSource
 
             DeadMouseArea { anchors.fill: parent }
 
