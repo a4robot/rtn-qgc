@@ -540,7 +540,7 @@ Item {
             height: recBtn1.height + (ScreenTools.defaultFontPixelWidth * 0.75) * 2
             color: Qt.rgba(qgcPal.windowTransparent.r, qgcPal.windowTransparent.g, qgcPal.windowTransparent.b, qgcPal.windowTransparent.a)
             radius: panelRadius
-            visible: QGroundControl.videoManager.hasVideo
+            visible: QGroundControl.videoManager.isStreamSource
 
             DeadMouseArea { anchors.fill: parent }
 
@@ -656,7 +656,7 @@ Item {
             height: recBtn2.height + (ScreenTools.defaultFontPixelWidth * 0.75) * 2
             color: Qt.rgba(qgcPal.windowTransparent.r, qgcPal.windowTransparent.g, qgcPal.windowTransparent.b, qgcPal.windowTransparent.a)
             radius: panelRadius
-            visible: QGroundControl.videoManager2.hasVideo
+            visible: QGroundControl.videoManager2.isStreamSource
 
             DeadMouseArea { anchors.fill: parent }
 
