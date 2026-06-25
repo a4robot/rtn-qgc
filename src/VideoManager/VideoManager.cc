@@ -414,13 +414,13 @@ void VideoManager::sendViewproCommand(int commandId)
     QByteArray payload;
     if (commandId == 0) {
         // Rec_stop
-        payload = QByteArray::fromHex("7E7E4400007C0000000000000000000000000000000000000000000000000000000000000000000000000000000000BC");
+        payload = QByteArray::fromHex("55AADC11300F000000000000000005500000007B");
     } else if (commandId == 1) {
         // Rec_start
-        payload = QByteArray::fromHex("7E7E4400007C015802000000000000000000000000000000000000000000000000000000000000000000000000000017");
+        payload = QByteArray::fromHex("55AADC11300F000000000000000005100000003B");
     } else if (commandId == 2) {
         // Photograph
-        payload = QByteArray::fromHex("7E7E4400007C0200000000000000000000000000000000000000000000000000000000000000000000000000000000BE");
+        payload = QByteArray::fromHex("55AADC11300F000000000000000004D0000000FA");
     } else {
         return;
     }
