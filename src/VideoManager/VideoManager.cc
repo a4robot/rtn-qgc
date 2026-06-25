@@ -402,7 +402,7 @@ void VideoManager::sendViewproCommand(int commandId)
         return;
     }
 
-    QRegularExpression re("(?:rtsp|tcp|udp)://([0-9\\.]+)");
+    QRegularExpression re("(?:rtsp|tcp|udp)://([^:/]+)");
     QRegularExpressionMatch match = re.match(url);
     if (!match.hasMatch()) {
         qCDebug(VideoManagerLog) << "sendViewproCommand: Could not parse IP from URL" << url;
