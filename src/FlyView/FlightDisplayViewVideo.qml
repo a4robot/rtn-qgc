@@ -112,6 +112,7 @@ Item {
             anchors.fill:       videoContentArea
             visible:            _showStreamLoader
             sourceComponent:    videoOutputComponent
+            onLoaded: { if (item) item.objectName = root.videoReceiverName }
 
             property bool videoDisabled: videoSettings.videoSource.rawValue === videoSettings.disabledVideoSource
         }

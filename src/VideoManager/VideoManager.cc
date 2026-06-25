@@ -361,15 +361,13 @@ void VideoManager::startRecording(const QString &videoFile)
     const QString videoFileUrl = videoFile.isEmpty() ? QDateTime::currentDateTime().toString("yyyy-MM-dd_hh.mm.ss") : videoFile;
     const QString ext = kFileExtension[fileFormat];
 
-    const QString videoFileNameTemplate = savePath + "/" + videoFileUrl + ".%1" + ext;
-
     for (VideoReceiver *receiver : std::as_const(_videoReceivers)) {
         if (!receiver->started()) {
             qCDebug(VideoManagerLog) << "Video receiver is not ready.";
             continue;
         }
-        const QString streamName = (receiver->name() == QStringLiteral("videoContent")) ? "" : (receiver->name() + ".");
-        const QString videoFileName = videoFileNameTemplate.arg(streamName);
+        const QString streamName = (receiver->name() == QStringLiteral("videoContent")) ? "CAM1" : receiver->name();
+        const QString videoFileName = savePath + "/" + videoFileUrl + (streamName.isEmpty() ? "" : "_" + streamName) + "." + ext;
         receiver->startRecording(videoFileName, fileFormat);
     }
 }
@@ -446,7 +444,7 @@ void VideoManager::grabImage(const QString &imageFile)
 {
     if (imageFile.isEmpty()) {
         _imageFile = SettingsManager::instance()->appSettings()->photoSavePath();
-        _imageFile += QStringLiteral("/") + QDateTime::currentDateTime().toString("yyyy-MM-dd_hh.mm.ss.zzz") + QStringLiteral(".jpg");
+        _imageFile += QStringLiteral("/") + QDateTime::currentDateTime().toString("yyyy-MM-dd_hh.mm.ss.zzz") + QStringLiteral("_CAM1.jpg");
     } else {
         _imageFile = imageFile;
     }

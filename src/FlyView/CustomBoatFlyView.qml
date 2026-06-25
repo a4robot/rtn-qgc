@@ -531,7 +531,6 @@ Item {
         anchors.topMargin: panelSpacing
         spacing: panelSpacing
         width: rightInfoPanel.width
-        visible: recordPanel1.visible || recordPanel2.visible
 
         // Record Panel 1
         Rectangle {
