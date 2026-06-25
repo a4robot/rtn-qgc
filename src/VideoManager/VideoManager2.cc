@@ -438,9 +438,10 @@ void VideoManager2::sendViewproCommand(int commandId)
 
 void VideoManager2::grabImage(const QString &imageFile)
 {
+    QString timestamp;
     if (imageFile.isEmpty()) {
-        _imageFile = SettingsManager::instance()->appSettings()->photoSavePath();
-        _imageFile += QStringLiteral("/") + QDateTime::currentDateTime().toString("yyyy-MM-dd_hh.mm.ss.zzz") + QStringLiteral(".jpg");
+        timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd_hh.mm.ss.zzz");
+        _imageFile = SettingsManager::instance()->appSettings()->photoSavePath() + QStringLiteral("/") + timestamp + QStringLiteral(".jpg");
     } else {
         _imageFile = imageFile;
     }
@@ -448,7 +449,14 @@ void VideoManager2::grabImage(const QString &imageFile)
     emit imageFileChanged(_imageFile);
 
     for (VideoReceiver *receiver : std::as_const(_videoReceivers)) {
-        receiver->takeScreenshot(_imageFile);
+        QString receiverImageFile = _imageFile;
+        if (imageFile.isEmpty()) {
+            const QString streamName = (receiver->name() == QStringLiteral("videoContent2")) ? "CAM2" : receiver->name();
+            receiverImageFile = SettingsManager::instance()->appSettings()->photoSavePath() +
+                QStringLiteral("/") + timestamp +
+                (streamName.isEmpty() ? "" : "_" + streamName) + QStringLiteral(".jpg");
+        }
+        receiver->takeScreenshot(receiverImageFile);
         // QSharedPointer<QQuickItemGrabResult> result = receiver->widget()->grabToImage(const QSize &targetSize = QSize())
     }
 }
