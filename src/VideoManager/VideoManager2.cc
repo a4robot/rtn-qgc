@@ -16,7 +16,7 @@
 #include "VideoSettings2.h"
 #include "QtMultimediaReceiver.h"
 #include "UVCReceiver.h"
-#include <QUdpSocket>
+#include <QTcpSocket>
 #include <QRegularExpression>
 #ifdef QGC_GST_STREAMING
 #include "GStreamerHelpers.h"
@@ -421,11 +421,21 @@ void VideoManager2::sendViewproCommand(int commandId)
         return;
     }
 
-    qCDebug(VideoManager2Log) << "sendViewproCommand: Sending UDP command" << commandId << "to" << ip << ":2000";
+    qCDebug(VideoManager2Log) << "sendViewproCommand: Sending TCP command" << commandId << "to" << ip << ":2000";
 
-    QUdpSocket* socket = new QUdpSocket(this);
-    socket->writeDatagram(payload, QHostAddress(ip), 2000);
-    socket->deleteLater();
+    QTcpSocket* socket = new QTcpSocket(this);
+    connect(socket, &QTcpSocket::connected, socket, [socket, payload]() {
+        socket->write(payload);
+        socket->flush();
+        socket->disconnectFromHost();
+    });
+    connect(socket, &QTcpSocket::disconnected, socket, &QTcpSocket::deleteLater);
+    connect(socket, &QTcpSocket::errorOccurred, socket, [socket](QAbstractSocket::SocketError error) {
+        qCDebug(VideoManager2Log) << "sendViewproCommand TCP error:" << error;
+        socket->deleteLater();
+    });
+
+    socket->connectToHost(ip, 2000);
 }
 
 void VideoManager2::grabImage(const QString &imageFile)
