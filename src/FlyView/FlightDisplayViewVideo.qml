@@ -27,7 +27,7 @@ Item {
     property var    _camera:            _isCamera ? _dynamicCameras.cameras.get(_curCameraIndex) : null
     property bool   _hasZoom:           _camera && _camera.hasZoom
     property int    _fitMode:           videoSettings.videoFit.rawValue
-    property bool   _showStreamLoader:  videoManager.decoding
+    property bool   _showStreamLoader:  videoManager.isStreamSource
     property bool   _showUvcLoader:     videoManager.isUvc
     property string videoReceiverName: "videoContent"
     property string thermalVideoReceiverName: "thermalVideo"
@@ -112,6 +112,7 @@ Item {
             anchors.fill:       videoContentArea
             visible:            _showStreamLoader
             sourceComponent:    videoOutputComponent
+            onLoaded: { if (item) item.objectName = root.videoReceiverName }
 
             property bool videoDisabled: videoSettings.videoSource.rawValue === videoSettings.disabledVideoSource
         }
