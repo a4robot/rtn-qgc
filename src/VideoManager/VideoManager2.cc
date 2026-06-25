@@ -362,7 +362,7 @@ void VideoManager2::startRecording(const QString &videoFile)
             qCDebug(VideoManager2Log) << "Video receiver is not ready.";
             continue;
         }
-        const QString streamName = (receiver->name() == QStringLiteral("videoContent2")) ? "videoContent2" : receiver->name();
+        const QString streamName = (receiver->name() == QStringLiteral("videoContent2")) ? "CAM2" : receiver->name();
         const QString videoFileName = savePath + "/" + videoFileUrl + (streamName.isEmpty() ? "" : "_" + streamName) + "." + ext;
         receiver->startRecording(videoFileName, fileFormat);
     }
