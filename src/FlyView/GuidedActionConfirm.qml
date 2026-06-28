@@ -25,7 +25,16 @@ Item {
     property real _margins:         2
     property bool _emergencyAction: action === guidedController.actionEmergencyStop
 
-    Component.onCompleted: guidedController.confirmDialog = this
+
+    property bool isArmDialog: false
+    Component.onCompleted: {
+        if (isArmDialog) {
+            guidedController.armConfirmDialog = this
+        } else {
+            guidedController.confirmDialog = this
+        }
+    }
+
 
     onHideTriggerChanged: {
         if (hideTrigger) {

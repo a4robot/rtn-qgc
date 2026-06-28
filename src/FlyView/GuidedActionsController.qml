@@ -17,6 +17,7 @@ Item {
 
     property var missionController
     property var confirmDialog
+    property var armConfirmDialog
     property var guidedValueSlider
     property var fwdFlightGotoMapCircle
     property var orbitMapCircle
@@ -149,7 +150,7 @@ Item {
     // Note: The '_visualItemsCount - 2' is a hack to not trigger resume mission when a mission ends with an RTL item
     property bool showResumeMission:    _activeVehicle && !_vehicleArmed && _vehicleWasFlying && _missionAvailable && _resumeMissionIndex > 0 && (_resumeMissionIndex < _visualItemsCount - 2)
 
-    property bool guidedUIVisible:          confirmDialog.visible
+    property bool guidedUIVisible:          confirmDialog.visible || (armConfirmDialog ? armConfirmDialog.visible : false)
 
     property var    _corePlugin:            QGroundControl.corePlugin
     property var    _corePluginOptions:     QGroundControl.corePlugin.options
@@ -369,6 +370,7 @@ Item {
     }
 
     function closeAll() {
+        if (armConfirmDialog) armConfirmDialog.visible = false
         confirmDialog.visible = false
         guidedValueSlider.visible = false
     }
@@ -377,11 +379,15 @@ Item {
     function confirmAction(actionCode, actionData, mapIndicator) {
         var showImmediate = true
         closeAll()
-        confirmDialog.action = actionCode
-        confirmDialog.actionData = actionData
-        confirmDialog.hideTrigger = true
-        confirmDialog.mapIndicator = mapIndicator
-        confirmDialog.optionText = ""
+        var dialog = confirmDialog
+        if (actionCode === actionArm || actionCode === actionDisarm || actionCode === actionMVArm || actionCode === actionMVDisarm || actionCode === actionForceArm) {
+            dialog = armConfirmDialog ? armConfirmDialog : confirmDialog
+        }
+        dialog.action = actionCode
+        dialog.actionData = actionData
+        dialog.hideTrigger = true
+        dialog.mapIndicator = mapIndicator
+        dialog.optionText = ""
         _actionData = actionData
 
         setupSlider(actionCode)
@@ -391,162 +397,162 @@ Item {
             if (_vehicleFlying || !_guidedActionsEnabled) {
                 return
             }
-            confirmDialog.title = armTitle
-            confirmDialog.message = armMessage
-            confirmDialog.hideTrigger = Qt.binding(function() { return !showArm })
+            dialog.title = armTitle
+            dialog.message = armMessage
+            dialog.hideTrigger = Qt.binding(function() { return !showArm })
             break;
         case actionMVArm:
-            confirmDialog.title = mvArmTitle
-            confirmDialog.message = mvArmMessage
-            confirmDialog.hideTrigger = true
+            dialog.title = mvArmTitle
+            dialog.message = mvArmMessage
+            dialog.hideTrigger = true
             break;
         case actionForceArm:
-            confirmDialog.title = forceArmTitle
-            confirmDialog.message = forceArmMessage
-            confirmDialog.hideTrigger = Qt.binding(function() { return !showForceArm })
+            dialog.title = forceArmTitle
+            dialog.message = forceArmMessage
+            dialog.hideTrigger = Qt.binding(function() { return !showForceArm })
             break;
         case actionDisarm:
             if (_vehicleFlying && !(_activeVehicle && (_activeVehicle.rover || _activeVehicle.sub))) {
                 return
             }
-            confirmDialog.title = disarmTitle
-            confirmDialog.message = disarmMessage
-            confirmDialog.hideTrigger = Qt.binding(function() { return !showDisarm })
+            dialog.title = disarmTitle
+            dialog.message = disarmMessage
+            dialog.hideTrigger = Qt.binding(function() { return !showDisarm })
             break;
         case actionMVDisarm:
-            confirmDialog.title = mvDisarmTitle
-            confirmDialog.message = mvDisarmMessage
-            confirmDialog.hideTrigger = true
+            dialog.title = mvDisarmTitle
+            dialog.message = mvDisarmMessage
+            dialog.hideTrigger = true
             break;
         case actionEmergencyStop:
-            confirmDialog.title = emergencyStopTitle
-            confirmDialog.message = emergencyStopMessage
-            confirmDialog.hideTrigger = Qt.binding(function() { return !showEmergenyStop })
+            dialog.title = emergencyStopTitle
+            dialog.message = emergencyStopMessage
+            dialog.hideTrigger = Qt.binding(function() { return !showEmergenyStop })
             break;
         case actionTakeoff:
-            confirmDialog.title = takeoffTitle
-            confirmDialog.message = takeoffMessage
-            confirmDialog.hideTrigger = Qt.binding(function() { return !showTakeoff })
+            dialog.title = takeoffTitle
+            dialog.message = takeoffMessage
+            dialog.hideTrigger = Qt.binding(function() { return !showTakeoff })
             guidedValueSlider.visible = _activeVehicle.supports.guidedTakeoffWithAltitude
             break;
         case actionStartMission:
             showImmediate = false
-            confirmDialog.title = startMissionTitle
-            confirmDialog.message = startMissionMessage
-            confirmDialog.hideTrigger = Qt.binding(function() { return !showStartMission })
+            dialog.title = startMissionTitle
+            dialog.message = startMissionMessage
+            dialog.hideTrigger = Qt.binding(function() { return !showStartMission })
             break;
         case actionMVStartMission:
-            confirmDialog.title = mvStartMissionTitle
-            confirmDialog.message = mvStartMissionMessage
-            confirmDialog.hideTrigger = true
+            dialog.title = mvStartMissionTitle
+            dialog.message = mvStartMissionMessage
+            dialog.hideTrigger = true
             break;
         case actionContinueMission:
             showImmediate = false
-            confirmDialog.title = continueMissionTitle
-            confirmDialog.message = continueMissionMessage
-            confirmDialog.hideTrigger = Qt.binding(function() { return !showContinueMission })
+            dialog.title = continueMissionTitle
+            dialog.message = continueMissionMessage
+            dialog.hideTrigger = Qt.binding(function() { return !showContinueMission })
             break;
         case actionResumeMission:
             // Resume Mission is handled in mission end dialog
             return
         case actionResumeMissionUploadFail:
-            confirmDialog.title = resumeMissionUploadFailTitle
-            confirmDialog.message = resumeMissionUploadFailMessage
-            confirmDialog.hideTrigger = Qt.binding(function() { return !showResumeMission })
+            dialog.title = resumeMissionUploadFailTitle
+            dialog.message = resumeMissionUploadFailMessage
+            dialog.hideTrigger = Qt.binding(function() { return !showResumeMission })
             break;
         case actionLand:
-            confirmDialog.title = landTitle
-            confirmDialog.message = landMessage
-            confirmDialog.hideTrigger = Qt.binding(function() { return !showLand })
+            dialog.title = landTitle
+            dialog.message = landMessage
+            dialog.hideTrigger = Qt.binding(function() { return !showLand })
             break;
         case actionRTL:
-            confirmDialog.title = rtlTitle
-            confirmDialog.message = rtlMessage
+            dialog.title = rtlTitle
+            dialog.message = rtlMessage
             if (_activeVehicle.supports.smartRTL) {
-                confirmDialog.optionText = qsTr("Smart RTL")
-                confirmDialog.optionChecked = false
+                dialog.optionText = qsTr("Smart RTL")
+                dialog.optionChecked = false
             }
-            confirmDialog.hideTrigger = Qt.binding(function() { return !showRTL })
+            dialog.hideTrigger = Qt.binding(function() { return !showRTL })
             break;
         case actionChangeAlt:
-            confirmDialog.title = changeAltTitle
-            confirmDialog.message = changeAltMessage
-            confirmDialog.hideTrigger = Qt.binding(function() { return !showChangeAlt })
+            dialog.title = changeAltTitle
+            dialog.message = changeAltMessage
+            dialog.hideTrigger = Qt.binding(function() { return !showChangeAlt })
             guidedValueSlider.visible = true
             break;
         case actionChangeLoiterRadius:
-            confirmDialog.title = changeLoiterRadiusTitle
-            confirmDialog.message = changeLoiterRadiusMessage
-            confirmDialog.hideTrigger = Qt.binding(function() { return !showChangeLoiterRadius })
-            confirmDialog.mapIndicator = fwdFlightGotoMapCircle
+            dialog.title = changeLoiterRadiusTitle
+            dialog.message = changeLoiterRadiusMessage
+            dialog.hideTrigger = Qt.binding(function() { return !showChangeLoiterRadius })
+            dialog.mapIndicator = fwdFlightGotoMapCircle
             fwdFlightGotoMapCircle.startLoiterRadiusEdit()
             break
         case actionGoto:
-            confirmDialog.title = gotoTitle
-            confirmDialog.message = gotoMessage
-            confirmDialog.hideTrigger = Qt.binding(function() { return !showGotoLocation })
+            dialog.title = gotoTitle
+            dialog.message = gotoMessage
+            dialog.hideTrigger = Qt.binding(function() { return !showGotoLocation })
             break;
         case actionSetWaypoint:
-            confirmDialog.title = setWaypointTitle
-            confirmDialog.message = setWaypointMessage
+            dialog.title = setWaypointTitle
+            dialog.message = setWaypointMessage
             break;
         case actionOrbit:
-            confirmDialog.title = orbitTitle
-            confirmDialog.message = orbitMessage
-            confirmDialog.hideTrigger = Qt.binding(function() { return !showOrbit })
+            dialog.title = orbitTitle
+            dialog.message = orbitMessage
+            dialog.hideTrigger = Qt.binding(function() { return !showOrbit })
             guidedValueSlider.visible = true
             break;
         case actionLandAbort:
-            confirmDialog.title = landAbortTitle
-            confirmDialog.message = landAbortMessage
-            confirmDialog.hideTrigger = Qt.binding(function() { return !showLandAbort })
+            dialog.title = landAbortTitle
+            dialog.message = landAbortMessage
+            dialog.hideTrigger = Qt.binding(function() { return !showLandAbort })
             break;
         case actionPause:
-            confirmDialog.title = pauseTitle
-            confirmDialog.message = pauseMessage
-            confirmDialog.hideTrigger = Qt.binding(function() { return !showPause })
+            dialog.title = pauseTitle
+            dialog.message = pauseMessage
+            dialog.hideTrigger = Qt.binding(function() { return !showPause })
             guidedValueSlider.visible = true
             break;
         case actionMVPause:
-            confirmDialog.title = mvPauseTitle
-            confirmDialog.message = mvPauseMessage
-            confirmDialog.hideTrigger = true
+            dialog.title = mvPauseTitle
+            dialog.message = mvPauseMessage
+            dialog.hideTrigger = true
             break;
         case actionROI:
-            confirmDialog.title = roiTitle
-            confirmDialog.message = roiMessage
-            confirmDialog.hideTrigger = Qt.binding(function() { return !showROI })
+            dialog.title = roiTitle
+            dialog.message = roiMessage
+            dialog.hideTrigger = Qt.binding(function() { return !showROI })
             break;
         case actionChangeSpeed:
-            confirmDialog.hideTrigger = true
-            confirmDialog.title = changeSpeedTitle
-            confirmDialog.message = changeSpeedMessage
+            dialog.hideTrigger = true
+            dialog.title = changeSpeedTitle
+            dialog.message = changeSpeedMessage
             guidedValueSlider.visible = true
             break
         case actionSetHome:
-            confirmDialog.title = setHomeTitle
-            confirmDialog.message = setHomeMessage
-            confirmDialog.hideTrigger = Qt.binding(function() { return !showSetHome })
+            dialog.title = setHomeTitle
+            dialog.message = setHomeMessage
+            dialog.hideTrigger = Qt.binding(function() { return !showSetHome })
             break
         case actionSetEstimatorOrigin:
-            confirmDialog.title = setEstimatorOriginTitle
-            confirmDialog.message = setEstimatorOriginMessage
+            dialog.title = setEstimatorOriginTitle
+            dialog.message = setEstimatorOriginMessage
             break
         case actionSetFlightMode:
-            confirmDialog.title = setFlightMode
-            confirmDialog.message = setFlightModeMessage
+            dialog.title = setFlightMode
+            dialog.message = setFlightModeMessage
             break
         case actionChangeHeading:
-            confirmDialog.title = changeHeadingTitle
-            confirmDialog.message = changeHeadingMessage
+            dialog.title = changeHeadingTitle
+            dialog.message = changeHeadingMessage
             break
         default:
-            if (!customController.customConfirmAction(actionCode, actionData, mapIndicator, confirmDialog)) {
+            if (!customController.customConfirmAction(actionCode, actionData, mapIndicator, dialog)) {
                 console.warn("Unknown actionCode", actionCode)
                 return
             }
         }
-        confirmDialog.show(showImmediate)
+        dialog.show(showImmediate)
     }
 
     // Executes the specified action

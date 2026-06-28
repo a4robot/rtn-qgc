@@ -161,6 +161,65 @@ Item {
         property real leftEdgeCenterInset:  leftEdgeTopInset
     }
 
+
+
+    // Arm/Disarm Guided Action Confirm (appearing next to toolstrip)
+    Item {
+        id: armConfirmContainer
+        anchors.left: toolStrip.right
+        anchors.leftMargin: _toolsMargin
+        anchors.top: toolStrip.top
+        width: armGuidedActionConfirm.width
+        height: ScreenTools.toolbarHeight
+        z: QGroundControl.zOrderTopMost
+
+        GuidedActionConfirm {
+            id: armGuidedActionConfirm
+            isArmDialog: true
+            height: parent.height
+            guidedController: _guidedController
+            guidedValueSlider: null // Not used for arming
+            messageDisplay: armGuidedActionMessageDisplay
+        }
+    }
+
+    Rectangle {
+        id:                         armGuidedActionMessageDisplay
+        anchors.top:                armConfirmContainer.bottom
+        anchors.topMargin:          _margins
+        anchors.horizontalCenter:   armConfirmContainer.horizontalCenter
+        width:                      armMessageLabel.contentWidth + (_margins * 2)
+        height:                     armMessageLabel.contentHeight + (_margins * 2)
+        color:                      qgcPal.windowTransparent
+        radius:                     ScreenTools.defaultBorderRadius
+        visible:                    armGuidedActionConfirm.visible
+        z:                          QGroundControl.zOrderTopMost
+
+        QGCLabel {
+            id:         armMessageLabel
+            x:          _margins
+            y:          _margins
+            width:      ScreenTools.defaultFontPixelWidth * 30
+            wrapMode:   Text.WordWrap
+            text:       armGuidedActionConfirm.message
+        }
+
+        PropertyAnimation {
+            id:         armMessageOpacityAnimation
+            target:     armGuidedActionMessageDisplay
+            property:   "opacity"
+            from:       1
+            to:         0
+            duration:   500
+        }
+
+        Timer {
+            id:             armMessageFadeTimer
+            interval:       4000
+            onTriggered:    armMessageOpacityAnimation.start()
+        }
+    }
+
     VehicleWarnings {
         anchors.centerIn:   parent
         z:                  QGroundControl.zOrderTopMost
