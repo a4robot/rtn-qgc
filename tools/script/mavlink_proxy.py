@@ -54,17 +54,25 @@ def main():
 
     try:
         while True:
-            # Read from Serial (Pixhawk) -> Write to UDP (QGC)
-            msg_serial = serial_conn.recv_msg()
-            if msg_serial is not None and msg_serial.get_type() != 'BAD_DATA':
-                udp_conn.write(msg_serial.get_msgbuf())
-                messages_forwarded_to_udp += 1
+            try:
+                # Read from Serial (Pixhawk) -> Write to UDP (QGC)
+                msg_serial = serial_conn.recv_msg()
+                if msg_serial is not None and msg_serial.get_type() != 'BAD_DATA':
+                    udp_conn.write(msg_serial.get_msgbuf())
+                    messages_forwarded_to_udp += 1
 
-            # Read from UDP (QGC) -> Write to Serial (Pixhawk)
-            msg_udp = udp_conn.recv_msg()
-            if msg_udp is not None and msg_udp.get_type() != 'BAD_DATA':
-                serial_conn.write(msg_udp.get_msgbuf())
-                messages_forwarded_to_serial += 1
+                # Read from UDP (QGC) -> Write to Serial (Pixhawk)
+                msg_udp = udp_conn.recv_msg()
+                if msg_udp is not None and msg_udp.get_type() != 'BAD_DATA':
+                    serial_conn.write(msg_udp.get_msgbuf())
+                    messages_forwarded_to_serial += 1
+            except Exception as e:
+                # Catch generic exceptions, often from pyserial when the device is disconnected
+                # or when another process (like QGC AutoConnect) steals the serial port.
+                print(f"\n[ERROR] Lost serial connection to Pixhawk: {e}")
+                print(">>> This usually happens when QGroundControl opens the same USB port.")
+                print(">>> Fix: Go to QGC Settings -> Comm Links -> and turn OFF 'AutoConnect Pixhawk' or 'AutoConnect SiKRadio'.")
+                break
 
             # Print stats every 5 seconds
             current_time = time.time()
