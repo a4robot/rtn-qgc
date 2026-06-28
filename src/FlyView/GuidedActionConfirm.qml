@@ -53,11 +53,15 @@ Item {
     }
 
     function confirmCancelled() {
-        guidedValueSlider.visible = false
+        if (guidedValueSlider) {
+            guidedValueSlider.visible = false
+        }
         visible = false
         hideTrigger = false
         visibleTimer.stop()
-        messageDisplay.opacity = 1.0
+        if (messageDisplay) {
+            messageDisplay.opacity = 1.0
+        }
         messageFadeTimer.stop()
         messageOpacityAnimation.stop()
         if (mapIndicator) {
@@ -94,7 +98,7 @@ Item {
             onActivated: {
                 control.visible = false
                 var sliderOutputValue = 0
-                if (guidedValueSlider.visible) {
+                if (guidedValueSlider && guidedValueSlider.visible) {
                     sliderOutputValue = guidedValueSlider.getOutputValue()
                     guidedValueSlider.visible = false
                 }
