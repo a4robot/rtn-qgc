@@ -169,10 +169,9 @@ Item {
         anchors.left: toolStrip.right
         anchors.leftMargin: _toolsMargin
         anchors.top: toolStrip.top
-        width: visible ? armGuidedActionConfirm.width : 0
-        height: visible ? ScreenTools.toolbarHeight : 0
+        width: armGuidedActionConfirm.width
+        height: ScreenTools.toolbarHeight
         z: QGroundControl.zOrderTopMost
-        visible: armGuidedActionConfirm.visible
 
         GuidedActionConfirm {
             id: armGuidedActionConfirm
