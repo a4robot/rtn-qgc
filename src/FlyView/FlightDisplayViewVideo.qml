@@ -49,7 +49,7 @@ Item {
         Image {
             id:             noVideo
             anchors.fill:   parent
-            source:         "/res/NoVideoBackground.jpg"
+            source:         "/res/OceanSkyBackground.jpg"
             fillMode:       Image.PreserveAspectCrop
             visible:        !_showStreamLoader && !_showUvcLoader
 

@@ -25,7 +25,16 @@ Item {
     property real _margins:         2
     property bool _emergencyAction: action === guidedController.actionEmergencyStop
 
-    Component.onCompleted: guidedController.confirmDialog = this
+
+    property bool isArmDialog: false
+    Component.onCompleted: {
+        if (isArmDialog) {
+            guidedController.armConfirmDialog = this
+        } else {
+            guidedController.confirmDialog = this
+        }
+    }
+
 
     onHideTriggerChanged: {
         if (hideTrigger) {
@@ -44,11 +53,15 @@ Item {
     }
 
     function confirmCancelled() {
-        guidedValueSlider.visible = false
+        if (guidedValueSlider) {
+            guidedValueSlider.visible = false
+        }
         visible = false
         hideTrigger = false
         visibleTimer.stop()
-        messageDisplay.opacity = 1.0
+        if (messageDisplay) {
+            messageDisplay.opacity = 1.0
+        }
         messageFadeTimer.stop()
         messageOpacityAnimation.stop()
         if (mapIndicator) {
@@ -85,7 +98,7 @@ Item {
             onActivated: {
                 control.visible = false
                 var sliderOutputValue = 0
-                if (guidedValueSlider.visible) {
+                if (guidedValueSlider && guidedValueSlider.visible) {
                     sliderOutputValue = guidedValueSlider.getOutputValue()
                     guidedValueSlider.visible = false
                 }

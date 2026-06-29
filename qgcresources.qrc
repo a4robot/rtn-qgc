@@ -21,5 +21,7 @@
         <file alias="XDelete.svg">resources/XDelete.svg</file>
         <file alias="qgroundcontrol.ico">resources/icons/qgroundcontrol.ico</file>
         <file alias="audio/beep.wav">resources/audio/beep.wav</file>
+        <file alias="OceanSkyBackground.jpg">resources/OceanSkyBackground.jpg</file>
+        <file alias="NoVideoBackground.jpg">resources/NoVideoBackground.jpg</file>
     </qresource>
 </RCC>

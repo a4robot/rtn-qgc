@@ -6,8 +6,8 @@ Item {
     property real   pitchAngle:     0
     property color  skyColor1:      Qt.hsla(0.6, 1.0, 0.25)
     property color  skyColor2:      Qt.hsla(0.6, 0.5, 0.55)
-    property color  groundColor1:   Qt.hsla(0.25,  0.5, 0.45)
-    property color  groundColor2:   Qt.hsla(0.25, 0.75, 0.25)
+    property color  groundColor1:   Qt.hsla(0.6, 1.0, 0.15)
+    property color  groundColor2:   Qt.hsla(0.6, 0.8, 0.1)
 
     clip:           true
     anchors.fill:   parent
