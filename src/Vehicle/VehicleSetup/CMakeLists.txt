@@ -24,11 +24,17 @@ if(NOT QGC_NO_SERIAL_LINK)
             Bootloader.h
             FirmwareImage.cc
             FirmwareImage.h
-            FirmwareUpgradeController.cc
-            FirmwareUpgradeController.h
             PX4FirmwareUpgradeThread.cc
             PX4FirmwareUpgradeThread.h
     )
+
+    if(QGC_ENABLE_QML)
+        target_sources(${CMAKE_PROJECT_NAME}
+            PRIVATE
+                FirmwareUpgradeController.cc
+                FirmwareUpgradeController.h
+        )
+    endif()
 endif()
 
 # ----------------------------------------------------------------------------
