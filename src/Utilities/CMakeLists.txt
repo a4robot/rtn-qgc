@@ -12,6 +12,7 @@ target_sources(${CMAKE_PROJECT_NAME}
         AppMessages.h
         QGCCommandLineParser.cc
         QGCCommandLineParser.h
+        QGCQmlCompat.h
 )
 
 target_include_directories(${CMAKE_PROJECT_NAME}

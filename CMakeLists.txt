@@ -37,6 +37,8 @@ set(CMAKE_POLICY_VERSION_MINIMUM ${CMAKE_MINIMUM_REQUIRED_VERSION})
 # Custom Build Configuration
 # ============================================================================
 
+option(QGC_ENABLE_QML "Enable QML UI" ON)
+
 # Load default options and allow custom builds to override
 include(CustomOptions)
 
@@ -253,6 +255,10 @@ qt_policy(
 
 if(QT_QML_NO_CACHEGEN)
     add_compile_definitions(QT_QML_NO_CACHEGEN)
+endif()
+
+if(QGC_ENABLE_QML)
+    add_compile_definitions(QGC_ENABLE_QML)
 endif()
 
 # ============================================================================
