@@ -37,6 +37,8 @@ struct CommandLineParseResult
     std::optional<QString> loggingOptions;
     bool logOutput = false;
     bool simpleBootTest = false;
+    bool headless = false;      ///< Run without the QML UI; core + web bridge only
+    uint bridgePort = 0;        ///< Web bridge port (0 = use default)
 
     // --- Test options (command-line parsing only in QGC_UNITTEST_BUILD) ---
     bool runningUnitTests = false;
@@ -78,6 +80,7 @@ std::optional<int> handleParseResult(const CommandLineParseResult& result);
 /// @brief Application execution mode
 enum class AppMode {
     Gui,        ///< Normal GUI application
+    Headless,   ///< Run without the QML UI; core + web bridge only
     BootTest,   ///< Initialize and exit (for CI validation)
 #ifdef QGC_UNITTEST_BUILD
     Test,       ///< Run unit tests

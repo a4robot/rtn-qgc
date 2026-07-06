@@ -23,6 +23,8 @@ constexpr QLatin1StringView kOptClearCache    = QLatin1StringView("clear-cache")
 constexpr QLatin1StringView kOptLogging       = QLatin1StringView("logging");
 constexpr QLatin1StringView kOptLogOutput     = QLatin1StringView("log-output");
 constexpr QLatin1StringView kOptSimpleBoot    = QLatin1StringView("simple-boot-test");
+constexpr QLatin1StringView kOptHeadless      = QLatin1StringView("headless");
+constexpr QLatin1StringView kOptBridgePort    = QLatin1StringView("bridge-port");
 
 #if !defined(Q_OS_ANDROID) && !defined(Q_OS_IOS)
 // --- Desktop-only options ---
@@ -151,6 +153,17 @@ CommandLineParseResult parseCommandLine()
         QString(kOptSimpleBoot),
         QCoreApplication::translate("main", "Initialize subsystems and exit."));
     (void) parser.addOption(simpleBootOpt);
+
+    const QCommandLineOption headlessOpt(
+        QString(kOptHeadless),
+        QCoreApplication::translate("main", "Run without the QML UI; core + web bridge only."));
+    (void) parser.addOption(headlessOpt);
+
+    const QCommandLineOption bridgePortOpt(
+        QString(kOptBridgePort),
+        QCoreApplication::translate("main", "Web bridge listen port (uses default port if omitted)."),
+        QCoreApplication::translate("main", "port"));
+    (void) parser.addOption(bridgePortOpt);
 
 #ifdef QGC_UNITTEST_BUILD
     // --- Test options (only in test builds) ---
@@ -336,6 +349,22 @@ CommandLineParseResult parseCommandLine()
     }
     out.logOutput = parser.isSet(logOutputOpt);
     out.simpleBootTest = parser.isSet(simpleBootOpt);
+    out.headless = parser.isSet(headlessOpt);
+
+    if (parser.isSet(bridgePortOpt)) {
+        const QString bridgePortStr = parser.value(bridgePortOpt);
+        bool ok = false;
+        const uint bridgePort = bridgePortStr.toUInt(&ok);
+        if (!ok || (bridgePort < 1) || (bridgePort > 65535)) {
+            out.statusCode = CommandLineParseResult::Status::Error;
+            out.errorString = QCoreApplication::translate("main", "Invalid bridge port (must be 1-65535): %1")
+                .arg(bridgePortStr);
+            qCWarning(QGCCommandLineParserLog) << out.errorString.value();
+            return out;
+        }
+        out.bridgePort = bridgePort;
+        qCDebug(QGCCommandLineParserLog) << "Bridge port:" << bridgePort;
+    }
 
 #ifdef QGC_UNITTEST_BUILD
     // --- Parse test options ---
@@ -458,6 +487,9 @@ AppMode determineAppMode(const CommandLineParseResult& args)
 #endif
     if (args.simpleBootTest) {
         return AppMode::BootTest;
+    }
+    if (args.headless) {
+        return AppMode::Headless;
     }
     return AppMode::Gui;
 }

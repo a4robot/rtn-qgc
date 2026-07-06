@@ -50,6 +50,11 @@ int main(int argc, char *argv[])
             }
             qCInfo(MainLog) << "Simple boot test completed";
             return 0;
+        case AppMode::Headless:
+            // Headless still boots the full app until the headless boot path
+            // lands in QGCApplication; the mode is parsed and reserved here.
+            qCInfo(MainLog) << "Starting headless event loop";
+            return app.exec();
         case AppMode::Gui:
             qCInfo(MainLog) << "Starting application event loop";
             return app.exec();
