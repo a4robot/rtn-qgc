@@ -1,0 +1,28 @@
+[package]
+name = "rtn-qgc-shell"
+version = "0.1.0"
+description = "Tauri desktop shell for RTN QGroundControl (strangler-fig port). Process manager + window only."
+edition = "2021"
+license = "GPL-3.0-or-later"
+
+[lib]
+# Required by Tauri v2: mobile targets link the app as a library.
+name = "rtn_qgc_shell_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+tauri-plugin-log = "2"
+log = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["time"] }
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1

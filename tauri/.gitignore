@@ -1,0 +1,8 @@
+# Rust build output
+src-tauri/target/
+
+# Tauri-generated capability/permission schemas
+src-tauri/gen/schemas/
+
+# Sidecar binaries (dummy or real headless QGC) — never committed
+src-tauri/binaries/ghost-*
