@@ -1,0 +1,102 @@
+:root {
+  --bg: #0d1117;
+  --bg-panel: #161b22;
+  --border: #30363d;
+  --fg: #e6edf3;
+  --fg-dim: #8b949e;
+  --accent: #2f81f7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+}
+
+.gcs-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.gcs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
+.gcs-header h1 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.gcs-header-status {
+  color: var(--fg-dim);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.gcs-grid {
+  flex: 1;
+  display: grid;
+  gap: 1px;
+  background: var(--border);
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: 2fr 1fr;
+  grid-template-areas:
+    "video     map"
+    "telemetry actions";
+  min-height: 0;
+}
+
+.gcs-panel {
+  position: relative;
+  background: var(--bg-panel);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  min-width: 0;
+}
+
+.gcs-panel-label {
+  color: var(--fg-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.8rem;
+  user-select: none;
+}
+
+.gcs-video {
+  grid-area: video;
+}
+
+.gcs-map {
+  grid-area: map;
+}
+
+.gcs-telemetry {
+  grid-area: telemetry;
+}
+
+.gcs-actions {
+  grid-area: actions;
+}
