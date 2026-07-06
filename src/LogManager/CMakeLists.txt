@@ -28,6 +28,7 @@ target_include_directories(QGCLogManager
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src/Settings
         ${CMAKE_SOURCE_DIR}/src/FactSystem
+        ${CMAKE_SOURCE_DIR}/src/Utilities
 )
 
 target_link_libraries(QGCLogManager

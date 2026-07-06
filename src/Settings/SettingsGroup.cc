@@ -1,7 +1,6 @@
 #include "SettingsGroup.h"
 #include "QGCCorePlugin.h"
-
-#include <QtQml/QQmlEngine>
+#include "QGCQmlCompat.h"
 
 SettingsGroup::SettingsGroup(const QString& name, const QString& settingsGroup, QObject* parent)
     : QObject       (parent)
@@ -9,7 +8,7 @@ SettingsGroup::SettingsGroup(const QString& name, const QString& settingsGroup, 
     , _name         (name)
     , _settingsGroup(settingsGroup)
 {
-    QQmlEngine::setObjectOwnership(this, QQmlEngine::CppOwnership);
+    qgcSetCppOwnership(this);
 
     _nameToMetaDataMap = FactMetaData::createMapFromJsonFile(QString(kJsonFileTemplate).arg(name), this);
 }

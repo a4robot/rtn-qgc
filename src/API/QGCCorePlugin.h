@@ -93,12 +93,14 @@ public:
 
     virtual void factValueGridCreateDefaultSettings(FactValueGrid* factValueGrid);
 
+#ifdef QGC_ENABLE_QML
     /// Allows the plugin to override or get access to the QmlApplicationEngine to do things like add import
     /// path or stuff things into the context prior to window creation.
     virtual QQmlApplicationEngine *createQmlApplicationEngine(QObject *parent);
 
     /// Allows the plugin to override the creation of the root (native) window.
     virtual void createRootWindow(QQmlApplicationEngine *qmlEngine);
+#endif
 
     /// Allows the plugin to override the creation of VideoReceiver.
     virtual VideoReceiver *createVideoReceiver(QObject *parent);

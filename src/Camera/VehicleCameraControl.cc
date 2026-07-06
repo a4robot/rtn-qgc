@@ -18,6 +18,7 @@
 #include "MAVLinkProtocol.h"
 #include "QGCVideoStreamInfo.h"
 #include "MissionCommandTree.h"
+#include "QGCQmlCompat.h"
 
 #include <QtNetwork/QNetworkAccessManager>
 #include <QtCore/QDir>
@@ -26,7 +27,6 @@
 #include <QtCore/QSettings>
 #include <QtXml/QDomDocument>
 #include <QtXml/QDomNodeList>
-#include <QtQml/QQmlEngine>
 #include <QtNetwork/QNetworkReply>
 
 #include "QGCNetworkHelper.h"
@@ -110,7 +110,7 @@ VehicleCameraControl::VehicleCameraControl(const mavlink_camera_information_t *i
     : MavlinkCameraControlInterface(vehicle, parent)
     , _compID(compID)
 {
-    QQmlEngine::setObjectOwnership(this, QQmlEngine::CppOwnership);
+    qgcSetCppOwnership(this);
 
     memcpy(&_mavlinkCameraInfo, info, sizeof(mavlink_camera_information_t));
 
@@ -1004,7 +1004,7 @@ bool VehicleCameraControl::_loadSettings(const QDomNodeList nodeList)
         }
         //-- Build metadata
         FactMetaData* metaData = new FactMetaData(factType, factName, this);
-        QQmlEngine::setObjectOwnership(metaData, QQmlEngine::CppOwnership);
+        qgcSetCppOwnership(metaData);
         metaData->setShortDescription(description);
         metaData->setLongDescription(description);
         metaData->setHasControl(control);
@@ -1035,7 +1035,7 @@ bool VehicleCameraControl::_loadSettings(const QDomNodeList nodeList)
                 if(exclusions.size()) {
                     qCDebug(VehicleCameraControlVerboseLog) << "New exclusions:" << factName << optValue << exclusions;
                     QGCCameraOptionExclusion* pExc = new QGCCameraOptionExclusion(this, factName, optValue, exclusions);
-                    QQmlEngine::setObjectOwnership(pExc, QQmlEngine::CppOwnership);
+                    qgcSetCppOwnership(pExc);
                     _valueExclusions.append(pExc);
                 }
                 //-- Check for range rules
@@ -1137,11 +1137,11 @@ bool VehicleCameraControl::_loadSettings(const QDomNodeList nodeList)
             qCDebug(VehicleCameraControlLog) << "New parameter:" << factName << (readOnly ? "ReadOnly" : "Writable") << (writeOnly ? "WriteOnly" : "Readable");
             _nameToFactMetaDataMap[factName] = metaData;
             Fact* pFact = new Fact(_compID, factName, factType, this);
-            QQmlEngine::setObjectOwnership(pFact, QQmlEngine::CppOwnership);
+            qgcSetCppOwnership(pFact);
             pFact->setMetaData(metaData);
             pFact->containerSetRawValue(metaData->rawDefaultValue());
             QGCCameraParamIO* pIO = new QGCCameraParamIO(this, pFact, _vehicle);
-            QQmlEngine::setObjectOwnership(pIO, QQmlEngine::CppOwnership);
+            qgcSetCppOwnership(pIO);
             _paramIO[factName] = pIO;
             _addFact(pFact, factName);
         }
@@ -1687,7 +1687,7 @@ void VehicleCameraControl::handleVideoStreamInformation(const mavlink_video_stre
     if(!_findStream(videoStreamInformation.stream_id, false)) {
         qCDebug(VehicleCameraControlLog) << "Create stream handler for stream ID:" << videoStreamInformation.stream_id;
         QGCVideoStreamInfo* pStream = new QGCVideoStreamInfo(videoStreamInformation, this);
-        QQmlEngine::setObjectOwnership(pStream, QQmlEngine::CppOwnership);
+        qgcSetCppOwnership(pStream);
         _streams.append(pStream);
         //-- Thermal is handled separately and not listed
         if(!pStream->isThermal()) {

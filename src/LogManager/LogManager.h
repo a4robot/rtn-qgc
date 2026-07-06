@@ -33,7 +33,9 @@ public:
     ~LogManager();
 
     static LogManager* instance();
+#ifdef QGC_ENABLE_QML
     static LogManager* create(QQmlEngine* qmlEngine, QJSEngine* jsEngine);
+#endif
     static void installHandler();
     static void applyEnvironmentLogLevel();
 

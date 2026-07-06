@@ -26,7 +26,9 @@ class QGCLoggingCategoryManager : public QObject
 public:
     static QGCLoggingCategoryManager* instance();
     static void init();
+#ifdef QGC_ENABLE_QML
     static QGCLoggingCategoryManager* create(QQmlEngine* qmlEngine, QJSEngine* jsEngine);
+#endif
 
     void registerCategory(const QString& category);
 

@@ -26,6 +26,8 @@ target_link_libraries(QGCLogging
 target_include_directories(QGCLogging
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/Utilities
 )
 
 target_precompile_headers(QGCLogging PRIVATE

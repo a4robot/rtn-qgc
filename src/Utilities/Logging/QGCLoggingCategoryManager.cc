@@ -3,10 +3,13 @@
 #include <QtCore/QMutex>
 #include <QtCore/QSettings>
 #include <QtCore/QStringList>
+#ifdef QGC_ENABLE_QML
 #include <QtQml/QJSEngine>
+#endif
 
 #include "LoggingCategoryModel.h"
 #include "QGCLoggingCategory.h"
+#include "QGCQmlCompat.h"
 
 QGC_LOGGING_CATEGORY(QGCLoggingCategoryRegisterLog, "Utilities.QGCLoggingCategoryManager")
 
@@ -55,14 +58,16 @@ void QGCLoggingCategoryManager::init()
     }
 }
 
+#ifdef QGC_ENABLE_QML
 QGCLoggingCategoryManager* QGCLoggingCategoryManager::create(QQmlEngine* qmlEngine, QJSEngine* jsEngine)
 {
     Q_UNUSED(qmlEngine);
     Q_UNUSED(jsEngine);
     init();
-    QJSEngine::setObjectOwnership(s_managerInstance, QJSEngine::CppOwnership);
+    qgcSetCppOwnership(s_managerInstance);
     return s_managerInstance;
 }
+#endif
 
 QGCLoggingCategoryManager::QGCLoggingCategoryManager() : QObject()
 {

@@ -8,7 +8,9 @@
 #endif
 #include "HorizontalFactValueGrid.h"
 #include "InstrumentValueData.h"
+#ifdef QGC_ENABLE_QML
 #include "JoystickManager.h"
+#endif
 #include "MAVLinkMessageType.h"
 #include "QGCLoggingCategory.h"
 #include "QGCOptions.h"
@@ -38,9 +40,11 @@
 
 #include <QtCore/QApplicationStatic>
 #include <QtCore/QFile>
+#ifdef QGC_ENABLE_QML
 #include <QtQml/QQmlApplicationEngine>
 #include <QtQml/QQmlContext>
 #include <QtQuick/QQuickItem>
+#endif
 
 QGC_LOGGING_CATEGORY(QGCCorePluginLog, "API.QGCCorePlugin");
 
@@ -275,6 +279,7 @@ void QGCCorePlugin::factValueGridCreateDefaultSettings(FactValueGrid* factValueG
     }
 }
 
+#ifdef QGC_ENABLE_QML
 QQmlApplicationEngine *QGCCorePlugin::createQmlApplicationEngine(QObject *parent)
 {
     QQmlApplicationEngine *const qmlEngine = new QQmlApplicationEngine(parent);
@@ -287,6 +292,7 @@ void QGCCorePlugin::createRootWindow(QQmlApplicationEngine *qmlEngine)
 {
     qmlEngine->load(QUrl(QStringLiteral("qrc:/qml/QGroundControl/MainWindow.qml")));
 }
+#endif
 
 VideoReceiver *QGCCorePlugin::createVideoReceiver(QObject *parent)
 {

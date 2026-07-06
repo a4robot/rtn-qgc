@@ -8,7 +8,9 @@
 #include <QtCore/QPointer>
 #include <QtCore/QSaveFile>
 #include <QtCore/QThread>
+#ifdef QGC_ENABLE_QML
 #include <QtQml/QJSEngine>
+#endif
 #include <atomic>
 #include <cstring>
 
@@ -16,6 +18,7 @@
 #include "LogModel.h"
 #include "QGCFileWriter.h"
 #include "QGCLoggingCategory.h"
+#include "QGCQmlCompat.h"
 #include "AppSettings.h"
 #include "LogManagerSettings.h"
 #include "SettingsManager.h"
@@ -71,14 +74,16 @@ LogManager* LogManager::instance()
     return s_instance.load(std::memory_order_acquire);
 }
 
+#ifdef QGC_ENABLE_QML
 LogManager* LogManager::create(QQmlEngine* qmlEngine, QJSEngine* jsEngine)
 {
     Q_UNUSED(jsEngine);
     auto* inst = instance();
     Q_ASSERT(inst);
-    QJSEngine::setObjectOwnership(inst, QJSEngine::CppOwnership);
+    qgcSetCppOwnership(inst);
     return inst;
 }
+#endif
 
 LogManager::LogManager(QObject* parent) : QObject(parent)
 {

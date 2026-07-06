@@ -5,8 +5,7 @@
 #include "QGCApplication.h"
 #include "QGCLoggingCategory.h"
 #include "SigningController.h"
-
-#include <QtQml/QQmlEngine>
+#include "QGCQmlCompat.h"
 
 QGC_LOGGING_CATEGORY(LinkInterfaceLog, "Comms.LinkInterface")
 
@@ -14,7 +13,7 @@ LinkInterface::LinkInterface(SharedLinkConfigurationPtr &config, QObject *parent
     : QObject(parent)
     , _config(config)
 {
-    QQmlEngine::setObjectOwnership(this, QQmlEngine::CppOwnership);
+    qgcSetCppOwnership(this);
 }
 
 LinkInterface::~LinkInterface()
