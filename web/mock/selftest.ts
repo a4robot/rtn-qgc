@@ -26,14 +26,19 @@ function check(name: string, cond: boolean, detail?: unknown): void {
 /** Minimal test connection: buffers parsed messages, supports predicate waits. */
 class TestConn {
   readonly received: Record<string, unknown>[] = [];
+  /** Raw binary WS frames (video, §9.2), in arrival order. */
+  readonly binaryReceived: Uint8Array[] = [];
   closeCode: number | null = null;
   private readonly socket: WebSocket;
 
   private constructor(socket: WebSocket) {
     this.socket = socket;
+    socket.binaryType = "arraybuffer";
     socket.onmessage = (event: MessageEvent) => {
       if (typeof event.data === "string") {
         this.received.push(JSON.parse(event.data) as Record<string, unknown>);
+      } else if (event.data instanceof ArrayBuffer) {
+        this.binaryReceived.push(new Uint8Array(event.data));
       }
     };
     socket.onclose = (event: CloseEvent) => {
@@ -48,6 +53,15 @@ class TestConn {
       socket.onerror = () => reject(new Error(`cannot connect to ${URL_}`));
     });
     return new TestConn(socket);
+  }
+
+  /** Wait until at least `count` binary frames have arrived, returning (and consuming) all buffered so far. */
+  async collectBinary(count: number, timeoutMs = 3000): Promise<Uint8Array[]> {
+    const deadline = Date.now() + timeoutMs;
+    while (this.binaryReceived.length < count && Date.now() < deadline) {
+      await Bun.sleep(20);
+    }
+    return this.binaryReceived.splice(0, this.binaryReceived.length);
   }
 
   get isOpen(): boolean {
@@ -248,6 +262,112 @@ async function main(): Promise<void> {
   check("#7 connection stays open after errors", conn.isOpen);
   await conn.next("tick after errors", (m) => m.type === "tick", 1600);
   check("#3/#7 tick still arriving after error barrage", true);
+
+  // --- command lifecycle (W3): arm/disarm flip telemetry.armed (the shared
+  // vehicleOverride from server.ts). `conn` still has an active telemetry
+  // subscription from the #6 re-subscribe above, which has been streaming
+  // untouched (and unconsumed) in the background this whole time, so drain
+  // the backlog before/after each ack: WS/TCP preserve per-connection
+  // ordering, so anything the server sent before an ack is already buffered
+  // by the time we receive that ack, and draining leaves only fresh,
+  // post-command telemetry for the check that follows.
+  await conn.collect(isTelemetry, 0);
+  conn.send({ type: "command", id: "c3", vehicleId: 1, action: "disarm", params: {} });
+  await conn.next("disarm commandAck", (m) => m.type === "commandAck" && m.id === "c3");
+  await conn.collect(isTelemetry, 0);
+  const disarmedTelemetry = await conn.next("telemetry after disarm", isTelemetry, 500);
+  check("disarm flips telemetry.armed to false", disarmedTelemetry.armed === false, disarmedTelemetry.armed);
+
+  conn.send({ type: "command", id: "c4", vehicleId: 1, action: "arm", params: {} });
+  await conn.next("arm commandAck", (m) => m.type === "commandAck" && m.id === "c4");
+  await conn.collect(isTelemetry, 0);
+  const armedTelemetry = await conn.next("telemetry after arm", isTelemetry, 500);
+  check("arm flips telemetry.armed to true", armedTelemetry.armed === true, armedTelemetry.armed);
+
+  // --- command lifecycle (W3): takeoff -> accepted ack + progressive commandProgress (§5.3).
+  conn.send({ type: "command", id: "c5", vehicleId: 1, action: "takeoff", params: { alt: 20 } });
+  const takeoffAck = await conn.next("takeoff commandAck", (m) => m.type === "commandAck" && m.id === "c5");
+  check("takeoff -> commandAck accepted", takeoffAck.status === "accepted" && takeoffAck.mavResult === 0, takeoffAck);
+  const takeoffProgress = await conn.next(
+    "takeoff commandProgress",
+    (m) => m.type === "commandProgress" && m.id === "c5",
+    4000,
+  );
+  check(
+    "takeoff emits commandProgress with numeric progress + message",
+    typeof takeoffProgress.progress === "number" &&
+      takeoffProgress.progress > 0 &&
+      takeoffProgress.progress <= 1 &&
+      typeof takeoffProgress.message === "string" &&
+      takeoffProgress.vehicleId === 1,
+    takeoffProgress,
+  );
+
+  // --- takeoff with invalid params -> rejected ack, no progress.
+  conn.send({ type: "command", id: "c6", vehicleId: 1, action: "takeoff", params: { alt: "high" } });
+  const badTakeoffAck = await conn.next("bad takeoff commandAck", (m) => m.type === "commandAck" && m.id === "c6");
+  check(
+    "takeoff with non-numeric alt -> rejected with reason",
+    badTakeoffAck.status === "rejected" && typeof badTakeoffAck.reason === "string",
+    badTakeoffAck,
+  );
+  const noProgressAfterReject = await conn
+    .collect((m) => m.type === "commandProgress" && m.id === "c6", 700)
+    .catch(() => []);
+  check("rejected takeoff emits no commandProgress", noProgressAfterReject.length === 0, noProgressAfterReject.length);
+
+  // --- video channel (§9): subscribe -> videoConfig, then binary frames.
+  conn.send({ type: "subscribe", id: "v1", channel: "video", streamId: 1 });
+  const vSubAck = await conn.next("video subscribeAck", (m) => m.type === "subscribeAck" && m.id === "v1");
+  check(
+    "video subscribeAck echoes id/channel/streamId",
+    vSubAck.channel === "video" && vSubAck.streamId === 1,
+    vSubAck,
+  );
+
+  const videoConfig = await conn.next("videoConfig", (m) => m.type === "videoConfig");
+  check(
+    "videoConfig carries codec/dimensions/sps/pps (§9.1)",
+    videoConfig.channel === "video" &&
+      videoConfig.streamId === 1 &&
+      videoConfig.snapshot === true &&
+      videoConfig.codec === "h264" &&
+      videoConfig.width === 640 &&
+      videoConfig.height === 360 &&
+      typeof videoConfig.sps === "string" &&
+      videoConfig.sps.length > 0 &&
+      typeof videoConfig.pps === "string" &&
+      videoConfig.pps.length > 0,
+    videoConfig,
+  );
+
+  const firstFrames = await conn.collectBinary(1, 1000);
+  check("video: binary frame(s) arrive after videoConfig", firstFrames.length >= 1, firstFrames.length);
+  const firstFrame = firstFrames[0]!;
+  const dv0 = new DataView(firstFrame.buffer, firstFrame.byteOffset, firstFrame.byteLength);
+  check("video: header magic is 0x4656", dv0.getUint16(0, true) === 0x4656, dv0.getUint16(0, true));
+  check("video: header version is 1", dv0.getUint8(2) === 1, dv0.getUint8(2));
+  check("video: header streamId matches subscribed id (1)", dv0.getUint8(3) === 1, dv0.getUint8(3));
+  check("video: first frame is a keyframe (flags bit 0 set)", (dv0.getUint8(4) & 1) === 1, dv0.getUint8(4));
+  check(
+    "video: frame carries an Annex-B payload beyond the 16-byte header",
+    firstFrame.length > 16,
+    firstFrame.length,
+  );
+
+  // ~15 fps rate sanity: >=10 frames within a ~1 s window.
+  await Bun.sleep(1000);
+  const rateFrames = conn.binaryReceived.splice(0, conn.binaryReceived.length);
+  check(
+    `video: ~15 fps rate sanity (>=10 frames/s, got ${rateFrames.length})`,
+    rateFrames.length >= 10,
+    rateFrames.length,
+  );
+
+  conn.send({ type: "unsubscribe", id: "v2", channel: "video", streamId: 1 });
+  await conn.next("video unsubscribeAck", (m) => m.type === "unsubscribeAck" && m.id === "v2");
+  const afterVideoUnsub = await conn.collectBinary(1, 600);
+  check("video: unsubscribe stops the binary stream", afterVideoUnsub.length === 0, afterVideoUnsub.length);
 
   conn.close();
 }
