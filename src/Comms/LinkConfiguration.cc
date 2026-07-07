@@ -7,7 +7,7 @@
 #include "TCPLink.h"
 #include "LogReplayLink.h"
 #include "BluetoothLink.h"
-#ifdef QT_DEBUG
+#if defined(QT_DEBUG) || defined(QGC_ENABLE_MOCKLINK)
 #include "MockLink.h"
 #endif
 
@@ -71,7 +71,7 @@ LinkConfiguration *LinkConfiguration::createSettings(int type, const QString &na
     case TypeLogReplay:
         config = new LogReplayConfiguration(name);
         break;
-#ifdef QT_DEBUG
+#if defined(QT_DEBUG) || defined(QGC_ENABLE_MOCKLINK)
     case TypeMock:
         config = new MockConfiguration(name);
         break;
@@ -106,7 +106,7 @@ LinkConfiguration *LinkConfiguration::duplicateSettings(const LinkConfiguration 
     case TypeLogReplay:
         dupe = new LogReplayConfiguration(qobject_cast<const LogReplayConfiguration*>(source));
         break;
-#ifdef QT_DEBUG
+#if defined(QT_DEBUG) || defined(QGC_ENABLE_MOCKLINK)
     case TypeMock:
         dupe = new MockConfiguration(qobject_cast<const MockConfiguration*>(source));
         break;

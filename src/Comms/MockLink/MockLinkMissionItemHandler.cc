@@ -117,7 +117,7 @@ void MockLinkMissionItemHandler::_handleMissionRequestList(const mavlink_message
 
     _requestType = static_cast<MAV_MISSION_TYPE>(request.mission_type);
 
-    int itemCount;
+    int itemCount = 0; // default-armed: Q_ASSERT(false) below is a no-op in Release
     switch (_requestType) {
     case MAV_MISSION_TYPE_MISSION:
         itemCount = _missionItems.count();

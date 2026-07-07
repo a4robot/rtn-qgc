@@ -1,6 +1,10 @@
-if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug" AND NOT QGC_ENABLE_MOCKLINK)
     return()
 endif()
+
+# Lets non-MockLink sources (e.g. QGCApplication's headless boot) detect at compile time
+# whether MockLink is available, mirroring how gstqgc/CMakeLists.txt defines QGC_GST_STREAMING.
+target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE QGC_ENABLE_MOCKLINK)
 
 target_sources(${CMAKE_PROJECT_NAME}
     PRIVATE

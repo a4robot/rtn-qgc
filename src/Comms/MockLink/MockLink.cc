@@ -1231,7 +1231,9 @@ void MockLink::_paramRequestListWorker()
         const MAV_PARAM_TYPE paramType = _mapParamName2MavParamType[componentId][paramName];
 
         Q_ASSERT(paramName.length() <= MAVLINK_MSG_ID_PARAM_VALUE_LEN);
-        (void) strncpy(paramId, paramName.toLocal8Bit().constData(), MAVLINK_MSG_ID_PARAM_VALUE_LEN);
+        // qstrncpy NUL-terminates within the bound (param names are <= 16 chars,
+        // well under the buffer) and satisfies -Werror=stringop-truncation.
+        (void) qstrncpy(paramId, paramName.toLocal8Bit().constData(), sizeof(paramId));
 
         qCDebug(MockLinkLog) << "Sending msg_param_value" << componentId << paramId << paramType << _mapParamName2Value[componentId][paramId];
 

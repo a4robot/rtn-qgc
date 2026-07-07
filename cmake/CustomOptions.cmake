@@ -81,6 +81,11 @@ option(QGC_ENABLE_LZ4 "Enable LZ4 decompression support" OFF)
 
 option(QGC_NO_SERIAL_LINK "Disable serial port communication" OFF)
 
+# MockLink is normally Debug-only (developer/test tooling). This option embeds a
+# simulated PX4 vehicle in Release builds too, so the headless ghost can serve a
+# real vehicle over the web bridge without external SITL.
+option(QGC_ENABLE_MOCKLINK "Build MockLink (simulated vehicle) into Release builds for ghost/bridge development" OFF)
+
 # ============================================================================
 # UI Options
 # ============================================================================

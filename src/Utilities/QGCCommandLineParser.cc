@@ -25,6 +25,7 @@ constexpr QLatin1StringView kOptLogOutput     = QLatin1StringView("log-output");
 constexpr QLatin1StringView kOptSimpleBoot    = QLatin1StringView("simple-boot-test");
 constexpr QLatin1StringView kOptHeadless      = QLatin1StringView("headless");
 constexpr QLatin1StringView kOptBridgePort    = QLatin1StringView("bridge-port");
+constexpr QLatin1StringView kOptMockLink      = QLatin1StringView("mock-link");
 
 #if !defined(Q_OS_ANDROID) && !defined(Q_OS_IOS)
 // --- Desktop-only options ---
@@ -164,6 +165,11 @@ CommandLineParseResult parseCommandLine()
         QCoreApplication::translate("main", "Web bridge listen port (uses default port if omitted)."),
         QCoreApplication::translate("main", "port"));
     (void) parser.addOption(bridgePortOpt);
+
+    const QCommandLineOption mockLinkOpt(
+        QString(kOptMockLink),
+        QCoreApplication::translate("main", "Start a simulated PX4 vehicle (requires QGC_ENABLE_MOCKLINK build)."));
+    (void) parser.addOption(mockLinkOpt);
 
 #ifdef QGC_UNITTEST_BUILD
     // --- Test options (only in test builds) ---
@@ -365,6 +371,8 @@ CommandLineParseResult parseCommandLine()
         out.bridgePort = bridgePort;
         qCDebug(QGCCommandLineParserLog) << "Bridge port:" << bridgePort;
     }
+
+    out.mockLink = parser.isSet(mockLinkOpt);
 
 #ifdef QGC_UNITTEST_BUILD
     // --- Parse test options ---
