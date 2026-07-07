@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import type maplibregl from "maplibre-gl";
 
 import { BridgeClient } from "./bridge/BridgeClient.ts";
+import { BridgeContext } from "./bridge/BridgeContext.ts";
 import { startBridgeSession } from "./bridge/session.ts";
+import { ActionsPanel } from "./components/actions/ActionsPanel.tsx";
 import { CoreMap } from "./components/map/CoreMap.tsx";
 import { VehicleLayer } from "./components/map/VehicleLayer.tsx";
 import { Attitude } from "./components/telemetry/Attitude.tsx";
 import { Status } from "./components/telemetry/Status.tsx";
+import { ParamTable } from "./components/params/ParamTable.tsx";
 import { VideoPlayer } from "./components/video/VideoPlayer.tsx";
 import { bindBridgeToStores, useConnection } from "./store/index.ts";
 
@@ -21,7 +24,10 @@ export function App() {
 
   useEffect(() => {
     const unbindStores = bindBridgeToStores(client);
-    const stopSession = startBridgeSession(client, { vehicleId: VEHICLE_ID });
+    const stopSession = startBridgeSession(client, {
+      vehicleId: VEHICLE_ID,
+      videoStreamIds: [1],
+    });
     return () => {
       stopSession();
       unbindStores();
@@ -29,7 +35,8 @@ export function App() {
   }, [client]);
 
   return (
-    <div className="gcs-shell">
+    <BridgeContext.Provider value={client}>
+      <div className="gcs-shell">
       <header className="gcs-header">
         <h1>RTN Ghost GCS</h1>
         <span className={`gcs-header-status gcs-header-status--${connectionState}`}>
@@ -38,7 +45,7 @@ export function App() {
       </header>
       <main className="gcs-grid">
         <section className="gcs-panel gcs-video" aria-label="Video">
-          <VideoPlayer streamId={1} />
+          <VideoPlayer streamId={1} client={client} />
         </section>
         <section className="gcs-panel gcs-map" aria-label="Map">
           <CoreMap onMapReady={setMap} />
@@ -51,9 +58,13 @@ export function App() {
           </div>
         </section>
         <section className="gcs-panel gcs-actions" aria-label="Actions">
-          <span className="gcs-panel-label">Actions</span>
+          <div className="gcs-actions-col">
+            <ActionsPanel client={client} vehicleId={VEHICLE_ID} />
+            <ParamTable vehicleId={VEHICLE_ID} />
+          </div>
         </section>
       </main>
     </div>
+    </BridgeContext.Provider>
   );
 }
