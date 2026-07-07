@@ -42,11 +42,14 @@
 #include "SettingsManager.h"
 #include "MavlinkSettings.h"
 #include "AppSettings.h"
+#include "TelemetryChannel.h"
 #include "UDPLink.h"
 #include "Vehicle.h"
 #include "VehicleComponent.h"
 #include "VideoManager.h"
 #include "VideoManager2.h"
+#include "WebBridge.h"
+#include "WebBridgeServer.h"
 
 #ifndef QGC_NO_SERIAL_LINK
 #include "SerialLink.h"
@@ -59,6 +62,7 @@ QGCApplication::QGCApplication(int &argc, char *argv[], const QGCCommandLinePars
     , _runningUnitTests(cli.runningUnitTests)
     , _simpleBootTest(cli.simpleBootTest)
     , _headless(cli.headless)
+    , _bridgePort(static_cast<quint16>(cli.bridgePort))
     , _fakeMobile(cli.fakeMobile)
     , _logOutput(cli.logOutput)
     , _systemId(cli.systemId.value_or(0))
@@ -394,6 +398,19 @@ void QGCApplication::_initForHeadlessBoot()
     if (_settingsUpgraded) {
         showAppMessage(tr("The format for %1 saved settings has been modified. "
                     "Your saved settings have been reset to defaults.").arg(applicationName()));
+    }
+
+    // Web bridge: only when explicitly requested via --bridge-port.
+    if (_bridgePort != 0) {
+        _webBridge = new WebBridge(_bridgePort, this);
+        _webBridgeServer = new WebBridgeServer(_webBridge, this);
+        _telemetryChannel = new TelemetryChannel(_webBridge, this);
+        connect(_webBridgeServer, &WebBridgeServer::snapshotRequested, _telemetryChannel, &TelemetryChannel::sendSnapshot);
+        connect(_telemetryChannel, &TelemetryChannel::telemetryReady, _webBridgeServer, &WebBridgeServer::broadcast);
+        _webBridge->start();
+        if (!_webBridgeServer->start()) {
+            qCCritical(QGCApplicationLog) << "WebBridge server failed to bind 127.0.0.1 port" << _bridgePort;
+        }
     }
 
     // Connect links with flag AutoconnectLink
@@ -755,6 +772,11 @@ void QGCApplication::shutdown()
     qCDebug(QGCApplicationLog) << "Exit";
 
     if (_headless) {
+        // Stop serving bridge clients before tearing down what feeds them.
+        if (_webBridgeServer) {
+            _webBridgeServer->stop();
+            _webBridge->stop();
+        }
         // The QML main window calls LinkManager.shutdown() as it closes
         // (MainWindow.qml); headless has no window, so disconnect links here
         // before static teardown destroys them mid-signal.

@@ -21,6 +21,9 @@ class QEvent;
 class QPostEventList;
 class QMetaMethod;
 struct QMetaObject;
+class TelemetryChannel;
+class WebBridge;
+class WebBridgeServer;
 
 #if defined(qApp)
 #undef qApp
@@ -136,6 +139,10 @@ private:
     bool _runningUnitTests = false;
     bool _simpleBootTest = false;
     bool _headless = false;    ///< true: Running without the QML UI
+    quint16 _bridgePort = 0;    ///< --bridge-port: websocket bridge listen port, 0 = bridge disabled
+    WebBridge *_webBridge = nullptr;                ///< Bridge core (headless + --bridge-port only)
+    WebBridgeServer *_webBridgeServer = nullptr;    ///< Bridge websocket listener
+    TelemetryChannel *_telemetryChannel = nullptr;  ///< Vehicle state → bridge telemetry stream
     bool _fakeMobile = false;    ///< true: Fake ui into displaying mobile interface
     bool _logOutput = false;    ///< true: Log Qt debug output to file
     quint8 _systemId = 0; ///< MAVLink system ID, 0 means not set

@@ -7,8 +7,12 @@
 qt_add_library(WebBridgeModule STATIC
     GuidedActionGate.cc
     GuidedActionGate.h
+    TelemetryChannel.cc
+    TelemetryChannel.h
     WebBridge.cc
     WebBridge.h
+    WebBridgeServer.cc
+    WebBridgeServer.h
 )
 
 target_link_libraries(WebBridgeModule
@@ -20,6 +24,8 @@ target_link_libraries(WebBridgeModule
         Qt6::QmlIntegration
     PUBLIC
         Qt6::Core
+        # WebBridgeServer.h exposes QWebSocketServer/QWebSocket types.
+        Qt6::WebSockets
 )
 
 # Headers are included bare (e.g. "Vehicle.h") to match repo convention, and
