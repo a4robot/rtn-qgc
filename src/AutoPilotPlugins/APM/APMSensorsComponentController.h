@@ -1,6 +1,10 @@
 #pragma once
 
 #include "FactPanelController.h"
+// Included (not forward-declared): moc's generated metatype registration for
+// the LinkInterface* slot parameter requires the complete type when this moc
+// is compiled standalone in mocs_compilation.cpp (QGC_ENABLE_QML=OFF builds).
+#include "LinkInterface.h"
 #include "QGCMAVLink.h"
 #include "QGCMAVLinkTypes.h"
 
@@ -9,7 +13,6 @@
 #include <QtQmlIntegration/QtQmlIntegration>
 
 class APMSensorsComponent;
-class LinkInterface;
 
 /// \brief Sensors Component MVC Controller for SensorsComponent.qml.
 ///

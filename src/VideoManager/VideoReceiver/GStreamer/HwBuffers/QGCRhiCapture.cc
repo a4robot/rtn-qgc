@@ -24,11 +24,17 @@ std::array<QMetaObject::Connection, 3> s_connections;
 
 QRhi *qrhi()
 {
+#ifdef QGC_ENABLE_QML
     QGCApplication *app = qgcApp();
     if (!app) return nullptr;
     QQuickWindow *win = app->mainRootWindow();
     if (!win) return nullptr;
     return win->rhi();
+#else
+    // No QML UI → no root QQuickWindow to source an RHI from; the GPU
+    // capture path is inert and callers fall back to system-memory buffers.
+    return nullptr;
+#endif
 }
 
 QRhi *cachedRhi() noexcept
