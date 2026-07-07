@@ -12,6 +12,7 @@
 import type { BridgeClient } from "../bridge/BridgeClient.ts";
 import { useConnectionStore } from "./connectionStore.ts";
 import { useVehicleStore } from "./vehicleStore.ts";
+import { useParamStore } from "./paramStore.ts";
 
 /**
  * Subscribe the stores to a BridgeClient. Returns a cleanup function that
@@ -20,6 +21,7 @@ import { useVehicleStore } from "./vehicleStore.ts";
 export function bindBridgeToStores(client: BridgeClient): () => void {
   const connection = useConnectionStore.getState();
   const vehicles = useVehicleStore.getState();
+  const params = useParamStore.getState();
 
   // Reflect the client's current state immediately; onStateChange only
   // fires on transitions.
@@ -47,6 +49,10 @@ export function bindBridgeToStores(client: BridgeClient): () => void {
         return;
       }
       vehicles.applyTelemetry(message);
+    }),
+
+    client.onParamValue((message) => {
+      params.applyParamValue(message);
     }),
   ];
 

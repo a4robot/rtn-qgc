@@ -13,4 +13,10 @@ export {
   type VehicleState,
   type VehicleStoreState,
 } from "./vehicleStore.ts";
+export {
+  useParam,
+  useParams,
+  useParamStore,
+  type ParamStoreState,
+} from "./paramStore.ts";
 export { bindBridgeToStores } from "./bindBridge.ts";
