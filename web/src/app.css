@@ -100,3 +100,31 @@ body {
 .gcs-actions {
   grid-area: actions;
 }
+
+/* --- Wave 3 integration --- */
+
+.gcs-header-status--connected {
+  color: #3fb950;
+}
+
+.gcs-header-status--connecting,
+.gcs-header-status--reconnecting {
+  color: #d29922;
+}
+
+.gcs-telemetry-row {
+  display: flex;
+  gap: 1rem;
+  align-items: stretch;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0.75rem;
+  box-sizing: border-box;
+  overflow: auto;
+}
+
+.gcs-telemetry-row > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
