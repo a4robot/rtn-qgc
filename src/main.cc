@@ -51,8 +51,8 @@ int main(int argc, char *argv[])
             qCInfo(MainLog) << "Simple boot test completed";
             return 0;
         case AppMode::Headless:
-            // Headless still boots the full app until the headless boot path
-            // lands in QGCApplication; the mode is parsed and reserved here.
+            // app.init() booted core services via _initForHeadlessBoot();
+            // no QML engine or root window exists in this mode.
             qCInfo(MainLog) << "Starting headless event loop";
             return app.exec();
         case AppMode::Gui:

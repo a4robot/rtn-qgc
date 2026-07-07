@@ -10,11 +10,13 @@
 #include <QtGui/QFontDatabase>
 #include <QtGui/QIcon>
 #include "QGCNetworkHelper.h"
+#ifdef QGC_ENABLE_QML
 #include <QtQml/QQmlApplicationEngine>
 #include <QtQml/QQmlContext>
 #include <QtQuick/QQuickImageProvider>
 #include <QtQuick/QQuickWindow>
 #include <QtQuickControls2/QQuickStyle>
+#endif
 #include <QtSvg/QSvgRenderer>
 
 #include <QtCore/private/qthread_p.h>
@@ -31,8 +33,10 @@
 #include "QGCCommandLineParser.h"
 #include "QGCCorePlugin.h"
 #include "QGCFileDownload.h"
+#ifdef QGC_ENABLE_QML
 #include "ColoredSvgImageProvider.h"
 #include "QGCImageProvider.h"
+#endif
 #include "QGCLoggingCategory.h"
 #include "QGCLoggingCategoryManager.h"
 #include "SettingsManager.h"
@@ -54,6 +58,7 @@ QGCApplication::QGCApplication(int &argc, char *argv[], const QGCCommandLinePars
     : QGuiApplication(argc, argv)
     , _runningUnitTests(cli.runningUnitTests)
     , _simpleBootTest(cli.simpleBootTest)
+    , _headless(cli.headless)
     , _fakeMobile(cli.fakeMobile)
     , _logOutput(cli.logOutput)
     , _systemId(cli.systemId.value_or(0))
@@ -206,9 +211,11 @@ void QGCApplication::setLanguage()
         }
     }
 
+#ifdef QGC_ENABLE_QML
     if (_qmlAppEngine) {
         _qmlAppEngine->retranslate();
     }
+#endif
 
     emit languageChanged(_locale);
 }
@@ -241,8 +248,18 @@ void QGCApplication::init()
         // Since GStream builds are so problematic we initialize video during the simple boot test
         // to make sure it works and verfies plugin availability.
         _bootTestPassed = _initVideo();
-    } else if (!_runningUnitTests) {
+    } else if (_runningUnitTests) {
+        // Unit test framework handles the remaining initialization
+    } else if (_headless) {
+        _initForHeadlessBoot();
+    } else {
+#ifdef QGC_ENABLE_QML
         _initForNormalAppBoot();
+#else
+        qCWarning(QGCApplicationLog) << "This build has no QML UI (QGC_ENABLE_QML=OFF). Falling back to headless boot.";
+        _headless = true;
+        _initForHeadlessBoot();
+#endif
     }
 }
 
@@ -263,6 +280,7 @@ bool QGCApplication::_initVideo()
     return initSucceeded;
 }
 
+#ifdef QGC_ENABLE_QML
 void QGCApplication::_initForNormalAppBoot()
 {
     (void) _initVideo();
@@ -342,6 +360,45 @@ void QGCApplication::_initForNormalAppBoot()
     // Connect links with flag AutoconnectLink
     LinkManager::instance()->startAutoConnectedLinks();
 }
+#endif // QGC_ENABLE_QML
+
+void QGCApplication::_initForHeadlessBoot()
+{
+    (void) _initVideo();
+
+    QGCCorePlugin::instance()->init();
+    MAVLinkProtocol::instance()->init();
+    MultiVehicleManager::instance()->init();
+
+    AudioOutput::instance()->init(SettingsManager::instance()->appSettings()->audioVolume(), SettingsManager::instance()->appSettings()->audioMuted());
+    FollowMe::instance()->init();
+    QGCPositionManager::instance()->init();
+    LinkManager::instance()->init();
+
+    // VideoManager/VideoManager2 full init() is skipped entirely: it refuses a null window with a
+    // critical error and needs the root QQuickWindow to schedule render jobs. GStreamer itself is
+    // still initialized by _initVideo() above so shutdown() cleanup stays balanced.
+
+    // _showErrorsInToolbar stays false: with no root window showAppMessage/showCriticalVehicleMessage
+    // route to the log instead of UI dialogs.
+
+    // Check for lost log files
+    MAVLinkProtocol::instance()->checkForLostLogFiles();
+
+    // Load known link configurations
+    LinkManager::instance()->loadLinkConfigurationList();
+
+    // Probe for joysticks
+    JoystickManager::instance()->init();
+
+    if (_settingsUpgraded) {
+        showAppMessage(tr("The format for %1 saved settings has been modified. "
+                    "Your saved settings have been reset to defaults.").arg(applicationName()));
+    }
+
+    // Connect links with flag AutoconnectLink
+    LinkManager::instance()->startAutoConnectedLinks();
+}
 
 void QGCApplication::reportMissingParameter(int componentId, const QString &name)
 {
@@ -376,9 +433,11 @@ void QGCApplication::_missingParamsDisplay()
 
 QObject *QGCApplication::_rootQmlObject()
 {
+#ifdef QGC_ENABLE_QML
     if (_qmlAppEngine && _qmlAppEngine->rootObjects().size()) {
         return _qmlAppEngine->rootObjects()[0];
     }
+#endif
 
     return nullptr;
 }
@@ -416,6 +475,9 @@ void QGCApplication::showAppMessage(const QString &message, const QString &title
         // Unit tests can run without UI
         // We don't use a logging category to make it easier to debug unit tests
         qDebug() << "QGCApplication::showAppMessage unittest title:message" << dialogTitle << message;
+    } else if (_headless) {
+        // Headless has no dialogs to show messages in. Route to the log instead of queueing forever.
+        qCWarning(QGCApplicationLog) << "QGCApplication::showAppMessage title:message" << dialogTitle << message;
     } else {
         // UI isn't ready yet
         _delayedAppMessages.append(QPair<QString, QString>(dialogTitle, message));
@@ -451,6 +513,7 @@ void QGCApplication::_showDelayedAppMessages()
     }
 }
 
+#ifdef QGC_ENABLE_QML
 QQuickWindow *QGCApplication::mainRootWindow()
 {
     if (!_mainRootWindow) {
@@ -459,6 +522,7 @@ QQuickWindow *QGCApplication::mainRootWindow()
 
     return _mainRootWindow;
 }
+#endif
 
 void QGCApplication::showVehicleConfig()
 {
@@ -650,6 +714,7 @@ QT_WARNING_POP
 
 bool QGCApplication::event(QEvent *e)
 {
+#ifdef QGC_ENABLE_QML
     if (e->type() == QEvent::Quit) {
         if (!_mainRootWindow) {
             return QGuiApplication::event(e);
@@ -669,18 +734,32 @@ bool QGCApplication::event(QEvent *e)
             return true;
         }
     }
+#endif
 
     return QGuiApplication::event(e);
 }
 
 QGCImageProvider *QGCApplication::qgcImageProvider()
 {
-    return dynamic_cast<QGCImageProvider*>(_qmlAppEngine->imageProvider(_qgcImageProviderId));
+#ifdef QGC_ENABLE_QML
+    if (_qmlAppEngine) {
+        return dynamic_cast<QGCImageProvider*>(_qmlAppEngine->imageProvider(_qgcImageProviderId));
+    }
+#endif
+
+    return nullptr;
 }
 
 void QGCApplication::shutdown()
 {
     qCDebug(QGCApplicationLog) << "Exit";
+
+    if (_headless) {
+        // The QML main window calls LinkManager.shutdown() as it closes
+        // (MainWindow.qml); headless has no window, so disconnect links here
+        // before static teardown destroys them mid-signal.
+        LinkManager::instance()->shutdown();
+    }
 
     if (_videoManagerInitialized) {
         VideoManager::instance()->cleanup();
@@ -721,6 +800,8 @@ void QGCApplication::shutdown()
         }
     }
 
+#ifdef QGC_ENABLE_QML
     // This is bad, but currently qobject inheritances are incorrect and cause crashes on exit without
     delete _qmlAppEngine;
+#endif
 }

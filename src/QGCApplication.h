@@ -11,8 +11,10 @@ namespace QGCCommandLineParser {
     struct CommandLineParseResult;
 }
 
+#ifdef QGC_ENABLE_QML
 class QQmlApplicationEngine;
 class QQuickWindow;
+#endif
 class QGCImageProvider;
 class QGCApplication;
 class QEvent;
@@ -46,6 +48,7 @@ public:
 
     bool runningUnitTests() const { return _runningUnitTests; }
     bool simpleBootTest() const { return _simpleBootTest; }
+    bool headless() const { return _headless; }
     bool bootTestPassed() const { return _bootTestPassed; }
 
     /// Returns true if Qt debug output should be logged to a file
@@ -59,7 +62,9 @@ public:
     bool fakeMobile() const { return _fakeMobile; }
 
     void setLanguage();
+#ifdef QGC_ENABLE_QML
     QQuickWindow *mainRootWindow();
+#endif
     uint64_t msecsSinceBoot() const { return _msecsElapsedTime.elapsed(); }
 
     /// Registers the signal such that only the last duplicate signal added is left in the queue.
@@ -77,8 +82,10 @@ public:
     void init();
     void shutdown();
 
+#ifdef QGC_ENABLE_QML
     /// Although public, these methods are internal and should only be called by UnitTest code
     QQmlApplicationEngine *qmlAppEngine() const { return _qmlAppEngine; }
+#endif
 
 signals:
     void languageChanged(const QLocale &locale);
@@ -115,14 +122,20 @@ private:
 
     bool _initVideo();
 
+#ifdef QGC_ENABLE_QML
     /// Initialize the application for normal application boot. Or in other words we are not going to run unit tests.
     void _initForNormalAppBoot();
+#endif
+
+    /// Initialize the application for headless boot: core services only, no QML engine or root window.
+    void _initForHeadlessBoot();
 
     QObject *_rootQmlObject();
     void _checkForNewVersion();
 
     bool _runningUnitTests = false;
     bool _simpleBootTest = false;
+    bool _headless = false;    ///< true: Running without the QML UI
     bool _fakeMobile = false;    ///< true: Fake ui into displaying mobile interface
     bool _logOutput = false;    ///< true: Log Qt debug output to file
     quint8 _systemId = 0; ///< MAVLink system ID, 0 means not set
@@ -131,12 +144,16 @@ private:
     QTimer _missingParamsDelayedDisplayTimer;                               ///< Timer use to delay missing fact display
     QList<QPair<int,QString>> _missingParams;                               ///< List of missing parameter component id:name
 
+#ifdef QGC_ENABLE_QML
     QQmlApplicationEngine *_qmlAppEngine = nullptr;
+#endif
     bool _settingsUpgraded = false;    ///< true: Settings format has been upgrade to new version
     int _majorVersion = 0;
     int _minorVersion = 0;
     int _buildVersion = 0;
+#ifdef QGC_ENABLE_QML
     QQuickWindow *_mainRootWindow = nullptr;
+#endif
     QTranslator _qgcTranslatorSourceCode;           ///< translations for source code C++/Qml
     QTranslator _qgcTranslatorQtLibs;               ///< tranlsations for Qt libraries
     QLocale _locale;
