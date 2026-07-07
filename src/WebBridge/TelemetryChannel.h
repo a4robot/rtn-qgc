@@ -55,6 +55,7 @@ signals:
 private slots:
     void _onVehicleAdded(Vehicle *vehicle);
     void _onVehicleRemoved(Vehicle *vehicle);
+    void _syncBridgeVehicleIds();
     void _sendPeriodicTelemetry();
 
 private:

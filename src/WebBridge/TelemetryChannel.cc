@@ -94,11 +94,13 @@ void TelemetryChannel::_onVehicleAdded(Vehicle *vehicle)
     const int vehicleId = vehicle->id();
     qCDebug(TelemetryChannelLog) << "_onVehicleAdded" << vehicleId;
     _vehicles[vehicleId] = vehicle;
+    _syncBridgeVehicleIds();
 
     // Defensive: guarantee the vehicle is dropped even if it is destroyed without
     // MultiVehicleManager::vehicleRemoved() having fired first.
     connect(vehicle, &QObject::destroyed, this, [this, vehicleId] {
         _vehicles.remove(vehicleId);
+        _syncBridgeVehicleIds();
     });
 }
 
@@ -110,6 +112,16 @@ void TelemetryChannel::_onVehicleRemoved(Vehicle *vehicle)
 
     qCDebug(TelemetryChannelLog) << "_onVehicleRemoved" << vehicle->id();
     _vehicles.remove(vehicle->id());
+    _syncBridgeVehicleIds();
+}
+
+// Keep the bridge's tick vehicleIds (§11.1 — state, not events) in step with
+// the tracked vehicle set; without this the tick reports an empty list forever.
+void TelemetryChannel::_syncBridgeVehicleIds()
+{
+    if (_bridge) {
+        _bridge->setVehicleIds(_vehicles.keys());
+    }
 }
 
 void TelemetryChannel::_sendPeriodicTelemetry()
