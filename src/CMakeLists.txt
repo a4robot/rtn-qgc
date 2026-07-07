@@ -79,6 +79,8 @@ add_subdirectory(VideoManager)
 if(QGC_ENABLE_QML)
     add_subdirectory(Viewer3D)
 endif()
+# Non-QML frontend bridge (websocket ghost API).
+add_subdirectory(WebBridge)
 
 # Platform-specific
 add_subdirectory(Android)
@@ -161,6 +163,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         QGroundControlModule
         $<$<BOOL:${QGC_ENABLE_QML}>:ToolbarModule>
         VehicleSetupModule
+        WebBridgeModule
 )
 
 # ----------------------------------------------------------------------------
