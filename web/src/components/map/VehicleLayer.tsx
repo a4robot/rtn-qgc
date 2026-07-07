@@ -182,7 +182,7 @@ export function VehicleLayer({ map, vehicleId, follow = false }: VehicleLayerPro
 
     marker.getElement().style.display = "";
     marker.setLngLat(pos);
-    marker.setRotation(vehicle.attitude.yaw);
+    marker.setRotation(vehicle.attitude.yaw ?? 0);
     marker.getElement().style.opacity = vehicle.connected ? "1" : "0.4";
 
     const path = iconPathRef.current;

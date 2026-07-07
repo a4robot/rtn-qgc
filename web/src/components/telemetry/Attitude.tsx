@@ -223,7 +223,10 @@ export function Attitude({ vehicleId }: AttitudeProps) {
     );
   }
 
-  const { roll: rollDeg, pitch: pitchDeg, yaw: yawDeg } = vehicle.attitude;
+  // §4: attitude fields are null until the first attitude message; render level.
+  const rollDeg = vehicle.attitude.roll ?? 0;
+  const pitchDeg = vehicle.attitude.pitch ?? 0;
+  const yawDeg = vehicle.attitude.yaw ?? 0;
   const heading = normalizeAngle(yawDeg);
 
   return (

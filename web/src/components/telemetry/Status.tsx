@@ -34,7 +34,15 @@ function batteryLevel(pct: number): BatteryLevel {
   return "ok";
 }
 
-function formatSigned(value: number, digits = 1): string {
+/** §4: unknown values are null — render an em dash instead of crashing. */
+function fmt(value: number | null, digits: number): string {
+  return value === null ? "—" : value.toFixed(digits);
+}
+
+function formatSigned(value: number | null, digits = 1): string {
+  if (value === null) {
+    return "—";
+  }
   const fixed = value.toFixed(digits);
   return value >= 0 ? `+${fixed}` : fixed;
 }
@@ -66,8 +74,8 @@ export function Status({ vehicleId }: StatusProps) {
   const ageMs = nowMs - vehicle.lastUpdateAtMs;
   const stale = !vehicle.connected || connectionState !== "connected" || ageMs > STALE_THRESHOLD_MS;
 
-  const level = batteryLevel(vehicle.battery.percent);
-  const pctClamped = Math.max(0, Math.min(100, vehicle.battery.percent));
+  const level = batteryLevel(vehicle.battery.percent ?? 0);
+  const pctClamped = Math.max(0, Math.min(100, vehicle.battery.percent ?? 0));
 
   return (
     <div
@@ -83,10 +91,10 @@ export function Status({ vehicleId }: StatusProps) {
           />
         </div>
         <span className={`status-value status-value--${level}`}>
-          {vehicle.battery.percent.toFixed(0)}%
+          {fmt(vehicle.battery.percent, 0)}%
         </span>
         <span className="status-value status-value--dim">
-          {vehicle.battery.voltage.toFixed(1)} V
+          {fmt(vehicle.battery.voltage, 1)} V
         </span>
       </div>
 
@@ -94,7 +102,7 @@ export function Status({ vehicleId }: StatusProps) {
         <span className="status-label">GPS</span>
         <span className="status-value">{gpsFixLabel(vehicle.gps.fix)}</span>
         <span className="status-value status-value--dim">
-          {vehicle.gps.count} sats · HDOP {vehicle.gps.hdop.toFixed(1)}
+          {vehicle.gps.count ?? "—"} sats · HDOP {fmt(vehicle.gps.hdop, 1)}
         </span>
       </div>
 
@@ -112,7 +120,7 @@ export function Status({ vehicleId }: StatusProps) {
 
       <div className="status-tile">
         <span className="status-label">Speed</span>
-        <span className="status-value">{vehicle.velocity.groundSpeed.toFixed(1)} m/s gnd</span>
+        <span className="status-value">{fmt(vehicle.velocity.groundSpeed, 1)} m/s gnd</span>
         <span className="status-value status-value--dim">
           {formatSigned(vehicle.velocity.climbRate)} m/s clb
         </span>

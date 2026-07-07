@@ -41,32 +41,32 @@ export interface Telemetry extends VehicleMessage {
   armed: boolean;
   flightMode: string;
   position: {
-    lat: number;
-    lon: number;
-    altMSL: number;
-    altRel: number;
+    lat: number | null;
+    lon: number | null;
+    altMSL: number | null;
+    altRel: number | null;
   };
   attitude: {
-    roll: number;
-    pitch: number;
+    roll: number | null;
+    pitch: number | null;
     /** 0–360, heading. */
-    yaw: number;
+    yaw: number | null;
   };
   velocity: {
-    groundSpeed: number;
+    groundSpeed: number | null;
     /** null on vehicles without an airspeed sensor. */
     airSpeed: number | null;
-    climbRate: number;
+    climbRate: number | null;
   };
   battery: {
-    percent: number;
-    voltage: number;
-    current: number;
+    percent: number | null;
+    voltage: number | null;
+    current: number | null;
   };
   gps: {
     fix: GpsFix;
-    count: number;
-    hdop: number;
+    count: number | null;
+    hdop: number | null;
   };
 }
 
