@@ -1,4 +1,8 @@
-.core-map {
+/* maplibre's stylesheet sets .maplibregl-map { position: relative }; the
+   double-class selector outranks it regardless of bundle order so the map
+   keeps filling its panel. */
+.core-map,
+.core-map.maplibregl-map {
   position: absolute;
   inset: 0;
   background: var(--bg);
