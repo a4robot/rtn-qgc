@@ -66,6 +66,7 @@ void WebBridgeServer::stop()
         client->deleteLater();
     }
     _clients.clear();
+    _tokenToClient.clear();
 
     _server.close();
     qCDebug(WebBridgeServerLog) << "stopped";
@@ -86,6 +87,41 @@ void WebBridgeServer::broadcast(const QString &channel, int vehicleId, const QJs
     }
 }
 
+void WebBridgeServer::broadcastBinary(const QString &channel, int streamId, const QByteArray &frame)
+{
+    const QString key = WebBridge::streamKey(channel, streamId);
+    for (auto it = _clients.constBegin(); it != _clients.constEnd(); ++it) {
+        if (it.value().authed && it.value().subscriptions.contains(key)) {
+            it.key()->sendBinaryMessage(frame);
+        }
+    }
+}
+
+void WebBridgeServer::sendToClient(quint64 clientToken, const QJsonObject &message)
+{
+    QWebSocket *client = _tokenToClient.value(clientToken, nullptr);
+    if (!client) {
+        // Client disconnected since the request was received: silent no-op (PROTOCOL.md §11.2 #4).
+        qCDebug(WebBridgeServerLog) << "sendToClient: no client for token" << clientToken;
+        return;
+    }
+    _sendJson(client, message);
+}
+
+void WebBridgeServer::reply(QWebSocket *client, const QJsonObject &message)
+{
+    if (_clients.contains(client)) {
+        _sendJson(client, message);
+    }
+}
+
+void WebBridgeServer::replyError(QWebSocket *client, const QString &code, const QString &message, bool retryable, const QString &id)
+{
+    if (_clients.contains(client)) {
+        _sendError(client, code, message, retryable, id);
+    }
+}
+
 void WebBridgeServer::_onNewConnection()
 {
     while (_server.hasPendingConnections()) {
@@ -94,11 +130,14 @@ void WebBridgeServer::_onNewConnection()
             continue;
         }
 
-        _clients.insert(client, ClientState());
+        ClientState state;
+        state.token = _nextClientToken++;
+        _clients.insert(client, state);
+        _tokenToClient.insert(state.token, client);
         connect(client, &QWebSocket::textMessageReceived, this, &WebBridgeServer::_onTextMessageReceived);
         connect(client, &QWebSocket::disconnected, this, &WebBridgeServer::_onDisconnected);
 
-        qCDebug(WebBridgeServerLog) << client << "connected from" << client->peerAddress().toString() << client->peerPort();
+        qCDebug(WebBridgeServerLog) << client << "connected from" << client->peerAddress().toString() << client->peerPort() << "token" << state.token;
     }
 }
 
@@ -110,6 +149,10 @@ void WebBridgeServer::_onDisconnected()
     }
 
     qCDebug(WebBridgeServerLog) << client << "disconnected";
+    const auto it = _clients.constFind(client);
+    if (it != _clients.constEnd()) {
+        _tokenToClient.remove(it.value().token);
+    }
     _clients.remove(client);
     client->deleteLater();
 }
@@ -169,6 +212,10 @@ void WebBridgeServer::_onTextMessageReceived(const QString &message)
         _handleSubscription(client, obj, true);
     } else if (type == QStringLiteral("unsubscribe")) {
         _handleSubscription(client, obj, false);
+    } else if (type == QStringLiteral("getParam") || type == QStringLiteral("setParam")) {
+        emit factMessageReceived(client, obj);
+    } else if (type == QStringLiteral("command")) {
+        _handleCommand(client, obj);
     } else {
         _sendError(client, QStringLiteral("UNKNOWN_TYPE"), QStringLiteral("Unrecognized type: %1").arg(type), false, id);
     }
@@ -265,6 +312,21 @@ void WebBridgeServer::_handleSubscription(QWebSocket *client, const QJsonObject 
         _sendJson(client, ack);
         qCDebug(WebBridgeServerLog) << client << "unsubscribed" << key;
     }
+}
+
+void WebBridgeServer::_handleCommand(QWebSocket *client, const QJsonObject &obj)
+{
+    const QString id = obj.value(QStringLiteral("id")).toString();
+
+    // PROTOCOL.md §5.1 request envelope: { type: "command", id, vehicleId, action, params }.
+    // CommandChannel (B7b) owns action/params semantics; this only guards envelope shape.
+    if (id.isEmpty() || !obj.contains(QStringLiteral("vehicleId")) || obj.value(QStringLiteral("action")).toString().isEmpty()) {
+        _sendError(client, QStringLiteral("BAD_MESSAGE"), QStringLiteral("command requires id, vehicleId, and action"), false, id);
+        return;
+    }
+
+    const quint64 clientToken = _clients.value(client).token;
+    emit commandReceived(clientToken, obj);
 }
 
 void WebBridgeServer::_sendJson(QWebSocket *client, const QJsonObject &obj)

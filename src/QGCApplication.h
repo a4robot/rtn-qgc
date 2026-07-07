@@ -21,6 +21,8 @@ class QEvent;
 class QPostEventList;
 class QMetaMethod;
 struct QMetaObject;
+class CommandChannel;
+class FactChannel;
 class TelemetryChannel;
 class WebBridge;
 class WebBridgeServer;
@@ -143,6 +145,8 @@ private:
     WebBridge *_webBridge = nullptr;                ///< Bridge core (headless + --bridge-port only)
     WebBridgeServer *_webBridgeServer = nullptr;    ///< Bridge websocket listener
     TelemetryChannel *_telemetryChannel = nullptr;  ///< Vehicle state → bridge telemetry stream
+    FactChannel *_factChannel = nullptr;            ///< Parameter channel
+    CommandChannel *_commandChannel = nullptr;      ///< §5 guided-action channel
     bool _fakeMobile = false;    ///< true: Fake ui into displaying mobile interface
     bool _logOutput = false;    ///< true: Log Qt debug output to file
     quint8 _systemId = 0; ///< MAVLink system ID, 0 means not set

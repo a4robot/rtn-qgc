@@ -52,6 +52,24 @@ public:
     /// fan-out. Channel implementations (B2a+) call this to publish snapshots and updates.
     void broadcast(const QString &channel, int vehicleId, const QJsonObject &message);
 
+    /// Sends @p frame as a single binary WS message to every authenticated client subscribed to
+    /// the `video` stream identified by (channel, streamId) -- same subscription-key filtering as
+    /// broadcast() (PROTOCOL.md §9: binary frames carry no seq/envelope of their own, so this
+    /// bypasses WebBridge::makeStreamMessage() and sends @p frame verbatim). @p channel is
+    /// expected to be "video"; kept as a parameter (rather than hardcoded) so this stays
+    /// consistent with broadcast()'s (channel, scopeId) key shape.
+    void broadcastBinary(const QString &channel, int streamId, const QByteArray &frame);
+
+    /// Sends @p message to exactly one client -- the one that sent the request identified by
+    /// @p clientToken (assigned in _onNewConnection(), stable for the lifetime of the
+    /// connection). Used by CommandChannel (B7b) to answer `command` requests (§5), which unlike
+    /// broadcast()'s subscription fan-out must go only to the requester. A token for a client
+    /// that has since disconnected is a silent no-op (the response is simply dropped, matching
+    /// PROTOCOL.md §11.2 #4: "In-flight requests ... at disconnect time are lost"). Kept
+    /// token-based (rather than QWebSocket*) so that non-QtWebSockets callers (CommandChannel is
+    /// Qt Core + Positioning only) never need to see a QWebSocket type.
+    void sendToClient(quint64 clientToken, const QJsonObject &message);
+
 signals:
     /// Emitted once a client's `subscribe` has been acknowledged (PROTOCOL.md §2.2: "On every
     /// successful subscribe, the server immediately sends one full-state snapshot"). Channel
@@ -60,6 +78,24 @@ signals:
     /// non-vehicle-scoped channels (adsb), and carries the `streamId` for `video` (§9), which
     /// this class does not otherwise distinguish from `vehicleId`.
     void snapshotRequested(const QString &channel, int vehicleId);
+
+    /// Emitted when a "getParam" or "setParam" message is received.
+    void factMessageReceived(QWebSocket *client, const QJsonObject &message);
+
+    /// Emitted for every authenticated client's `command` message once the §5.1 envelope has
+    /// been validated (id/vehicleId/action present -- BAD_MESSAGE is sent directly and this
+    /// signal is not emitted otherwise). @p clientToken identifies the requester for
+    /// sendToClient(); @p request is the parsed request object verbatim. CommandChannel (B7b)
+    /// connects to this and answers via sendToClient().
+    void commandReceived(quint64 clientToken, const QJsonObject &request);
+
+public slots:
+    /// Sends a point-to-point response to a specific client.
+    void reply(QWebSocket *client, const QJsonObject &message);
+
+    /// Sends a point-to-point error envelope to a specific client (PROTOCOL.md §10).
+    void replyError(QWebSocket *client, const QString &code, const QString &message, bool retryable, const QString &id = QString());
+
 
 private slots:
     void _onNewConnection();
@@ -75,6 +111,7 @@ private:
     struct ClientState
     {
         bool authed = false;              ///< Set once a valid `hello` has been received (§1.1)
+        quint64 token = 0;                 ///< Stable per-connection id for sendToClient() (assigned in _onNewConnection())
         QSet<QString> subscriptions;       ///< Stream keys (WebBridge::streamKey) this client is subscribed to (§2.2)
     };
 
@@ -89,6 +126,12 @@ private:
     /// snapshotRequested(). Replies `BAD_MESSAGE` for a missing channel, `UNKNOWN_CHANNEL` for
     /// an unrecognized one.
     void _handleSubscription(QWebSocket *client, const QJsonObject &obj, bool subscribe);
+
+    /// Handles a `command` message (PROTOCOL.md §5.1): validates that `id`, `vehicleId`, and
+    /// `action` are present, replying `BAD_MESSAGE` (§10) if not, then emits commandReceived()
+    /// for CommandChannel (B7b) to execute. This class does not itself know how to run guided
+    /// actions -- validation here is limited to envelope shape, not action semantics/params.
+    void _handleCommand(QWebSocket *client, const QJsonObject &obj);
 
     /// Serializes @p obj as compact JSON and sends it as a single text frame (PROTOCOL.md §1:
     /// "server never fragments a JSON message across frames").
@@ -107,4 +150,6 @@ private:
     WebBridge *_bridge = nullptr;    ///< Not owned; must outlive this object
     QWebSocketServer _server;
     QHash<QWebSocket *, ClientState> _clients;
+    QHash<quint64, QWebSocket *> _tokenToClient;    ///< Reverse index of ClientState::token for sendToClient()
+    quint64 _nextClientToken = 1;                   ///< Monotonic counter; 0 is never issued so it can be used as a "no client" sentinel
 };

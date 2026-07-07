@@ -42,7 +42,10 @@
 #include "SettingsManager.h"
 #include "MavlinkSettings.h"
 #include "AppSettings.h"
+#include "CommandChannel.h"
+#include "FactChannel.h"
 #include "TelemetryChannel.h"
+
 #include "UDPLink.h"
 #include "Vehicle.h"
 #include "VehicleComponent.h"
@@ -405,9 +408,17 @@ void QGCApplication::_initForHeadlessBoot()
         _webBridge = new WebBridge(_bridgePort, this);
         _webBridgeServer = new WebBridgeServer(_webBridge, this);
         _telemetryChannel = new TelemetryChannel(_webBridge, this);
+        _factChannel = new FactChannel(this);
+        _commandChannel = new CommandChannel(_webBridge, this);
         connect(_webBridgeServer, &WebBridgeServer::snapshotRequested, _telemetryChannel, &TelemetryChannel::sendSnapshot);
+        connect(_webBridgeServer, &WebBridgeServer::commandReceived, _commandChannel, &CommandChannel::handleCommand);
+        connect(_commandChannel, &CommandChannel::responseReady, _webBridgeServer, &WebBridgeServer::sendToClient);
         connect(_telemetryChannel, &TelemetryChannel::telemetryReady, _webBridgeServer, &WebBridgeServer::broadcast);
+        connect(_webBridgeServer, &WebBridgeServer::factMessageReceived, _factChannel, &FactChannel::handleMessage);
+        connect(_factChannel, &FactChannel::responseReady, _webBridgeServer, &WebBridgeServer::reply);
+        connect(_factChannel, &FactChannel::errorReady, _webBridgeServer, &WebBridgeServer::replyError);
         _webBridge->start();
+
         if (!_webBridgeServer->start()) {
             qCCritical(QGCApplicationLog) << "WebBridge server failed to bind 127.0.0.1 port" << _bridgePort;
         }

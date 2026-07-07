@@ -5,15 +5,29 @@
 # ============================================================================
 
 qt_add_library(WebBridgeModule STATIC
+    CommandChannel.cc
+    CommandChannel.h
+    FactChannel.cc
+    FactChannel.h
     GuidedActionGate.cc
     GuidedActionGate.h
     TelemetryChannel.cc
     TelemetryChannel.h
     WebBridge.cc
     WebBridge.h
+    VideoStreamServer.cc
+    VideoStreamServer.h
     WebBridgeServer.cc
     WebBridgeServer.h
 )
+
+# VideoStreamServer taps the GStreamer pipeline; without GStreamer it compiles
+# to inert stubs. GStreamer::GStreamer is created by the VideoManager subtree
+# (processed before this directory) when the option is ON.
+if(QGC_ENABLE_GST_VIDEOSTREAMING AND TARGET GStreamer::GStreamer)
+    target_compile_definitions(WebBridgeModule PRIVATE QGC_GST_STREAMING)
+    target_link_libraries(WebBridgeModule PRIVATE GStreamer::GStreamer)
+endif()
 
 target_link_libraries(WebBridgeModule
     PRIVATE
