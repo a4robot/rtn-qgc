@@ -54,6 +54,14 @@
 #include "WebBridge.h"
 #include "WebBridgeServer.h"
 
+#ifdef QGC_GST_STREAMING
+#include "VideoStreamServer.h"
+#endif
+
+#ifdef QGC_ENABLE_MOCKLINK
+#include "MockLink.h"
+#endif
+
 #ifndef QGC_NO_SERIAL_LINK
 #include "SerialLink.h"
 #endif
@@ -66,6 +74,7 @@ QGCApplication::QGCApplication(int &argc, char *argv[], const QGCCommandLinePars
     , _simpleBootTest(cli.simpleBootTest)
     , _headless(cli.headless)
     , _bridgePort(static_cast<quint16>(cli.bridgePort))
+    , _mockLink(cli.mockLink)
     , _fakeMobile(cli.fakeMobile)
     , _logOutput(cli.logOutput)
     , _systemId(cli.systemId.value_or(0))
@@ -417,11 +426,48 @@ void QGCApplication::_initForHeadlessBoot()
         connect(_webBridgeServer, &WebBridgeServer::factMessageReceived, _factChannel, &FactChannel::handleMessage);
         connect(_factChannel, &FactChannel::responseReady, _webBridgeServer, &WebBridgeServer::reply);
         connect(_factChannel, &FactChannel::errorReady, _webBridgeServer, &WebBridgeServer::replyError);
+
+#ifdef QGC_GST_STREAMING
+        // Video: taps a live GStreamer pipeline's shared tee and relays H.264 access units plus
+        // codec config over the bridge's `video` channel (PROTOCOL.md §9). streamId 1 matches
+        // the protocol's current single-stream v0.1 scope.
+        _videoStreamServer = new VideoStreamServer(1, this);
+        connect(_videoStreamServer, &VideoStreamServer::frameReady, _webBridgeServer,
+                [this](quint8 streamId, const QByteArray &frame) {
+                    _webBridgeServer->broadcastBinary(QStringLiteral("video"), streamId, frame);
+                });
+        connect(_videoStreamServer, &VideoStreamServer::configReady, _webBridgeServer, &WebBridgeServer::cacheVideoConfig);
+
+        // NOTE: attach()ing _videoStreamServer to a live pipeline needs the running
+        // GstVideoReceiver's pipeline/tee (see its pipelineHandle()/teeHandle(), valid once its
+        // streamingChanged(true) fires -- _onNewSourcePad() links _source into _tee right before
+        // that signal, so pipelineHandle()/teeHandle() are already good by the time it's
+        // observed). VideoManager owns the only GstVideoReceiver instances, but exposes neither a
+        // receiver accessor nor a per-receiver streaming signal publicly, and headless boot never
+        // even creates one: VideoManager::init(QQuickWindow*) refuses a null window (see
+        // _initForHeadlessBoot() above), so _createVideoReceivers() never runs and VideoManager's
+        // receiver list stays empty for the life of a headless process. So today there is no
+        // reachable GstVideoReceiver to attach() to: _videoStreamServer above stays permanently
+        // detached, which is inert by construction -- attach() is simply never called, and
+        // frameReady()/configReady() above never fire. Wiring the actual attach() call needs a
+        // follow-up job to add either a public VideoManager receiver accessor or a headless-safe
+        // receiver-creation path.
+#endif
+
         _webBridge->start();
 
         if (!_webBridgeServer->start()) {
             qCCritical(QGCApplicationLog) << "WebBridge server failed to bind 127.0.0.1 port" << _bridgePort;
         }
+    }
+
+    // Simulated PX4 vehicle for ghost/bridge development: only when explicitly requested via --mock-link.
+    if (_mockLink) {
+#ifdef QGC_ENABLE_MOCKLINK
+        (void) MockLink::startPX4MockLink(false /* sendStatusText */, false /* enableCamera */, false /* enableGimbal */);
+#else
+        qCWarning(QGCApplicationLog) << "--mock-link requested but this build was not compiled with QGC_ENABLE_MOCKLINK";
+#endif
     }
 
     // Connect links with flag AutoconnectLink
@@ -787,6 +833,13 @@ void QGCApplication::shutdown()
         if (_webBridgeServer) {
             _webBridgeServer->stop();
             _webBridge->stop();
+#ifdef QGC_GST_STREAMING
+            if (_videoStreamServer) {
+                // Detaches the tap from the pipeline (if it was ever attached) before the
+                // GstVideoReceiver that owns that pipeline is torn down below.
+                _videoStreamServer->stop();
+            }
+#endif
         }
         // The QML main window calls LinkManager.shutdown() as it closes
         // (MainWindow.qml); headless has no window, so disconnect links here

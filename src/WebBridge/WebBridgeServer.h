@@ -70,6 +70,18 @@ public:
     /// Qt Core + Positioning only) never need to see a QWebSocket type.
     void sendToClient(quint64 clientToken, const QJsonObject &message);
 
+public slots:
+    /// Caches the latest PROTOCOL.md §9.1 videoConfig payload for @p streamId -- the fields
+    /// VideoStreamServer::configReady() emits (codec, streamIndex, width, height, sps, pps), NOT
+    /// yet enveloped -- and both (a) broadcasts it now to every client already subscribed to the
+    /// `video`/@p streamId stream, so watching clients pick up SPS/PPS or resolution changes
+    /// mid-stream (§9.1: "again whenever SPS/PPS change mid-stream"), and (b) remembers it so a
+    /// client that subscribes *later* can be caught up: _handleSubscription() replays this same
+    /// cached message (with `snapshot` forced true) directly to a newly-subscribing client, since
+    /// nothing else would ever hand it codec config until the next SPS/PPS change (which may be
+    /// GOPs away). Safe to call at any time, including before any client has subscribed.
+    void cacheVideoConfig(quint8 streamId, const QJsonObject &config);
+
 signals:
     /// Emitted once a client's `subscribe` has been acknowledged (PROTOCOL.md §2.2: "On every
     /// successful subscribe, the server immediately sends one full-state snapshot"). Channel
@@ -151,5 +163,6 @@ private:
     QWebSocketServer _server;
     QHash<QWebSocket *, ClientState> _clients;
     QHash<quint64, QWebSocket *> _tokenToClient;    ///< Reverse index of ClientState::token for sendToClient()
+    QHash<quint8, QJsonObject> _cachedVideoConfig;  ///< Last enveloped videoConfig message sent per streamId (§9.1), for late-subscriber replay
     quint64 _nextClientToken = 1;                   ///< Monotonic counter; 0 is never issued so it can be used as a "no client" sentinel
 };

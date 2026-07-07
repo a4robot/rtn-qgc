@@ -26,6 +26,9 @@ class FactChannel;
 class TelemetryChannel;
 class WebBridge;
 class WebBridgeServer;
+#ifdef QGC_GST_STREAMING
+class VideoStreamServer;
+#endif
 
 #if defined(qApp)
 #undef qApp
@@ -142,11 +145,15 @@ private:
     bool _simpleBootTest = false;
     bool _headless = false;    ///< true: Running without the QML UI
     quint16 _bridgePort = 0;    ///< --bridge-port: websocket bridge listen port, 0 = bridge disabled
+    bool _mockLink = false;    ///< --mock-link: start a simulated PX4 vehicle (requires QGC_ENABLE_MOCKLINK build)
     WebBridge *_webBridge = nullptr;                ///< Bridge core (headless + --bridge-port only)
     WebBridgeServer *_webBridgeServer = nullptr;    ///< Bridge websocket listener
     TelemetryChannel *_telemetryChannel = nullptr;  ///< Vehicle state → bridge telemetry stream
     FactChannel *_factChannel = nullptr;            ///< Parameter channel
     CommandChannel *_commandChannel = nullptr;      ///< §5 guided-action channel
+#ifdef QGC_GST_STREAMING
+    VideoStreamServer *_videoStreamServer = nullptr; ///< GStreamer tee tap → bridge `video` channel (§9)
+#endif
     bool _fakeMobile = false;    ///< true: Fake ui into displaying mobile interface
     bool _logOutput = false;    ///< true: Log Qt debug output to file
     quint8 _systemId = 0; ///< MAVLink system ID, 0 means not set

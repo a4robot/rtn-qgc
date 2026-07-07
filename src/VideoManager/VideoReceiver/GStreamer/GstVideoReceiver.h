@@ -61,6 +61,17 @@ public:
     double  qosProportion()   const { return _qosProportion; }
     int     qosQuality()      const { return _qosQuality; }
 
+    /// Opaque (`GstElement *` as `void *`, see WebBridge/VideoStreamServer.h for why) accessors
+    /// so a passive stream tap (WebBridge's VideoStreamServer) can attach a branch to the shared
+    /// `_tee` without either side depending on GStreamer types across the module boundary. Both
+    /// return nullptr when no pipeline is running. Valid only while streaming() is true (see
+    /// VideoReceiver::streamingChanged()) -- start() creates `_tee`/`_pipeline` before that signal
+    /// fires (once _source is actually linked to _tee, see _onNewSourcePad()) and stop() tears
+    /// both down before emitting streamingChanged(false), so streamingChanged() brackets their
+    /// entire valid lifetime.
+    void *pipelineHandle() const { return _pipeline; }
+    void *teeHandle() const { return _tee; }
+
 public slots:
     void start(uint32_t timeout) override;
     void stop() override;

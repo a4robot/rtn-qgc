@@ -122,6 +122,31 @@ void WebBridgeServer::replyError(QWebSocket *client, const QString &code, const 
     }
 }
 
+void WebBridgeServer::cacheVideoConfig(quint8 streamId, const QJsonObject &config)
+{
+    if (!_bridge) {
+        return;
+    }
+
+    // VideoStreamServer::configReady() emits its own "streamIndex" field (VideoStreamServer.h);
+    // PROTOCOL.md §9.1 instead carries the identifier at the envelope level as "streamId", like
+    // every other stream message (added below via makeStreamMessage()'s vehicleId parameter).
+    // Drop the redundant field so the wire message matches the spec exactly.
+    QJsonObject payload = config;
+    payload.remove(QStringLiteral("streamIndex"));
+
+    QJsonObject message = _bridge->makeStreamMessage(QStringLiteral("video"), QStringLiteral("videoConfig"), payload, static_cast<int>(streamId));
+    // makeStreamMessage() names its scope parameter "vehicleId"; video streams are scoped by
+    // "streamId" instead (PROTOCOL.md §9), so rename the field it wrote.
+    message[QStringLiteral("streamId")] = message.take(QStringLiteral("vehicleId"));
+
+    _cachedVideoConfig[streamId] = message;
+
+    // Live update for clients already watching (§9.1: "again whenever SPS/PPS change
+    // mid-stream"); a late subscriber instead gets this replayed in _handleSubscription().
+    broadcast(QStringLiteral("video"), static_cast<int>(streamId), message);
+}
+
 void WebBridgeServer::_onNewConnection()
 {
     while (_server.hasPendingConnections()) {
@@ -306,6 +331,19 @@ void WebBridgeServer::_handleSubscription(QWebSocket *client, const QJsonObject 
         state.subscriptions.insert(key);
         _sendJson(client, ack);
         emit snapshotRequested(channel, scopeId);
+
+        if (channel == QStringLiteral("video")) {
+            // Late subscriber: replay the last videoConfig directly to this client so it isn't
+            // stuck without codec config until the next SPS/PPS change (which may be GOPs away)
+            // -- see VideoStreamServer.cc's stop-gap note and cacheVideoConfig()'s doc comment.
+            const auto cacheIt = _cachedVideoConfig.constFind(static_cast<quint8>(scopeId));
+            if (cacheIt != _cachedVideoConfig.constEnd()) {
+                QJsonObject snapshot = cacheIt.value();
+                snapshot[QStringLiteral("snapshot")] = true;
+                _sendJson(client, snapshot);
+            }
+        }
+
         qCDebug(WebBridgeServerLog) << client << "subscribed" << key;
     } else {
         state.subscriptions.remove(key);
