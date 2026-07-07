@@ -1,0 +1,201 @@
+.actions-panel {
+  --status-ok: #3fb950;
+  --status-warn: #d29922;
+  --status-critical: #f85149;
+
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  height: 100%;
+  padding: 0.75rem;
+  overflow: auto;
+}
+
+.actions-panel--empty {
+  align-items: center;
+  justify-content: center;
+}
+
+.actions-placeholder {
+  color: var(--fg-dim);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.actions-note {
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  border: 1px solid rgba(210, 153, 34, 0.4);
+  background: rgba(210, 153, 34, 0.12);
+  color: var(--status-warn);
+}
+
+.actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  align-content: start;
+}
+
+.actions-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.actions-tile--wide {
+  grid-column: 1 / -1;
+}
+
+.actions-altitude-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--fg-dim);
+}
+
+.actions-altitude-input {
+  width: 4.5rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+}
+
+.actions-altitude-input:disabled {
+  opacity: 0.5;
+}
+
+.actions-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  width: 100%;
+}
+
+.actions-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.actions-button:not(:disabled):hover {
+  border-color: var(--accent);
+}
+
+.actions-button--accent {
+  color: var(--accent);
+  border-color: rgba(47, 129, 247, 0.4);
+}
+
+.actions-button--critical {
+  color: var(--status-critical);
+  border-color: rgba(248, 81, 73, 0.4);
+}
+
+.actions-button--pending {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.actions-button--confirm {
+  background: rgba(210, 153, 34, 0.15);
+  border-color: var(--status-warn);
+  color: var(--status-warn);
+}
+
+.actions-button--accepted {
+  background: rgba(63, 185, 80, 0.18);
+  border-color: var(--status-ok);
+  color: var(--status-ok);
+}
+
+.actions-button--rejected {
+  background: rgba(248, 81, 73, 0.18);
+  border-color: var(--status-critical);
+  color: var(--status-critical);
+}
+
+.actions-spinner {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: actions-spin 0.7s linear infinite;
+  flex: none;
+}
+
+@keyframes actions-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.actions-reason {
+  font-size: 0.7rem;
+  color: var(--status-critical);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  line-height: 1.3;
+}
+
+.actions-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.actions-progress-bar {
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.actions-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+
+.actions-progress-fill--indeterminate {
+  width: 40%;
+  animation: actions-progress-slide 1.1s ease-in-out infinite;
+}
+
+@keyframes actions-progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+.actions-progress-label {
+  font-size: 0.7rem;
+  color: var(--fg-dim);
+  font-variant-numeric: tabular-nums;
+}
