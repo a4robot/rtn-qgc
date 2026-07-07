@@ -35,7 +35,7 @@ export function bindBridgeToStores(client: BridgeClient): () => void {
     }),
 
     client.subscribe("tick", (message) => {
-      if (message.channel !== "tick") {
+      if (!("type" in message) || message.type !== "tick") {
         return;
       }
       connection.applyTick(message);
@@ -43,7 +43,7 @@ export function bindBridgeToStores(client: BridgeClient): () => void {
     }),
 
     client.subscribe("telemetry", (message) => {
-      if (message.channel !== "telemetry") {
+      if (!("channel" in message) || message.channel !== "telemetry") {
         return;
       }
       vehicles.applyTelemetry(message);

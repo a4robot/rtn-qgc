@@ -13,24 +13,22 @@ function makeTelemetry(overrides: Partial<Telemetry> = {}): Telemetry {
     seq: 1,
     timestampMs: 1_700_000_000_000,
     vehicleId: 1,
-    connected: true,
     armed: false,
     flightMode: "Hold",
-    position: { latitudeDeg: 13.74, longitudeDeg: 100.53, altitudeMslM: 35, altitudeRelM: 30 },
-    attitude: { rollDeg: 1.5, pitchDeg: -2.0, yawDeg: 270 },
-    velocity: { groundSpeedMps: 5, airSpeedMps: 6, climbRateMps: 0.2 },
-    battery: { voltageV: 15.9, remainingPct: 87 },
-    gps: { fixType: 3, satelliteCount: 12, hdop: 0.9 },
+    position: { lat: 13.74, lon: 100.53, altMSL: 35, altRel: 30 },
+    attitude: { roll: 1.5, pitch: -2.0, yaw: 270 },
+    velocity: { groundSpeed: 5, airSpeed: 6, climbRate: 0.2 },
+    battery: { percent: 87, voltage: 15.9, current: 4.2 },
+    gps: { fix: "3d", count: 12, hdop: 0.9 },
     ...overrides,
   };
 }
 
 function makeTick(overrides: Partial<TickMessage> = {}): TickMessage {
   return {
-    channel: "tick",
-    seq: 1,
-    timestampMs: 1_700_000_000_000,
-    channelHeads: { telemetry: 42 },
+    type: "tick",
+    serverTimeUs: 1_700_000_000_000_000,
+    uptimeS: 60,
     vehicleIds: [1],
     ...overrides,
   };
@@ -45,7 +43,7 @@ test("applyTelemetry stores the snapshot keyed by vehicleId", () => {
   useVehicleStore.getState().applyTelemetry(makeTelemetry(), 123);
   const vehicle = useVehicleStore.getState().vehicles[1];
   expect(vehicle?.flightMode).toBe("Hold");
-  expect(vehicle?.battery.remainingPct).toBe(87);
+  expect(vehicle?.battery.percent).toBe(87);
   expect(vehicle?.lastUpdateAtMs).toBe(123);
   expect(vehicle).not.toHaveProperty("channel");
   expect(vehicle).not.toHaveProperty("seq");
@@ -91,7 +89,7 @@ test("applyTick falls back to timestampMs when serverTimeUs is absent", () => {
 test("clock offset is smoothed across ticks", () => {
   const store = useConnectionStore.getState();
   store.applyTick(makeTick({ serverTimeUs: 1_700_000_000_000_000 }), 1_700_000_000_000);
-  store.applyTick(makeTick({ seq: 2, serverTimeUs: 1_700_000_001_000_000 }), 1_700_000_001_100);
+  store.applyTick(makeTick({ serverTimeUs: 1_700_000_001_000_000 }), 1_700_000_001_100);
   // First offset 0, second raw offset -100, EMA(0.2): 0 + 0.2 * (-100) = -20.
   expect(useConnectionStore.getState().clockOffsetMs).toBeCloseTo(-20);
 });

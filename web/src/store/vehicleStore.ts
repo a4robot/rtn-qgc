@@ -16,6 +16,11 @@ import type { Telemetry } from "../bridge/types.ts";
  * envelope (`channel`/`seq`), plus bookkeeping for staleness display.
  */
 export type VehicleState = Omit<Telemetry, "channel" | "seq"> & {
+  /**
+   * Link liveness — derived, not part of the §4 payload: receiving telemetry
+   * sets it true; disappearing from the tick's vehicleIds sets it false.
+   */
+  connected: boolean;
   /** Local receipt time of the last telemetry snapshot, ms since epoch. */
   lastUpdateAtMs: number;
 };
@@ -40,7 +45,7 @@ export const useVehicleStore = create<VehicleStoreState>()((set) => ({
       return {
         vehicles: {
           ...prev.vehicles,
-          [telemetry.vehicleId]: { ...state, lastUpdateAtMs: receivedAtMs },
+          [telemetry.vehicleId]: { ...state, connected: true, lastUpdateAtMs: receivedAtMs },
         },
       };
     }),

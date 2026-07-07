@@ -27,36 +27,45 @@ export interface VehicleMessage extends ChannelMessage {
   vehicleId: number;
 }
 
-/** Full telemetry state snapshot for one vehicle. */
+/** GPS fix quality, PROTOCOL.md §4. */
+export type GpsFix = "none" | "2d" | "3d" | "rtkFloat" | "rtkFixed";
+
+/**
+ * Full telemetry state snapshot for one vehicle — field names and units are
+ * exactly PROTOCOL.md §4 (degrees, meters, m/s; unknown values are null).
+ * Link liveness is not part of the payload; it is derived from the tick's
+ * vehicleIds (see vehicleStore).
+ */
 export interface Telemetry extends VehicleMessage {
   channel: "telemetry";
-  /** Whether the vehicle link is currently alive. */
-  connected: boolean;
   armed: boolean;
   flightMode: string;
   position: {
-    latitudeDeg: number;
-    longitudeDeg: number;
-    altitudeMslM: number;
-    altitudeRelM: number;
+    lat: number;
+    lon: number;
+    altMSL: number;
+    altRel: number;
   };
   attitude: {
-    rollDeg: number;
-    pitchDeg: number;
-    yawDeg: number;
+    roll: number;
+    pitch: number;
+    /** 0–360, heading. */
+    yaw: number;
   };
   velocity: {
-    groundSpeedMps: number;
-    airSpeedMps: number;
-    climbRateMps: number;
+    groundSpeed: number;
+    /** null on vehicles without an airspeed sensor. */
+    airSpeed: number | null;
+    climbRate: number;
   };
   battery: {
-    voltageV: number;
-    remainingPct: number;
+    percent: number;
+    voltage: number;
+    current: number;
   };
   gps: {
-    fixType: number;
-    satelliteCount: number;
+    fix: GpsFix;
+    count: number;
     hdop: number;
   };
 }
@@ -70,17 +79,46 @@ export interface Command extends VehicleMessage {
   params: Record<string, string | number | boolean>;
 }
 
-/** Periodic bridge heartbeat; also carries per-channel head seq numbers. */
-export interface Tick extends ChannelMessage {
-  channel: "tick";
-  /** Latest seq the bridge has published per channel (gap-recovery aid). */
-  channelHeads: Partial<Record<Channel, number>>;
-  /** Vehicle ids the bridge currently knows about. */
+/**
+ * Periodic bridge heartbeat, PROTOCOL.md §11.1 — sent 1 Hz after helloAck,
+ * outside the channel/seq envelope (no subscription, no ordering).
+ */
+export interface Tick {
+  type: "tick";
+  /** Server clock, µs since epoch — for offset/latency estimation. */
+  serverTimeUs: number;
+  uptimeS: number;
+  /** Vehicle ids the bridge currently knows about (state, per §2.1). */
   vehicleIds: number[];
 }
 
 /** Any message the bridge can push to the client. */
 export type BridgeMessage = Telemetry | Tick;
 
+/** Session handshake, PROTOCOL.md §1.1 — must be the first client message. */
+export interface Hello {
+  type: "hello";
+  id: string;
+  /** Any non-empty token in v0.1. */
+  token: string;
+  protocolVersion: string;
+}
+
+/** Stream subscription request, PROTOCOL.md §2.2. */
+export interface Subscribe {
+  type: "subscribe";
+  id: string;
+  channel: Channel;
+  vehicleId: number;
+}
+
+/** Stream teardown, PROTOCOL.md §2.2. */
+export interface Unsubscribe {
+  type: "unsubscribe";
+  id: string;
+  channel: Channel;
+  vehicleId: number;
+}
+
 /** Any message the client can send to the bridge. */
-export type ClientMessage = Command;
+export type ClientMessage = Command | Hello | Subscribe | Unsubscribe;

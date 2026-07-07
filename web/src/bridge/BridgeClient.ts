@@ -15,6 +15,7 @@ import type {
   BridgeMessage,
   Channel,
   ClientMessage,
+  Telemetry,
 } from "./types.ts";
 
 export type ConnectionState =
@@ -220,19 +221,33 @@ export class BridgeClient {
       console.warn("[BridgeClient] dropping unparseable frame");
       return;
     }
-    if (typeof message?.channel !== "string" || typeof message?.seq !== "number") {
+
+    const type = (message as { type?: unknown })?.type;
+
+    // §11.1: tick rides outside the channel/seq envelope — dispatch by type.
+    if (type === "tick") {
+      this.dispatch("tick", message);
+      return;
+    }
+
+    // Session/request acks aren't channel streams; the session layer sends
+    // the requests fire-and-forget, so acks are informational only.
+    if (type === "helloAck" || type === "subscribeAck" || type === "unsubscribeAck") {
+      return;
+    }
+    if (type === "error") {
+      console.warn("[BridgeClient] bridge error:", data);
+      return;
+    }
+
+    const stream = message as Telemetry;
+    if (typeof stream?.channel !== "string" || typeof stream?.seq !== "number") {
       console.warn("[BridgeClient] dropping malformed message", message);
       return;
     }
 
-    this.checkSeq(message.channel, message.seq);
-
-    const handlers = this.subscribers.get(message.channel);
-    if (handlers) {
-      for (const handler of handlers) {
-        handler(message);
-      }
-    }
+    this.checkSeq(stream.channel, stream.seq);
+    this.dispatch(stream.channel, stream);
   }
 
   /**
@@ -244,6 +259,11 @@ export class BridgeClient {
    */
   private checkSeq(channel: Channel, seq: number): void {
     const last = this.lastSeqByChannel.get(channel);
+    // §2.4: seq restarts at 1 on (re)subscribe — a fresh stream, not a gap.
+    if (seq === 1) {
+      this.lastSeqByChannel.set(channel, seq);
+      return;
+    }
     if (last !== undefined && seq !== last + 1) {
       const gap: SeqGap = {
         channel,
@@ -259,6 +279,15 @@ export class BridgeClient {
       // TODO(W0b): request a fresh snapshot for this channel from the bridge.
     }
     this.lastSeqByChannel.set(channel, seq);
+  }
+
+  private dispatch(key: Channel, message: BridgeMessage): void {
+    const handlers = this.subscribers.get(key);
+    if (handlers) {
+      for (const handler of handlers) {
+        handler(message);
+      }
+    }
   }
 
   private setState(state: ConnectionState): void {

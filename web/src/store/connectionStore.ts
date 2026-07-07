@@ -11,17 +11,8 @@ import { create } from "zustand";
 import type { ConnectionState, SeqGap } from "../bridge/BridgeClient.ts";
 import type { Tick } from "../bridge/types.ts";
 
-/**
- * Protocol §11.1 tick fields not yet present in bridge/types.ts (additive,
- * so optional per the versioning rules). Extended here rather than editing
- * the shared contract types.
- */
-export type TickMessage = Tick & {
-  /** Server timestamp, microseconds since epoch. */
-  serverTimeUs?: number;
-  /** Bridge uptime, seconds. */
-  uptimeS?: number;
-};
+/** The §11.1 tick, re-exported under the store's historical alias. */
+export type TickMessage = Tick;
 
 /** Exponential-moving-average weight for clock-offset smoothing. */
 const CLOCK_OFFSET_SMOOTHING = 0.2;
@@ -69,7 +60,7 @@ export const useConnectionStore = create<ConnectionStoreState>()((set) => ({
 
   applyTick: (tick, receivedAtMs = Date.now()) =>
     set((prev) => {
-      const serverTimeUs = tick.serverTimeUs ?? tick.timestampMs * 1000;
+      const serverTimeUs = tick.serverTimeUs;
       const rawOffsetMs = serverTimeUs / 1000 - receivedAtMs;
       const clockOffsetMs =
         prev.clockOffsetMs === null
