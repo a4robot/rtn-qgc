@@ -276,27 +276,30 @@ Server → client, subscribed. Each message is the **complete current traffic pi
 
 ### 9.1 Subscribe
 
-Video streams are identified by `streamId` string: `"cam1"`, `"cam2"`, ...
+Video streams are identified by a numeric `streamId` (u8 range): `1`, `2`, ... — the
+same id carried in every binary frame header (§9.2), so one identifier shape flows
+end-to-end. *(v0.1 revision: an earlier draft used string cam ids for subscribe and a
+separate numeric `streamIndex`; the split identifier bought nothing and confused
+implementations.)*
 
 ```json
-{ "type": "subscribe", "id": "v-1", "channel": "video", "streamId": "cam1" }
+{ "type": "subscribe", "id": "v-1", "channel": "video", "streamId": 1 }
 ```
 
 On subscribe (and again whenever SPS/PPS change mid-stream), the server sends a JSON codec-config message **before** any binary frame that depends on it:
 
 ```json
 {
-  "type": "videoConfig", "channel": "video", "streamId": "cam1", "seq": 1, "snapshot": true,
+  "type": "videoConfig", "channel": "video", "streamId": 1, "seq": 1, "snapshot": true,
   "timeUs": 1767690004000000,
   "codec": "h264",
-  "streamIndex": 1,
   "width": 1920, "height": 1080,
   "sps": "Z2QAKKzZQHgCJ+XARAAAAwAEAAADAPI8YMZY",
   "pps": "aOvssiw="
 }
 ```
 
-`sps`/`pps` are base64 of the raw NAL units (no Annex-B start codes). `streamIndex` (u8) is the numeric id used in the binary header below.
+`sps`/`pps` are base64 of the raw NAL units (no Annex-B start codes).
 
 ### 9.2 Binary frame layout
 
@@ -306,7 +309,7 @@ Each binary WS frame carries exactly one H.264 access unit prefixed by a fixed *
 |---|---|---|---|
 | 0 | 2 | `magic` | `u16` = `0x4656` (bytes on the wire: `0x56 0x46`, ASCII "VF") |
 | 2 | 1 | `version` | `u8` = `1` |
-| 3 | 1 | `streamId` | `u8` — `streamIndex` from `videoConfig` |
+| 3 | 1 | `streamId` | `u8` — same id used in subscribe/videoConfig |
 | 4 | 1 | `flags` | `u8` — bit 0: **keyframe** (IDR); bits 1–7 reserved (0) |
 | 5 | 3 | `reserved` | zero-filled |
 | 8 | 8 | `timestampUs` | `u64` — capture/presentation time, microseconds |
