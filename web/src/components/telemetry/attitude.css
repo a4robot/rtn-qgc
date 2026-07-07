@@ -1,0 +1,140 @@
+.attitude {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.attitude-empty {
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+}
+
+.attitude-empty-label {
+  color: var(--fg-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-size: 0.75rem;
+}
+
+.attitude-horizon {
+  width: 160px;
+  height: 160px;
+}
+
+.attitude-bezel {
+  fill: var(--bg);
+  stroke: var(--border);
+  stroke-width: 2;
+}
+
+.attitude-sky {
+  fill: #1b4b8f;
+}
+
+.attitude-ground {
+  fill: #5a3d1e;
+}
+
+.attitude-horizon-line {
+  stroke: var(--fg);
+  stroke-width: 1.5;
+}
+
+.attitude-ladder-line {
+  stroke: var(--fg);
+  stroke-width: 1;
+  opacity: 0.85;
+}
+
+.attitude-ladder-label {
+  fill: var(--fg);
+  font-size: 7px;
+  opacity: 0.85;
+}
+
+.attitude-roll-tick {
+  stroke: var(--fg-dim);
+  stroke-width: 1;
+}
+
+.attitude-roll-tick-major {
+  stroke: var(--fg);
+  stroke-width: 1.5;
+}
+
+.attitude-roll-index {
+  fill: var(--accent);
+}
+
+.attitude-pointer {
+  fill: var(--fg);
+}
+
+.attitude-aircraft {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.attitude-numerics {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: var(--fg-dim);
+}
+
+.attitude-numerics strong {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.attitude-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  width: 100%;
+}
+
+.attitude-heading-value {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.attitude-compass {
+  width: 100%;
+  max-width: 200px;
+  height: 34px;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.attitude-compass-tick {
+  stroke: var(--fg-dim);
+  stroke-width: 1;
+}
+
+.attitude-compass-tick-major {
+  stroke: var(--fg);
+  stroke-width: 1.5;
+}
+
+.attitude-compass-label {
+  fill: var(--fg-dim);
+  font-size: 8px;
+  text-anchor: middle;
+}
+
+.attitude-compass-index {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
