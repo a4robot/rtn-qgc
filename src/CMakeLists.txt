@@ -7,22 +7,24 @@ qt_add_library(QGroundControlModule STATIC)
 # ----------------------------------------------------------------------------
 # QML Resources
 # ----------------------------------------------------------------------------
-set_source_files_properties(MainWindow/MainWindow.qml
-    PROPERTIES
-        QT_RESOURCE_ALIAS MainWindow.qml
-)
+if(QGC_ENABLE_QML)
+    set_source_files_properties(MainWindow/MainWindow.qml
+        PROPERTIES
+            QT_RESOURCE_ALIAS MainWindow.qml
+    )
 
-qt_add_qml_module(QGroundControlModule
-    URI QGroundControl
-    VERSION 1.0
-    RESOURCE_PREFIX /qml
-    QML_FILES
-        MainWindow/MainWindow.qml
-        MainWindow/MainWindowSavedState.qml
-    IMPORTS
-        QGC
-    NO_PLUGIN
-)
+    qt_add_qml_module(QGroundControlModule
+        URI QGroundControl
+        VERSION 1.0
+        RESOURCE_PREFIX /qml
+        QML_FILES
+            MainWindow/MainWindow.qml
+            MainWindow/MainWindowSavedState.qml
+        IMPORTS
+            QGC
+        NO_PLUGIN
+    )
+endif()
 
 # iOS has no Qt SerialPort module — force no-serial-link before subdirectories read it.
 if(IOS)
@@ -35,15 +37,19 @@ endif()
 
 # Core subsystems
 add_subdirectory(ADSB)
-add_subdirectory(AnalyzeView)
+if(QGC_ENABLE_QML)
+    add_subdirectory(AnalyzeView)
+endif()
 add_subdirectory(API)
 add_subdirectory(AutoPilotPlugins)
 add_subdirectory(Camera)
 add_subdirectory(Comms)
 add_subdirectory(FactSystem)
 add_subdirectory(FirmwarePlugin)
-add_subdirectory(FlyView)
-add_subdirectory(FlightMap)
+if(QGC_ENABLE_QML)
+    add_subdirectory(FlyView)
+    add_subdirectory(FlightMap)
+endif()
 add_subdirectory(FollowMe)
 add_subdirectory(Gimbal)
 add_subdirectory(GPS)
@@ -53,17 +59,26 @@ add_subdirectory(LogManager)
 add_subdirectory(Joystick)
 add_subdirectory(MAVLink)
 add_subdirectory(MissionManager)
-add_subdirectory(PlanView)
+if(QGC_ENABLE_QML)
+    add_subdirectory(PlanView)
+endif()
 add_subdirectory(PositionManager)
+# QmlControls is NOT gated: FactPanelController/QmlObjectListModel/QGCPalette
+# and friends are C++ dependencies of core code (Vehicle, Joystick, MAVLink,
+# MissionManager, API, ...).
 add_subdirectory(QmlControls)
 add_subdirectory(Settings)
 add_subdirectory(Terrain)
-add_subdirectory(AppSettings)
-add_subdirectory(FirstRunPromptDialogs)
-add_subdirectory(Toolbar)
+if(QGC_ENABLE_QML)
+    add_subdirectory(AppSettings)
+    add_subdirectory(FirstRunPromptDialogs)
+    add_subdirectory(Toolbar)
+endif()
 add_subdirectory(Vehicle)
 add_subdirectory(VideoManager)
-add_subdirectory(Viewer3D)
+if(QGC_ENABLE_QML)
+    add_subdirectory(Viewer3D)
+endif()
 
 # Platform-specific
 add_subdirectory(Android)
@@ -114,13 +129,13 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         Qt6::Svg
         Qt6::Xml
 
-        # Qt6 QML/Quick
-        Qt6::Qml
+        # Qt6 QML/Quick (Qt6::QmlIntegration stays unconditional — header-only QML_ELEMENT macros)
+        $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Qml>
         Qt6::QmlIntegration
-        Qt6::Quick
-        Qt6::Quick3D
-        Qt6::QuickControls2
-        Qt6::QuickVectorImage
+        $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Quick>
+        $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Quick3D>
+        $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::QuickControls2>
+        $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::QuickVectorImage>
 
         # Qt6 Location
         Qt6::Location
@@ -131,20 +146,20 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 
         # Qt6 Multimedia
         Qt6::Multimedia
-        Qt6::MultimediaQuickPrivate
+        $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::MultimediaQuickPrivate>
 
         # QGC Modules
-        AnalyzeViewModule
-        AppSettingsModule
+        $<$<BOOL:${QGC_ENABLE_QML}>:AnalyzeViewModule>
+        $<$<BOOL:${QGC_ENABLE_QML}>:AppSettingsModule>
         AutoPilotPluginsCommonModule
         FactControlsModule
-        FirstRunPromptDialogsModule
-        FlyViewModule
-        FlightMapModule
-        PlanViewModule
+        $<$<BOOL:${QGC_ENABLE_QML}>:FirstRunPromptDialogsModule>
+        $<$<BOOL:${QGC_ENABLE_QML}>:FlyViewModule>
+        $<$<BOOL:${QGC_ENABLE_QML}>:FlightMapModule>
+        $<$<BOOL:${QGC_ENABLE_QML}>:PlanViewModule>
         QGroundControlControlsModule
         QGroundControlModule
-        ToolbarModule
+        $<$<BOOL:${QGC_ENABLE_QML}>:ToolbarModule>
         VehicleSetupModule
 )
 
@@ -159,7 +174,9 @@ if(NOT QGC_DISABLE_PX4_PLUGIN)
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE AutoPilotPluginsPX4Module)
 endif()
 
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Viewer3DModule)
+if(QGC_ENABLE_QML)
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Viewer3DModule)
+endif()
 
 # ============================================================================
 # Compile Definitions
@@ -182,7 +199,7 @@ target_compile_definitions(${CMAKE_PROJECT_NAME}
 target_compile_definitions(${CMAKE_PROJECT_NAME}
     PRIVATE
         $<$<CONFIG:Release>:QT_MESSAGELOGCONTEXT>
-        $<$<AND:$<NOT:$<CONFIG:Release>>,$<BOOL:${QGC_DEBUG_QML}>>:QT_QML_DEBUG>
+        $<$<AND:$<NOT:$<CONFIG:Release>>,$<BOOL:${QGC_DEBUG_QML}>,$<BOOL:${QGC_ENABLE_QML}>>:QT_QML_DEBUG>
 )
 
 # ============================================================================
@@ -191,9 +208,15 @@ target_compile_definitions(${CMAKE_PROJECT_NAME}
 
 set_target_properties(${CMAKE_PROJECT_NAME}
     PROPERTIES
-        QT_RESOURCE_PREFIX "/qml"
         OUTPUT_NAME ${CMAKE_PROJECT_NAME}
 )
+
+if(QGC_ENABLE_QML)
+    set_target_properties(${CMAKE_PROJECT_NAME}
+        PROPERTIES
+            QT_RESOURCE_PREFIX "/qml"
+    )
+endif()
 
 # Helper STATIC libs declare their own tailored PCH; REUSE_FROM is impractical
 # because clang's PCH validator requires matching link-set-derived defines.
