@@ -1,0 +1,151 @@
+/* Click-to-goto candidate marker + confirm popover. Distinct accent (violet)
+   from the vehicle marker's red/blue so the two are never confused. */
+
+.goto-marker {
+  --goto-accent: #bc8cff;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  pointer-events: none;
+}
+
+.goto-marker-ring {
+  fill: rgba(188, 140, 255, 0.12);
+  stroke: var(--goto-accent);
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
+}
+
+.goto-marker-cross {
+  stroke: var(--goto-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.goto-marker-spinner {
+  display: none;
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--goto-accent);
+  border-top-color: transparent;
+  animation: goto-marker-spin 0.7s linear infinite;
+}
+
+.goto-marker--pending .goto-marker-spinner {
+  display: block;
+}
+
+.goto-marker--pending svg {
+  opacity: 0.35;
+}
+
+@keyframes goto-marker-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Popover chrome overrides — maplibre's default popup styling is light-themed. */
+.maplibregl-popup.goto-popup .maplibregl-popup-content {
+  background: var(--bg-panel, #161b22);
+  color: var(--fg, #e6edf3);
+  border: 1px solid var(--border, #30363d);
+  border-radius: 6px;
+  padding: 0.6rem 0.7rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.maplibregl-popup.goto-popup .maplibregl-popup-tip {
+  border-top-color: var(--border, #30363d);
+}
+
+.goto-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 12rem;
+  font-size: 0.78rem;
+}
+
+.goto-popover-coords {
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-dim, #8b949e);
+  letter-spacing: 0.02em;
+}
+
+.goto-popover-alt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: var(--fg-dim, #8b949e);
+}
+
+.goto-popover-alt-input {
+  width: 4.5rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 3px;
+  border: 1px solid var(--border, #30363d);
+  background: var(--bg, #0d1117);
+  color: var(--fg, #e6edf3);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+}
+
+.goto-popover-alt-input:disabled {
+  opacity: 0.5;
+}
+
+.goto-popover-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.goto-popover-go,
+.goto-popover-cancel {
+  flex: 1;
+  padding: 0.35rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--border, #30363d);
+  background: var(--bg, #0d1117);
+  color: var(--fg, #e6edf3);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.goto-popover-go {
+  color: #bc8cff;
+  border-color: rgba(188, 140, 255, 0.45);
+}
+
+.goto-popover-go:disabled,
+.goto-popover-cancel:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.goto-popover-go:not(:disabled):hover {
+  border-color: #bc8cff;
+}
+
+.goto-popover-cancel:not(:disabled):hover {
+  border-color: var(--fg-dim, #8b949e);
+}
+
+.goto-popover-status {
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.goto-popover-status--error {
+  color: var(--status-critical, #f85149);
+  font-weight: 500;
+}
