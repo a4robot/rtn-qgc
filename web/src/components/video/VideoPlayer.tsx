@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { BridgeClient } from "../../bridge/BridgeClient.ts";
 import { VideoStreamDecoder } from "../../video/Decoder.ts";
 import "./video.css";
 
@@ -15,7 +16,16 @@ export interface VideoPlayerProps {
    * by the underlying `VideoStreamDecoder`. */
   streamId: number;
   /**
-   * Attach this player to a source of raw binary WS video frames.
+   * Bridge client to source raw binary WS video frames from — wired via
+   * `client.onBinaryFrame(push)`. Takes precedence over `attach` when both
+   * are given. Pass a stable reference; a new identity every render will
+   * tear down and recreate the decoder along with the rest of this effect's
+   * dependencies.
+   */
+  client?: BridgeClient | null;
+  /**
+   * Attach this player to a source of raw binary WS video frames. Manual
+   * alternative to `client` — ignored when `client` is set.
    *
    * Contract: called once (on mount, and again if `streamId`/`attach`
    * change identity) with a `push` callback. The implementation must
@@ -24,14 +34,6 @@ export interface VideoPlayerProps {
    * decoder does its own header validation and per-stream filtering.
    * Return a detach function; it is called on unmount (or before
    * re-attaching) and must stop calling `push`.
-   *
-   * Why a function prop and not `client: BridgeClient`: as of this
-   * writing `BridgeClient.handleRawMessage` drops every non-string
-   * WS message (`typeof data !== "string"` → return, "binary frames
-   * are not part of the protocol (yet)") — there is no binary-frame
-   * hook to subscribe to yet. Once BridgeClient grows one, a thin
-   * wrapper (`attach={(push) => client.onBinaryFrame(push)}`) can be
-   * passed in without changing this component.
    *
    * Pass a stable (e.g. `useCallback`-wrapped) function — a new
    * identity every render will tear down and recreate the decoder.
@@ -48,6 +50,7 @@ export interface VideoPlayerProps {
  */
 export function VideoPlayer({
   streamId,
+  client,
   attach,
   hardwareAcceleration,
 }: VideoPlayerProps) {
@@ -132,7 +135,10 @@ export function VideoPlayer({
       ...(hardwareAcceleration ? { hardwareAcceleration } : {}),
     });
 
-    const detach = attach?.((data) => decoder.push(data));
+    // `client` takes precedence over the manual `attach` alternative.
+    const detach = client
+      ? client.onBinaryFrame((data) => decoder.push(data))
+      : attach?.((data) => decoder.push(data));
 
     return () => {
       detach?.();
@@ -149,7 +155,7 @@ export function VideoPlayer({
       fpsWindowRef.current = [];
       lastFrameAtRef.current = null;
     };
-  }, [streamId, attach, hardwareAcceleration, supported]);
+  }, [streamId, client, attach, hardwareAcceleration, supported]);
 
   // --- overlay stats: decoded-fps rolling window + no-signal detection.
   // Decoupled from the draw path — this only refreshes the chrome text. ----

@@ -15,7 +15,9 @@ import type {
   BridgeMessage,
   Channel,
   ClientMessage,
+  CommandResponse,
   Telemetry,
+  ParamValue,
 } from "./types.ts";
 
 export type ConnectionState =
@@ -25,8 +27,12 @@ export type ConnectionState =
   | "reconnecting";
 
 export type MessageHandler = (message: BridgeMessage) => void;
+export type CommandResponseHandler = (message: CommandResponse) => void;
+export type ParamValueHandler = (message: ParamValue) => void;
 export type StateHandler = (state: ConnectionState) => void;
 export type SeqGapHandler = (gap: SeqGap) => void;
+/** Raw binary WS frame (video, PROTOCOL.md §9.2) — undecoded, header and all. */
+export type BinaryFrameHandler = (data: ArrayBuffer) => void;
 
 export interface SeqGap {
   channel: Channel;
@@ -58,6 +64,9 @@ export class BridgeClient {
   private readonly subscribers = new Map<Channel, Set<MessageHandler>>();
   private readonly stateHandlers = new Set<StateHandler>();
   private readonly seqGapHandlers = new Set<SeqGapHandler>();
+  private readonly commandResponseHandlers = new Set<CommandResponseHandler>();
+  private readonly paramValueHandlers = new Set<ParamValueHandler>();
+  private readonly binaryFrameHandlers = new Set<BinaryFrameHandler>();
   private readonly lastSeqByChannel = new Map<Channel, number>();
 
   constructor(options: BridgeClientOptions = {}) {
@@ -110,11 +119,40 @@ export class BridgeClient {
     };
   }
 
+  /** Observe command acks/progress (§5, keyed by request id). Returns an unsubscribe function. */
+  onCommandResponse(callback: CommandResponseHandler): () => void {
+    this.commandResponseHandlers.add(callback);
+    return () => {
+      this.commandResponseHandlers.delete(callback);
+    };
+  }
+
+  /** Observe param values (§6, keyed by request id). Returns an unsubscribe function. */
+  onParamValue(callback: ParamValueHandler): () => void {
+    this.paramValueHandlers.add(callback);
+    return () => {
+      this.paramValueHandlers.delete(callback);
+    };
+  }
+
   /** Observe detected seq gaps. Returns an unsubscribe function. */
   onSeqGap(callback: SeqGapHandler): () => void {
     this.seqGapHandlers.add(callback);
     return () => {
       this.seqGapHandlers.delete(callback);
+    };
+  }
+
+  /**
+   * Observe raw binary WS frames (video, §9.2). No parsing is done here —
+   * each frame is handed to every subscriber verbatim; the video decoder
+   * validates the header and filters by streamId itself. Returns an
+   * unsubscribe function.
+   */
+  onBinaryFrame(callback: BinaryFrameHandler): () => void {
+    this.binaryFrameHandlers.add(callback);
+    return () => {
+      this.binaryFrameHandlers.delete(callback);
     };
   }
 
@@ -140,6 +178,9 @@ export class BridgeClient {
     this.setState(this.reconnectAttempts > 0 ? "reconnecting" : "connecting");
 
     const socket = new WebSocket(this.url);
+    // §9.2: video frames arrive as binary WS messages; decode as ArrayBuffer
+    // (not Blob) so handleRawMessage can route them synchronously.
+    socket.binaryType = "arraybuffer";
     this.socket = socket;
 
     socket.onopen = () => {
@@ -210,8 +251,15 @@ export class BridgeClient {
   }
 
   private handleRawMessage(data: unknown): void {
+    if (data instanceof ArrayBuffer) {
+      // §9.2: binary video frames — no parsing here, fan out verbatim.
+      for (const handler of this.binaryFrameHandlers) {
+        handler(data);
+      }
+      return;
+    }
     if (typeof data !== "string") {
-      return; // binary frames are not part of the protocol (yet)
+      return; // e.g. Blob — shouldn't occur since binaryType is "arraybuffer"
     }
 
     let message: BridgeMessage;
@@ -230,8 +278,23 @@ export class BridgeClient {
       return;
     }
 
-    // Session/request acks aren't channel streams; the session layer sends
-    // the requests fire-and-forget, so acks are informational only.
+    // §5: command lifecycle is keyed by request id, not a channel stream.
+    if (type === "commandAck" || type === "commandProgress") {
+      for (const handler of this.commandResponseHandlers) {
+        handler(message as unknown as CommandResponse);
+      }
+      return;
+    }
+
+    if (type === "paramValue") {
+      for (const handler of this.paramValueHandlers) {
+        handler(message as unknown as ParamValue);
+      }
+      return;
+    }
+
+    // Session acks aren't channel streams; the session layer sends the
+    // requests fire-and-forget, so acks are informational only.
     if (type === "helloAck" || type === "subscribeAck" || type === "unsubscribeAck") {
       return;
     }

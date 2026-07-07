@@ -14,6 +14,14 @@ export interface BridgeSessionOptions {
   url?: string;
   /** Vehicle whose telemetry stream to subscribe. Default 1. */
   vehicleId?: number;
+  /**
+   * Video streams to subscribe to (§9.1), by numeric streamId — see the
+   * type-level note on `Subscribe.streamId` in ./types.ts for why this is a
+   * number rather than PROTOCOL.md's example string camId. Each is
+   * subscribed (channel: "video") right after the telemetry subscribe, on
+   * every (re)connect. Omit/empty to skip video entirely.
+   */
+  videoStreamIds?: number[];
 }
 
 const DEFAULT_URL = "ws://127.0.0.1:8877";
@@ -46,6 +54,14 @@ export function startBridgeSession(
       channel: "telemetry",
       vehicleId,
     });
+    for (const streamId of options.videoStreamIds ?? []) {
+      client.send({
+        type: "subscribe",
+        id: `sub-video-${streamId}-${handshakeSeq}`,
+        channel: "video",
+        streamId,
+      });
+    }
   });
 
   client.connect(options.url ?? DEFAULT_URL);

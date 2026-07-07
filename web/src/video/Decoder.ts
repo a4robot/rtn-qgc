@@ -198,7 +198,7 @@ export class VideoStreamDecoder {
     this.onFrame = options.onFrame;
     this.onError = options.onError ?? null;
     this.hardwareAcceleration =
-      options.hardwareAcceleration ?? "prefer-hardware";
+      options.hardwareAcceleration ?? "no-preference";
     this.fallbackCodec = options.fallbackCodec ?? DEFAULT_H264_CODEC;
   }
 
@@ -308,6 +308,30 @@ export class VideoStreamDecoder {
       });
       return true;
     } catch (err) {
+      // A hardware preference can be unsupported outright (headless/VM — no
+      // GPU): retry once forcing the software decoder before giving up.
+      if (this.hardwareAcceleration !== "prefer-software") {
+        try {
+          this.decoder?.close();
+        } catch {
+          /* already closed */
+        }
+        this.decoder = new VideoDecoder({
+          output: this.handleOutput,
+          error: this.handleError,
+        });
+        try {
+          this.decoder.configure({
+            codec,
+            optimizeForLatency: true,
+            hardwareAcceleration: "prefer-software",
+          });
+          return true;
+        } catch (swErr) {
+          this.handleError(swErr);
+          return false;
+        }
+      }
       this.handleError(err);
       return false;
     }

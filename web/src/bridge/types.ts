@@ -9,7 +9,7 @@
  */
 
 /** Channels the bridge publishes on. */
-export type Channel = "telemetry" | "tick" | "command";
+export type Channel = "telemetry" | "tick" | "command" | "video";
 
 /** Fields common to every message on any channel. */
 export interface ChannelMessage {
@@ -70,14 +70,73 @@ export interface Telemetry extends VehicleMessage {
   };
 }
 
-/** Command sent from the UI to the bridge, targeting one vehicle. */
-export interface Command extends VehicleMessage {
-  channel: "command";
-  /** Command name, e.g. "arm", "disarm", "takeoff", "rtl", "setMode". */
-  name: string;
-  /** Command-specific parameters (kept open; the bridge validates). */
+/** Guided-action names, PROTOCOL.md §5.1. */
+export type CommandAction =
+  | "arm"
+  | "disarm"
+  | "takeoff"
+  | "land"
+  | "rtl"
+  | "gotoLocation"
+  | "setFlightMode"
+  | "pause";
+
+/**
+ * Command request, PROTOCOL.md §5.1 — request/response keyed by `id`,
+ * outside the channel/seq envelope (no subscription needed).
+ */
+export interface Command {
+  type: "command";
+  id: string;
+  vehicleId: number;
+  action: CommandAction;
   params: Record<string, string | number | boolean>;
 }
+
+/** Exactly one per request, PROTOCOL.md §5.2. */
+export interface CommandAck {
+  type: "commandAck";
+  id: string;
+  vehicleId: number;
+  status: "accepted" | "rejected";
+  /** Human-readable rejection cause; present when rejected. */
+  reason?: string;
+  /** MAV_RESULT integer when the autopilot answered. */
+  mavResult?: number;
+}
+
+/** Unsolicited progress, 0..n per request, PROTOCOL.md §5.3. */
+export interface CommandProgress {
+  type: "commandProgress";
+  id: string;
+  vehicleId: number;
+  /** 0.0–1.0, or null when indeterminate. */
+  progress: number | null;
+  message?: string;
+}
+
+/** Parameter metadata, PROTOCOL.md §6.1. */
+export interface ParamMeta {
+  type: "int8" | "uint8" | "int16" | "uint16" | "int32" | "uint32" | "float" | "double";
+  units: string | null;
+  min: number | null;
+  max: number | null;
+  default: number | null;
+  description: string | null;
+}
+
+/** Parameter value response, PROTOCOL.md §6.1. */
+export interface ParamValue {
+  type: "paramValue";
+  id: string;
+  vehicleId: number;
+  path: string;
+  value: number;
+  meta: ParamMeta;
+}
+
+/** Command-lifecycle messages the bridge pushes, keyed by request id. */
+export type CommandResponse = CommandAck | CommandProgress;
 
 /**
  * Periodic bridge heartbeat, PROTOCOL.md §11.1 — sent 1 Hz after helloAck,
@@ -93,7 +152,7 @@ export interface Tick {
 }
 
 /** Any message the bridge can push to the client. */
-export type BridgeMessage = Telemetry | Tick;
+export type BridgeMessage = Telemetry | Tick | ParamValue;
 
 /** Session handshake, PROTOCOL.md §1.1 — must be the first client message. */
 export interface Hello {
@@ -104,21 +163,54 @@ export interface Hello {
   protocolVersion: string;
 }
 
-/** Stream subscription request, PROTOCOL.md §2.2. */
+/**
+ * Stream subscription request, PROTOCOL.md §2.2. Vehicle-scoped channels key
+ * by `vehicleId`; `channel: "video"` keys by `streamId` instead (§9.1). Both
+ * fields are optional on one interface (rather than a discriminated union
+ * per channel) to keep call sites simple — exactly one is expected, chosen
+ * by `channel`.
+ *
+ * Note: PROTOCOL.md's §9.1 wire example uses a string camId (`"cam1"`) for
+ * video `streamId`. This client instead types it as `number` to match the
+ * numeric stream index used everywhere else in the video pipeline
+ * (`VideoFrameHeader.streamId`, `VideoStreamDecoderOptions.streamId`,
+ * `VideoPlayerProps.streamId`, all in src/video/Decoder.ts and
+ * src/components/video/VideoPlayer.tsx) — one id shape end to end.
+ */
 export interface Subscribe {
   type: "subscribe";
   id: string;
   channel: Channel;
-  vehicleId: number;
+  vehicleId?: number;
+  /** Video-only (§9.1): the stream to subscribe. See note above re: type. */
+  streamId?: number;
 }
 
-/** Stream teardown, PROTOCOL.md §2.2. */
+/** Stream teardown, PROTOCOL.md §2.2. See {@link Subscribe} for the `streamId` note. */
 export interface Unsubscribe {
   type: "unsubscribe";
   id: string;
   channel: Channel;
+  vehicleId?: number;
+  streamId?: number;
+}
+
+/** Get parameter request, PROTOCOL.md §6.1. */
+export interface GetParam {
+  type: "getParam";
+  id: string;
   vehicleId: number;
+  path: string;
+}
+
+/** Set parameter request, PROTOCOL.md §6.2. */
+export interface SetParam {
+  type: "setParam";
+  id: string;
+  vehicleId: number;
+  path: string;
+  value: number;
 }
 
 /** Any message the client can send to the bridge. */
-export type ClientMessage = Command | Hello | Subscribe | Unsubscribe;
+export type ClientMessage = Command | Hello | Subscribe | Unsubscribe | GetParam | SetParam;
