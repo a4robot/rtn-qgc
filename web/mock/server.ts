@@ -236,6 +236,20 @@ const VIDEO_FIRST_KEYFRAME_INDEX = VIDEO_AUS.findIndex((au) => au.keyframe);
 if (VIDEO_FIRST_KEYFRAME_INDEX < 0) {
   throw new Error("video fixture contains no keyframe (IDR) access unit");
 }
+// Every keyframe index, used to give a second stream (streamId 2) a distinct
+// starting point — the closest keyframe at/after the halfway mark — so the
+// two panes visibly differ instead of playing in lockstep.
+const VIDEO_KEYFRAME_INDICES = VIDEO_AUS.reduce<number[]>((acc, au, i) => {
+  if (au.keyframe) acc.push(i);
+  return acc;
+}, []);
+const VIDEO_HALFWAY_KEYFRAME_INDEX =
+  VIDEO_KEYFRAME_INDICES.find((i) => i >= VIDEO_AUS.length / 2) ?? VIDEO_FIRST_KEYFRAME_INDEX;
+
+/** Cursor position a fresh subscription to `streamId` should start playback at. */
+function startCursorForStream(streamId: number): number {
+  return streamId === 2 ? VIDEO_HALFWAY_KEYFRAME_INDEX : VIDEO_FIRST_KEYFRAME_INDEX;
+}
 const VIDEO_FPS = 15;
 const VIDEO_FRAME_INTERVAL_MS = 1000 / VIDEO_FPS;
 const VIDEO_WIDTH = 640;
@@ -256,8 +270,13 @@ const VIDEO_PPS_B64 = Buffer.from(VIDEO_PPS).toString("base64");
 // along as an additive `codecString` field; see selftest/report for details.
 const VIDEO_CODEC_STRING = `avc1.${hex2(VIDEO_SPS[1]!)}${hex2(VIDEO_SPS[2]!)}${hex2(VIDEO_SPS[3]!)}`;
 
-/** Available numeric streamIds (u8, same id in subscribe and frame header, §9.1/§9.2). */
-const VIDEO_STREAMS = new Set<number>([1]);
+/**
+ * Available numeric streamIds (u8, same id in subscribe and frame header,
+ * §9.1/§9.2). Both play back the same fixture bytes/codec config; stream 2's
+ * cursor just starts at a different offset (see `startCursorForStream`) so a
+ * dual-camera view shows two visibly different views of the same loop.
+ */
+const VIDEO_STREAMS = new Set<number>([1, 2]);
 
 const MAGIC_VF = 0x4656;
 
@@ -535,7 +554,7 @@ function handleVideoSubscribe(ws: Socket, msg: Record<string, unknown>, base: { 
   sendVideoConfig(ws, req.streamId);
 
   const stream: VideoStream = {
-    cursor: VIDEO_FIRST_KEYFRAME_INDEX,
+    cursor: startCursorForStream(req.streamId),
     timer: 0 as unknown as ReturnType<typeof setInterval>,
   };
   stream.timer = setInterval(() => sendVideoFrame(ws, req.streamId, stream), VIDEO_FRAME_INTERVAL_MS);

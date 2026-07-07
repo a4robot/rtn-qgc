@@ -1,0 +1,93 @@
+.dualcam-root {
+  position: absolute;
+  inset: 0;
+  /* Enables the @container query below to key off this panel's own width,
+     not the viewport's — correct for a component embedded in a resizable
+     grid panel (see App.tsx's .gcs-video). */
+  container-type: inline-size;
+  container-name: dualcam;
+}
+
+.dualcam-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  width: 100%;
+  height: 100%;
+}
+
+@container dualcam (max-width: 700px) {
+  .dualcam-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+}
+
+.dualcam-pane {
+  --status-ok: #3fb950;
+  --status-warn: #d29922;
+  --status-critical: #f85149;
+
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.dualcam-pane--active {
+  border-color: var(--accent);
+}
+
+.dualcam-pane-label {
+  position: absolute;
+  bottom: 0.4rem;
+  left: 0.4rem;
+  z-index: 2;
+  background: rgba(13, 17, 23, 0.7);
+  border: 1px solid var(--border);
+  color: var(--fg-dim);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.4rem;
+  border-radius: 2px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.latency-chip {
+  position: absolute;
+  bottom: 0.4rem;
+  right: 0.4rem;
+  z-index: 2;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 2px;
+  background: rgba(13, 17, 23, 0.7);
+  border: 1px solid var(--border);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.latency-chip--good {
+  color: var(--status-ok, #3fb950);
+  border-color: var(--status-ok, #3fb950);
+}
+
+.latency-chip--warn {
+  color: var(--status-warn, #d29922);
+  border-color: var(--status-warn, #d29922);
+}
+
+.latency-chip--bad {
+  color: var(--status-critical, #f85149);
+  border-color: var(--status-critical, #f85149);
+}
+
+.latency-chip--unknown {
+  color: var(--fg-dim);
+}

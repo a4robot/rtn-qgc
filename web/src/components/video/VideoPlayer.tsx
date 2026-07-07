@@ -41,6 +41,17 @@ export interface VideoPlayerProps {
   attach?: (push: (data: ArrayBuffer) => void) => () => void;
   /** WebCodecs hardware preference. Forwarded to `VideoStreamDecoder`. */
   hardwareAcceleration?: HardwareAcceleration;
+  /**
+   * Optional per-frame metadata callback, fired each time a decoded frame is
+   * actually painted to the canvas (not on decode) — i.e. at render time.
+   * `timestampUs` is the frame's capture/presentation time (echoed from the
+   * wire header, PROTOCOL.md §9.2); `renderedAtMs` is `Date.now()` at paint
+   * time, same epoch basis as `connectionStore`'s `clockOffsetMs`. Additive
+   * and purely observational — omitting it changes nothing about playback.
+   * Read via a ref internally, so an unstable (new-identity-every-render)
+   * function is safe here and will NOT tear down/recreate the decoder.
+   */
+  onFrameMeta?: (meta: { timestampUs: bigint; renderedAtMs: number }) => void;
 }
 
 /**
@@ -53,6 +64,7 @@ export function VideoPlayer({
   client,
   attach,
   hardwareAcceleration,
+  onFrameMeta,
 }: VideoPlayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -61,6 +73,14 @@ export function VideoPlayer({
   const rafIdRef = useRef<number | null>(null);
   const fpsWindowRef = useRef<number[]>([]);
   const lastFrameAtRef = useRef<number | null>(null);
+
+  // Latest `onFrameMeta` read via a ref so passing a fresh function identity
+  // every render never appears in the decoder-lifecycle effect's deps below
+  // (which would otherwise tear down/recreate the decoder every render).
+  const onFrameMetaRef = useRef(onFrameMeta);
+  useEffect(() => {
+    onFrameMetaRef.current = onFrameMeta;
+  }, [onFrameMeta]);
 
   const [supported] = useState(() => VideoStreamDecoder.isSupported());
   const [hasSignal, setHasSignal] = useState(false);
@@ -92,6 +112,10 @@ export function VideoPlayer({
         ctxRef.current = ctx;
       }
       ctx?.drawImage(frame, 0, 0, canvas.width, canvas.height);
+      onFrameMetaRef.current?.({
+        timestampUs: BigInt(Math.round(frame.timestamp)),
+        renderedAtMs: Date.now(),
+      });
       frame.close();
     };
 

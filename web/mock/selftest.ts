@@ -369,6 +369,33 @@ async function main(): Promise<void> {
   const afterVideoUnsub = await conn.collectBinary(1, 600);
   check("video: unsubscribe stops the binary stream", afterVideoUnsub.length === 0, afterVideoUnsub.length);
 
+  // --- video channel (W5): a second stream (streamId 2) is subscribable
+  // independently and tags its binary frames with its own streamId.
+  conn.send({ type: "subscribe", id: "v3", channel: "video", streamId: 2 });
+  const vSubAck2 = await conn.next("video subscribeAck (stream 2)", (m) => m.type === "subscribeAck" && m.id === "v3");
+  check(
+    "video subscribeAck (stream 2) echoes id/channel/streamId",
+    vSubAck2.channel === "video" && vSubAck2.streamId === 2,
+    vSubAck2,
+  );
+
+  const videoConfig2 = await conn.next("videoConfig (stream 2)", (m) => m.type === "videoConfig" && m.streamId === 2);
+  check(
+    "videoConfig (stream 2) carries codec/dimensions/sps/pps (§9.1)",
+    videoConfig2.codec === "h264" && videoConfig2.width === 640 && videoConfig2.height === 360,
+    videoConfig2,
+  );
+
+  const stream2Frames = await conn.collectBinary(1, 1000);
+  check("video (stream 2): binary frame(s) arrive after videoConfig", stream2Frames.length >= 1, stream2Frames.length);
+  const stream2Frame = stream2Frames[0]!;
+  const dv2 = new DataView(stream2Frame.buffer, stream2Frame.byteOffset, stream2Frame.byteLength);
+  check("video (stream 2): header streamId is 2", dv2.getUint8(3) === 2, dv2.getUint8(3));
+  check("video (stream 2): first frame is a keyframe (flags bit 0 set)", (dv2.getUint8(4) & 1) === 1, dv2.getUint8(4));
+
+  conn.send({ type: "unsubscribe", id: "v4", channel: "video", streamId: 2 });
+  await conn.next("video unsubscribeAck (stream 2)", (m) => m.type === "unsubscribeAck" && m.id === "v4");
+
   conn.close();
 }
 
