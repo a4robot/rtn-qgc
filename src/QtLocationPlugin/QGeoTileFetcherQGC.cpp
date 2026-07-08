@@ -92,39 +92,7 @@ void QGeoTileFetcherQGC::handleReply(QGeoTiledMapReply *reply, const QGeoTileSpe
 
 QNetworkRequest QGeoTileFetcherQGC::getNetworkRequest(int mapId, int x, int y, int zoom)
 {
-    const SharedMapProvider mapProvider = UrlFactory::getMapProviderFromQtMapId(mapId);
-    if (!mapProvider) {
-        return QNetworkRequest();
-    }
-
-    QNetworkRequest request;
-    request.setUrl(mapProvider->getTileURL(x, y, zoom));
-    request.setPriority(QNetworkRequest::NormalPriority);
-    request.setTransferTimeout(10000);
-    // request.setOriginatingObject(this);
-
-    // Headers
-    request.setRawHeader(QByteArrayLiteral("Accept"), QByteArrayLiteral("*/*"));
-    request.setHeader(QNetworkRequest::UserAgentHeader, s_userAgent);
-    const QByteArray referrer = mapProvider->getReferrer().toUtf8();
-    if (!referrer.isEmpty()) {
-        request.setRawHeader(QByteArrayLiteral("Referer"), referrer);
-    }
-    const QByteArray token = mapProvider->getToken();
-    if (!token.isEmpty()) {
-        request.setRawHeader(QByteArrayLiteral("User-Token"), token);
-    }
-    request.setRawHeader(QByteArrayLiteral("Connection"), QByteArrayLiteral("keep-alive"));
-    // request.setRawHeader(QByteArrayLiteral("Accept-Encoding"), QByteArrayLiteral("gzip, deflate, br"));
-
-    // Attributes
-    request.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::PreferCache);
-    request.setAttribute(QNetworkRequest::BackgroundRequestAttribute, true);
-    request.setAttribute(QNetworkRequest::CacheSaveControlAttribute, true);
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
-    request.setAttribute(QNetworkRequest::Http2AllowedAttribute, true);
-    request.setAttribute(QNetworkRequest::DoNotBufferUploadDataAttribute, false);
-    // request.setAttribute(QNetworkRequest::AutoDeleteReplyOnFinishAttribute, true);
-
-    return request;
+    // Request construction lives in UrlFactory (Location-free) so it can be shared
+    // with non-QtLocation consumers (e.g. TerrainTileFetcher in src/Terrain).
+    return UrlFactory::getTileNetworkRequest(mapId, x, y, zoom);
 }

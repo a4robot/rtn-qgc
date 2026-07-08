@@ -7,7 +7,9 @@
 #include <QtCore/QSettings>
 #include <QtCore/QStorageInfo>
 #include <QtCore/QTemporaryDir>
+#ifdef QGC_ENABLE_QML
 #include <QtQml/QQmlEngine>
+#endif
 
 #include "ElevationMapProvider.h"
 #include "FlightMapSettings.h"
@@ -19,7 +21,6 @@
 #include "QGCMapEngine.h"
 #include "QGCMapTasks.h"
 #include "QGCMapUrlEngine.h"
-#include "QGeoFileTileCacheQGC.h"
 #include "QmlObjectListModel.h"
 #include "SettingsManager.h"
 
@@ -40,7 +41,9 @@ QGCMapEngineManager::QGCMapEngineManager(QObject *parent)
 {
     qCDebug(QGCMapEngineManagerLog) << this;
 
+#ifdef QGC_ENABLE_QML
     (void) qmlRegisterUncreatableType<QGCMapEngineManager>("QGroundControl.QGCMapEngineManager", 1, 0, "QGCMapEngineManager", "Reference only");
+#endif
 
     (void) connect(getQGCMapEngine(), &QGCMapEngine::updateTotals, this, &QGCMapEngineManager::_updateTotals, Qt::UniqueConnection);
 }

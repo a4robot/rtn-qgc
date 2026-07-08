@@ -6,6 +6,7 @@
 #include <QtCore/QStringList>
 #include <QtCore/QStringView>
 #include <QtCore/QUrl>
+#include <QtNetwork/QNetworkRequest>
 
 #include <memory>
 
@@ -22,6 +23,16 @@ public:
 
     static QUrl getTileURL(QStringView type, int x, int y, int zoom);
     static QUrl getTileURL(int qtMapId, int x, int y, int zoom);
+
+    /// Builds a fully configured tile-fetch QNetworkRequest (headers, referrer, token,
+    /// cache/redirect attributes) for the given map provider/tile coordinate.
+    /// Location-free: does not depend on QtLocation/QGeoTileSpec. Shared by the
+    /// QtLocation tile fetcher (QGeoTileFetcherQGC) and the Terrain tile fetcher.
+    static QNetworkRequest getTileNetworkRequest(int qtMapId, int x, int y, int zoom);
+
+    /* Note: QNetworkAccessManager queues the requests it receives. The number of requests executed in parallel is dependent on the protocol.
+     * Currently, for the HTTP protocol on desktop platforms, 6 requests are executed in parallel for one host/port combination. */
+    static uint32_t concurrentDownloads(QStringView type) { Q_UNUSED(type); return 6; }
 
     static quint32 averageSizeForType(QStringView type);
 

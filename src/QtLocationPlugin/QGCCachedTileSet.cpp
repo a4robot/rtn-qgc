@@ -8,8 +8,7 @@
 #include "QGCNetworkHelper.h"
 #include "QGCMapTasks.h"
 #include "QGCMapUrlEngine.h"
-#include "QGeoFileTileCacheQGC.h"
-#include "QGeoTileFetcherQGC.h"
+#include "QGCTileCacheFetcher.h"
 
 QGC_LOGGING_CATEGORY(QGCCachedTileSetLog, "QtLocationPlugin.QGCCachedTileSet")
 
@@ -136,13 +135,13 @@ void QGCCachedTileSet::_prepareDownload()
         return;
     }
 
-    for (qsizetype i = _replies.count(); i < QGeoTileFetcherQGC::concurrentDownloads(_type); i++) {
+    for (qsizetype i = _replies.count(); i < UrlFactory::concurrentDownloads(_type); i++) {
         if (_tilesToDownload.isEmpty()) {
             break;
         }
 
         QGCTile* const tile = _tilesToDownload.dequeue();
-        QNetworkRequest request = QGeoTileFetcherQGC::getNetworkRequest(tile->type, tile->x, tile->y, tile->z);
+        QNetworkRequest request = UrlFactory::getTileNetworkRequest(tile->type, tile->x, tile->y, tile->z);
         if (!request.url().isValid()) {
             qCWarning(QGCCachedTileSetLog) << "Invalid URL for tile" << tile->hash << "- skipping";
             setErrorCount(_errorCount + 1);
@@ -163,7 +162,7 @@ void QGCCachedTileSet::_prepareDownload()
         }
 
         delete tile;
-        if (!_batchRequested && !_noMoreTiles && (_tilesToDownload.count() < (QGeoTileFetcherQGC::concurrentDownloads(_type) * 10))) {
+        if (!_batchRequested && !_noMoreTiles && (_tilesToDownload.count() < (UrlFactory::concurrentDownloads(_type) * 10))) {
             createDownloadTask();
         }
     }
@@ -231,7 +230,7 @@ void QGCCachedTileSet::_networkReplyFinished()
         return;
     }
 
-    QGeoFileTileCacheQGC::cacheTile(type, hash, image, format, _id);
+    QGCTileCacheFetcher::cacheTile(type, hash, image, format, _id);
 
     QGCUpdateTileDownloadStateTask *task = new QGCUpdateTileDownloadStateTask(_id, QGCTile::StateComplete, hash);
     if (!getQGCMapEngine()->addTask(task)) {

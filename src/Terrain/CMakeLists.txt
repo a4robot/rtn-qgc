@@ -15,6 +15,8 @@ target_sources(${CMAKE_PROJECT_NAME}
         TerrainQueryInterface.h
         TerrainTile.cc
         TerrainTile.h
+        TerrainTileFetcher.cc
+        TerrainTileFetcher.h
         TerrainTileManager.cc
         TerrainTileManager.h
 )

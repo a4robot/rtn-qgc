@@ -9,7 +9,7 @@
 #include "QGCTile.h"
 #include "QGCTileCacheWorker.h"
 #include "QGCTileSet.h"
-#include "QGeoFileTileCacheQGC.h"
+#include "QGCTileCacheFetcher.h"
 
 QGC_LOGGING_CATEGORY(QGCMapEngineLog, "QtLocationPlugin.QGCMapEngine")
 
@@ -72,6 +72,11 @@ void QGCMapEngine::init(const QString &databasePath)
 
 bool QGCMapEngine::addTask(QGCMapTask *task)
 {
+    if (!m_worker) {
+        // init() not yet called (or failed) - no worker thread to service tasks.
+        return false;
+    }
+
     // DirectConnection is intentional: the worker thread uses a custom loop (not
     // an event loop), so queued connections would never be delivered. The queue
     // is mutex-protected in enqueueTask, so calling from the main thread is safe.
@@ -84,7 +89,7 @@ void QGCMapEngine::_updateTotals(quint32 totaltiles, quint64 totalsize, quint32 
 {
     emit updateTotals(totaltiles, totalsize, defaulttiles, defaultsize);
 
-    const quint64 maxSize = static_cast<quint64>(QGeoFileTileCacheQGC::getMaxDiskCacheSetting()) * qPow(1024, 2);
+    const quint64 maxSize = static_cast<quint64>(QGCTileCacheFetcher::getMaxDiskCacheSetting()) * qPow(1024, 2);
     if (!m_pruning && (defaultsize > maxSize)) {
         m_pruning = true;
 

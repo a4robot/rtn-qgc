@@ -19,11 +19,29 @@
 #include "QGCMapEngine.h"
 #include "QGCMapEngineManager.h"
 #include "QGCMapUrlEngine.h"
+#include "QGCTileCacheFetcher.h"
 #include "QGeoFileTileCacheQGC.h"
 #include "QGeoTiledMapQGC.h"
 #include "QGeoTileFetcherQGC.h"
 
 QGC_LOGGING_CATEGORY(QGeoTiledMappingManagerEngineQGCLog, "QtLocationPlugin.QGeoTiledMappingManagerEngineQGC")
+
+// MapProvider::MapStyle mirrors QGeoMapType::MapStyle so that the Providers
+// stay free of <QtLocation/private/qgeomaptype_p.h>. This engine is the
+// boundary where the enum crosses into QtLocation, so catch drift here at
+// compile time.
+static_assert(static_cast<int>(MapProvider::NoMap)            == static_cast<int>(QGeoMapType::NoMap));
+static_assert(static_cast<int>(MapProvider::StreetMap)        == static_cast<int>(QGeoMapType::StreetMap));
+static_assert(static_cast<int>(MapProvider::SatelliteMapDay)  == static_cast<int>(QGeoMapType::SatelliteMapDay));
+static_assert(static_cast<int>(MapProvider::SatelliteMapNight)== static_cast<int>(QGeoMapType::SatelliteMapNight));
+static_assert(static_cast<int>(MapProvider::TerrainMap)       == static_cast<int>(QGeoMapType::TerrainMap));
+static_assert(static_cast<int>(MapProvider::HybridMap)        == static_cast<int>(QGeoMapType::HybridMap));
+static_assert(static_cast<int>(MapProvider::TransitMap)       == static_cast<int>(QGeoMapType::TransitMap));
+static_assert(static_cast<int>(MapProvider::GrayStreetMap)    == static_cast<int>(QGeoMapType::GrayStreetMap));
+static_assert(static_cast<int>(MapProvider::PedestrianMap)    == static_cast<int>(QGeoMapType::PedestrianMap));
+static_assert(static_cast<int>(MapProvider::CarNavigationMap) == static_cast<int>(QGeoMapType::CarNavigationMap));
+static_assert(static_cast<int>(MapProvider::CycleMap)         == static_cast<int>(QGeoMapType::CycleMap));
+static_assert(static_cast<int>(MapProvider::CustomMap)        == static_cast<int>(QGeoMapType::CustomMap));
 
 QGeoTiledMappingManagerEngineQGC::QGeoTiledMappingManagerEngineQGC(const QVariantMap &parameters, QGeoServiceProvider::Error *error, QString *errorString, QNetworkAccessManager *networkManager, QObject *parent)
     : QGeoTiledMappingManagerEngine(parent)
@@ -74,11 +92,9 @@ QGeoTiledMappingManagerEngineQGC::QGeoTiledMappingManagerEngineQGC(const QVarian
     QGeoFileTileCacheQGC *fileTileCache = new QGeoFileTileCacheQGC(parameters, this);
     setTileCache(fileTileCache);
 
-    // MapEngine must be init after fileTileCache
-    static std::once_flag mapEngineInit;
-    std::call_once(mapEngineInit, [fileTileCache]() {
-        getQGCMapEngine()->init(fileTileCache->getDatabaseFilePath());
-    });
+    // MapEngine must be init after fileTileCache. Shared, idempotent init in
+    // the Location-free core (also used by the headless terrain path).
+    QGCTileCacheFetcher::ensureCacheDatabaseInitialized();
 
     m_prefetchStyle = QGCNetworkHelper::isInternetAvailable() ? QGeoTiledMap::PrefetchTwoNeighbourLayers : QGeoTiledMap::NoPrefetching;
     (void) connect(QNetworkInformation::instance(), &QNetworkInformation::reachabilityChanged, this, [this](QNetworkInformation::Reachability newReachability) {

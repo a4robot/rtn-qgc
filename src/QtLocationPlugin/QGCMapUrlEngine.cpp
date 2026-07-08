@@ -16,6 +16,21 @@
 
 QGC_LOGGING_CATEGORY(QGCMapUrlEngineLog, "QtLocationPlugin.QGCMapUrlEngine")
 
+namespace {
+#if defined Q_OS_MACOS
+constexpr const char *kTileFetchUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.5; rv:125.0) Gecko/20100101 Firefox/125.0";
+#elif defined Q_OS_WIN
+constexpr const char *kTileFetchUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:100.0) Gecko/20100101 Firefox/112.0";
+#elif defined Q_OS_ANDROID
+constexpr const char *kTileFetchUserAgent = "Mozilla/5.0 (Android 13; Tablet; rv:68.0) Gecko/68.0 Firefox/112.0";
+#elif defined Q_OS_LINUX
+// TODO: Detect Wayland vs X11
+constexpr const char *kTileFetchUserAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/112.0";
+#else
+constexpr const char *kTileFetchUserAgent = "Qt Location based application";
+#endif
+}
+
 const QList<SharedMapProvider> UrlFactory::_providers = {
 #ifndef QGC_NO_GOOGLE_MAPS
     std::make_shared<GoogleStreetMapProvider>(),
@@ -111,6 +126,42 @@ QUrl UrlFactory::getTileURL(QStringView type, int x, int y, int zoom)
     }
 
     return QUrl();
+}
+
+QNetworkRequest UrlFactory::getTileNetworkRequest(int qtMapId, int x, int y, int zoom)
+{
+    const SharedMapProvider mapProvider = getMapProviderFromQtMapId(qtMapId);
+    if (!mapProvider) {
+        return QNetworkRequest();
+    }
+
+    QNetworkRequest request;
+    request.setUrl(mapProvider->getTileURL(x, y, zoom));
+    request.setPriority(QNetworkRequest::NormalPriority);
+    request.setTransferTimeout(10000);
+
+    // Headers
+    request.setRawHeader(QByteArrayLiteral("Accept"), QByteArrayLiteral("*/*"));
+    request.setHeader(QNetworkRequest::UserAgentHeader, kTileFetchUserAgent);
+    const QByteArray referrer = mapProvider->getReferrer().toUtf8();
+    if (!referrer.isEmpty()) {
+        request.setRawHeader(QByteArrayLiteral("Referer"), referrer);
+    }
+    const QByteArray token = mapProvider->getToken();
+    if (!token.isEmpty()) {
+        request.setRawHeader(QByteArrayLiteral("User-Token"), token);
+    }
+    request.setRawHeader(QByteArrayLiteral("Connection"), QByteArrayLiteral("keep-alive"));
+
+    // Attributes
+    request.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::PreferCache);
+    request.setAttribute(QNetworkRequest::BackgroundRequestAttribute, true);
+    request.setAttribute(QNetworkRequest::CacheSaveControlAttribute, true);
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+    request.setAttribute(QNetworkRequest::Http2AllowedAttribute, true);
+    request.setAttribute(QNetworkRequest::DoNotBufferUploadDataAttribute, false);
+
+    return request;
 }
 
 quint32 UrlFactory::averageSizeForType(QStringView type)

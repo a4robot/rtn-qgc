@@ -138,14 +138,22 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         # Qt6 QML/Quick (Qt6::QmlIntegration stays unconditional — header-only QML_ELEMENT macros)
         $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Qml>
         Qt6::QmlIntegration
-        $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Quick>
+        # QML-linkage debt (wave-10): headless-compiled objects still reference
+        # QQuick* symbols (QGCImageProvider/ColoredSvgImageProvider/GeometryImage
+        # inherit QQuickImageProvider; VideoManager+GStreamer use QQuickWindow;
+        # QGCCorePlugin/VehicleComponent use QQuickItem). Until those are gated,
+        # Qt6::Quick must stay linked even with QGC_ENABLE_QML=OFF. Previously
+        # this dependency was hidden: Qt6::Location (now gated) pulled Qt6::Quick
+        # in transitively, so the OFF binary has always linked libQt6Quick.
+        Qt6::Quick
         $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Quick3D>
         $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::QuickControls2>
         $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::QuickVectorImage>
 
-        # Qt6 Location
-        Qt6::Location
-        Qt6::LocationPrivate
+        # Qt6 Location (QML map plugin only; headless uses QGCLocationCore,
+        # which is Location-free)
+        $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Location>
+        $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::LocationPrivate>
         Qt6::Positioning
         Qt6::PositioningPrivate
         Qt6::Sql
