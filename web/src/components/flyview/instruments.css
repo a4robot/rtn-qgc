@@ -1,0 +1,140 @@
+.instrument-strip {
+  --instrument-ok: #3fb950;
+  --instrument-warn: #d29922;
+  --instrument-critical: #f85149;
+
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  font-variant-numeric: tabular-nums;
+}
+
+.instrument-strip--empty {
+  align-items: center;
+  justify-content: center;
+}
+
+.instrument-placeholder {
+  color: var(--fg-dim);
+  font-size: 0.85rem;
+}
+
+.instrument-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  min-width: 5.5rem;
+  flex: 1 1 0;
+}
+
+.instrument-cell--heading {
+  min-width: 8rem;
+}
+
+.instrument-label {
+  color: var(--fg-dim);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.instrument-value {
+  color: var(--fg);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.instrument-unit {
+  color: var(--fg-dim);
+  font-size: 0.65rem;
+}
+
+.instrument-value--dim {
+  color: var(--fg-dim);
+  font-size: 0.75rem;
+}
+
+.instrument-value--ok {
+  color: var(--instrument-ok);
+  font-weight: 600;
+}
+
+.instrument-value--warn {
+  color: var(--instrument-warn);
+  font-weight: 600;
+}
+
+.instrument-value--critical {
+  color: var(--instrument-critical);
+  font-weight: 600;
+}
+
+.instrument-value--unknown {
+  color: var(--fg-dim);
+}
+
+.instrument-climb-glyph {
+  display: inline-block;
+  font-size: 0.75rem;
+}
+
+.instrument-heading-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.instrument-heading-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.instrument-compass {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+}
+
+.instrument-compass-ring {
+  fill: var(--bg-panel, var(--bg));
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+
+.instrument-compass-n {
+  fill: var(--fg-dim);
+  font-size: 6px;
+  text-anchor: middle;
+}
+
+.instrument-compass-needle line,
+.instrument-compass-needle polygon {
+  stroke: var(--accent);
+  fill: var(--accent);
+}
+
+.instrument-compass-needle line {
+  stroke-width: 1.5;
+}
+
+.instrument-compass-needle--unknown line,
+.instrument-compass-needle--unknown polygon {
+  stroke: var(--fg-dim);
+  fill: var(--fg-dim);
+  opacity: 0.5;
+}
+
+.instrument-compass-hub {
+  fill: var(--fg);
+}
