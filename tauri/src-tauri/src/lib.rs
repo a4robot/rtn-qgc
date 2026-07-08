@@ -20,11 +20,18 @@
 //!   to the webview as a `ghost-status` event with payload
 //!   `{ "state": "running" | "restarting" | "dead", "attempt": n }`.
 
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter};
-use tauri_plugin_shell::{process::CommandEvent, ShellExt};
+use tauri::{AppHandle, Emitter, RunEvent};
+use tauri_plugin_shell::{
+    process::{CommandChild, CommandEvent},
+    ShellExt,
+};
 
 const GHOST_ARGS: [&str; 3] = ["--headless", "--bridge-port", "8877"];
 const MAX_RESTARTS: u32 = 5;
@@ -38,6 +45,16 @@ struct GhostStatus {
     attempt: u32,
 }
 
+/// Shared handle between the watchdog and the app's exit path: the live
+/// sidecar child (so shutdown can kill it — without this the ghost
+/// outlives the shell) and a flag telling the watchdog that an exit-time
+/// termination is intentional, not a crash to restart.
+#[derive(Default)]
+struct GhostSlot {
+    child: Mutex<Option<CommandChild>>,
+    shutting_down: AtomicBool,
+}
+
 fn emit_status(app: &AppHandle, state: &'static str, attempt: u32) {
     log::info!(target: "ghost", "status: {state} (attempt {attempt})");
     if let Err(err) = app.emit("ghost-status", GhostStatus { state, attempt }) {
@@ -47,8 +64,13 @@ fn emit_status(app: &AppHandle, state: &'static str, attempt: u32) {
 
 /// Spawn ghost once, emit "running", and pump its output into the log.
 /// Returns when the process terminates; errors if the spawn itself fails.
-async fn run_ghost_once(app: &AppHandle, attempt: u32) -> Result<(), tauri_plugin_shell::Error> {
-    let (mut rx, _child) = app.shell().sidecar("ghost")?.args(GHOST_ARGS).spawn()?;
+async fn run_ghost_once(
+    app: &AppHandle,
+    attempt: u32,
+    slot: &GhostSlot,
+) -> Result<(), tauri_plugin_shell::Error> {
+    let (mut rx, child) = app.shell().sidecar("ghost")?.args(GHOST_ARGS).spawn()?;
+    *slot.child.lock().unwrap() = Some(child);
     emit_status(app, "running", attempt);
 
     while let Some(event) = rx.recv().await {
@@ -74,19 +96,27 @@ async fn run_ghost_once(app: &AppHandle, attempt: u32) -> Result<(), tauri_plugi
             _ => {}
         }
     }
+    // The child is gone (or being torn down at exit) — drop the handle so
+    // shutdown never kills a stale pid.
+    slot.child.lock().unwrap().take();
     Ok(())
 }
 
 /// Watchdog: keep ghost alive, restarting with exponential backoff.
-fn spawn_watchdog(app: AppHandle) {
+fn spawn_watchdog(app: AppHandle, slot: Arc<GhostSlot>) {
     tauri::async_runtime::spawn(async move {
         let mut attempt: u32 = 0;
         loop {
             let started = Instant::now();
-            match run_ghost_once(&app, attempt).await {
+            match run_ghost_once(&app, attempt, &slot).await {
                 Ok(()) if started.elapsed() >= STABLE_UPTIME => attempt = 0,
                 Ok(()) => {}
                 Err(err) => log::error!(target: "ghost", "failed to spawn: {err}"),
+            }
+
+            if slot.shutting_down.load(Ordering::SeqCst) {
+                log::info!(target: "ghost", "shutdown in progress — not restarting");
+                return;
             }
 
             attempt += 1;
@@ -109,6 +139,9 @@ fn spawn_watchdog(app: AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let ghost = Arc::new(GhostSlot::default());
+    let ghost_for_setup = ghost.clone();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(
@@ -116,10 +149,24 @@ pub fn run() {
                 .level(log::LevelFilter::Info)
                 .build(),
         )
-        .setup(|app| {
-            spawn_watchdog(app.handle().clone());
+        .setup(move |app| {
+            spawn_watchdog(app.handle().clone(), ghost_for_setup.clone());
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(move |_app, event| {
+            // Without this the sidecar outlives the shell (observed as an
+            // orphaned docker container with the wrapper sidecar). Flag the
+            // watchdog first so the resulting Terminated isn't "restarted".
+            if matches!(event, RunEvent::ExitRequested { .. } | RunEvent::Exit) {
+                ghost.shutting_down.store(true, Ordering::SeqCst);
+                if let Some(child) = ghost.child.lock().unwrap().take() {
+                    log::info!(target: "ghost", "shutdown: killing sidecar");
+                    if let Err(err) = child.kill() {
+                        log::error!(target: "ghost", "failed to kill sidecar: {err}");
+                    }
+                }
+            }
+        });
 }
