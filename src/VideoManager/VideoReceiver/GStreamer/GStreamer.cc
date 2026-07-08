@@ -23,7 +23,6 @@
 #include <QtCore/QSettings>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QStringList>
-#include <QtQuick/QQuickItem>
 
 #include <atomic>
 

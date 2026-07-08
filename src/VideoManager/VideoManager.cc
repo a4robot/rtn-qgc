@@ -38,9 +38,11 @@
 #include <QtCore/QPointer>
 #include <QtCore/QRunnable>
 #include <QtCore/QTimer>
+#ifdef QGC_ENABLE_QML
 #include <QtQml/QQmlEngine>
 #include <QtQuick/QQuickItem>
 #include <QtQuick/QQuickWindow>
+#endif
 
 QGC_LOGGING_CATEGORY(VideoManagerLog, "Video.VideoManager")
 
@@ -166,6 +168,7 @@ bool VideoManager::waitForGStreamerInit(int timeoutMs)
 #endif
 }
 
+#ifdef QGC_ENABLE_QML
 void VideoManager::init(QQuickWindow *mainWindow)
 {
     if (_initialized) {
@@ -244,6 +247,7 @@ void VideoManager::_initAfterQmlIsReady()
 #endif
     _createVideoReceivers();
 }
+#endif // QGC_ENABLE_QML
 
 void VideoManager::_onGstInitComplete(bool success)
 {
@@ -266,17 +270,20 @@ void VideoManager::_onGstInitComplete(bool success)
         _initState = InitState::GstReady;
         qCDebug(VideoManagerLog) << "GStreamer ready, waiting for QML";
         return;
+#ifdef QGC_ENABLE_QML
     case InitState::QmlReady:
         _initState = InitState::Running;
         qCDebug(VideoManagerLog) << "GStreamer ready, QML already done — creating receivers";
         _createVideoReceivers();
         return;
+#endif
     default:
         qCWarning(VideoManagerLog) << "_onGstInitComplete: unexpected state" << static_cast<int>(_initState);
         return;
     }
 }
 
+#ifdef QGC_ENABLE_QML
 void VideoManager::_createVideoReceivers()
 {
 #ifdef QGC_UNITTEST_BUILD
@@ -299,6 +306,7 @@ void VideoManager::_createVideoReceivers()
         _initVideoReceiver(receiver, _mainWindow);
     }
 }
+#endif // QGC_ENABLE_QML
 
 void VideoManager::cleanup()
 {
@@ -907,6 +915,7 @@ void VideoManager::_startReceiver(VideoReceiver *receiver)
     receiver->start(timeout);
 }
 
+#ifdef QGC_ENABLE_QML
 void VideoManager::_initVideoReceiver(VideoReceiver *receiver, QQuickWindow *window)
 {
     if (_videoReceivers.contains(receiver)) {
@@ -1061,6 +1070,7 @@ void VideoManager::_initVideoReceiver(VideoReceiver *receiver, QQuickWindow *win
         _startReceiver(receiver);
     }
 }
+#endif // QGC_ENABLE_QML
 
 void VideoManager::startVideo()
 {

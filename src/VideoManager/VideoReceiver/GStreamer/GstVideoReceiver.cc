@@ -21,7 +21,6 @@
 
 #include <QtCore/QDateTime>
 #include <QtCore/QUrl>
-#include <QtQuick/QQuickItem>
 #include <thread>
 
 #include <gst/gst.h>
@@ -410,11 +409,16 @@ void GstVideoReceiver::startDecoding(void *sink)
 
     qCDebug(GstVideoReceiverLog) << "Starting decoding" << _uri;
 
+#ifdef QGC_ENABLE_QML
+    // Decoding renders into the QML VideoOutput widget; headless builds have no
+    // widget concept (startDecoding is only reached from the QML-gated
+    // VideoManager receiver wiring, never from the ghost path).
     if (!_widget) {
         qCDebug(GstVideoReceiverLog) << "Video Widget is NULL" << _uri;
         _dispatchSignal([this]() { emit onStartDecodingComplete(STATUS_FAIL); });
         return;
     }
+#endif
 
     if (!_pipeline) {
         gst_clear_object(&_videoSink);

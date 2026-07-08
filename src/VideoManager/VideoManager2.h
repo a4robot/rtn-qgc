@@ -9,7 +9,9 @@
 #include <functional>
 #include <memory>
 
+#ifdef QGC_ENABLE_QML
 class QQuickWindow;
+#endif
 class SubtitleWriter;
 class Vehicle;
 class VideoReceiver;
@@ -57,7 +59,11 @@ public:
     Q_INVOKABLE void stopVideo();
     Q_INVOKABLE void sendViewproCommand(int commandId);
 
+#ifdef QGC_ENABLE_QML
+    /// Full QML boot: wires each receiver into the scene-graph window. Headless
+    /// builds never call this — they only use startGStreamerInit()/waitForGStreamerInit().
     void init(QQuickWindow *mainWindow);
+#endif
     void startGStreamerInit();
     bool waitForGStreamerInit(int timeoutMs = 60000);
     void cleanup();
@@ -114,10 +120,12 @@ private:
     };
 
     static bool _shouldSkipGStreamerForUnitTests();
-    void _initAfterQmlIsReady();
     void _onGstInitComplete(bool success);
+#ifdef QGC_ENABLE_QML
+    void _initAfterQmlIsReady();
     void _createVideoReceivers();
     void _initVideoReceiver(VideoReceiver *receiver, QQuickWindow *window);
+#endif
     bool _updateAutoStream(VideoReceiver *receiver);
     bool _updateUVC(VideoReceiver *receiver);
     bool _updateSettings(VideoReceiver *receiver);
@@ -131,7 +139,9 @@ private:
     QList<VideoReceiver*> _videoReceivers;
     SubtitleWriter *_subtitleWriter = nullptr;
     VideoSettings2 *_videoSettings2 = nullptr;
+#ifdef QGC_ENABLE_QML
     QQuickWindow *_mainWindow = nullptr;
+#endif
     Vehicle *_activeVehicle = nullptr;
 
     InitState _initState = InitState::NotStarted;

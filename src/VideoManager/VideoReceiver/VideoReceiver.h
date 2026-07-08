@@ -6,7 +6,9 @@
 #include <QtQmlIntegration/QtQmlIntegration>
 
 class QGCVideoStreamInfo;
+#ifdef QGC_ENABLE_QML
 class QQuickItem;
+#endif
 
 class VideoReceiver : public QObject
 {
@@ -21,7 +23,13 @@ public:
     bool isThermal() const { return (_name.startsWith(QStringLiteral("thermalVideo"))); }
 
     void *sink() { return _sink; }
+#ifdef QGC_ENABLE_QML
+    // The widget is the QML VideoOutput item the receiver renders into; the whole
+    // concept only exists with a scene graph (headless decoding is sink-only).
+    // Note: moc requires signal parameter metatypes to be fully defined, so this
+    // API can't stay visible headless with just a forward declaration.
     QQuickItem *widget() { return _widget; }
+#endif
     QString name() const { return _name; }
     QString uri() const { return _uri; }
     bool started() const { return _started; }
@@ -30,7 +38,9 @@ public:
     QString recordingOutput() const { return _recordingOutput; }
 
     virtual void setSink(void *sink) { if (sink != _sink) { _sink = sink; emit sinkChanged(_sink); } }
+#ifdef QGC_ENABLE_QML
     virtual void setWidget(QQuickItem *widget) { if (widget != _widget) { _widget = widget; emit widgetChanged(_widget); } }
+#endif
     void setName(const QString &name) { if (name != _name) { _name = name; emit nameChanged(_name); } }
     void setUri(const QString &uri) { if (uri != _uri) { _uri = uri; emit uriChanged(_uri); } }
     void setStarted(bool started) { if (started != _started) { _started = started; emit startedChanged(_started); } }
@@ -74,7 +84,9 @@ signals:
     void startedChanged(bool started);
     void lowLatencyChanged(bool lowLatency);
     void videoStreamInfoChanged();
+#ifdef QGC_ENABLE_QML
     void widgetChanged(QQuickItem *widget);
+#endif
 
     void onStartComplete(STATUS status);
     void onStopComplete(STATUS status);
@@ -95,7 +107,9 @@ public slots:
 
 protected:
     void *_sink = nullptr;
+#ifdef QGC_ENABLE_QML
     QQuickItem *_widget = nullptr;
+#endif
     QGCVideoStreamInfo *_videoStreamInfo = nullptr;
     QString _name;
     QString _uri;

@@ -3,6 +3,16 @@
 # QGC_HAS_ANY_GPU_PATH is set as a compile definition when any path is enabled,
 # removing the umbrella macro from GstAppSinkAdapter.h.
 
+# This whole tier exists to zero-copy decoded GPU frames into the QML scene graph
+# (QRhi via QQuickWindow — see QGCRhiCapture / Gst*ContextBridge). Headless builds
+# (QGC_ENABLE_QML=OFF) have no scene graph: GhostVideoSource decodes through the
+# appsink CPU path into VideoStreamServer. Skipping here leaves QGC_HAS_ANY_GPU_PATH
+# (and every per-path macro) undefined, so all #if-gated callers compile out.
+if(NOT QGC_ENABLE_QML)
+    message(STATUS "QGCGStreamer: QML disabled — GPU zero-copy HwBuffers tier skipped (CPU appsink path only)")
+    return()
+endif()
+
 include(CheckCXXSourceCompiles)
 
 set(_any_gpu_path FALSE)

@@ -38,9 +38,11 @@
 #include <QtCore/QPointer>
 #include <QtCore/QRunnable>
 #include <QtCore/QTimer>
+#ifdef QGC_ENABLE_QML
 #include <QtQml/QQmlEngine>
 #include <QtQuick/QQuickItem>
 #include <QtQuick/QQuickWindow>
+#endif
 
 QGC_LOGGING_CATEGORY(VideoManager2Log, "Video.VideoManager2")
 
@@ -166,6 +168,7 @@ bool VideoManager2::waitForGStreamerInit(int timeoutMs)
 #endif
 }
 
+#ifdef QGC_ENABLE_QML
 void VideoManager2::init(QQuickWindow *mainWindow)
 {
     if (_initialized) {
@@ -244,6 +247,7 @@ void VideoManager2::_initAfterQmlIsReady()
 #endif
     _createVideoReceivers();
 }
+#endif // QGC_ENABLE_QML
 
 void VideoManager2::_onGstInitComplete(bool success)
 {
@@ -262,17 +266,20 @@ void VideoManager2::_onGstInitComplete(bool success)
         _initState = InitState::GstReady;
         qCDebug(VideoManager2Log) << "GStreamer ready, waiting for QML";
         return;
+#ifdef QGC_ENABLE_QML
     case InitState::QmlReady:
         _initState = InitState::Running;
         qCDebug(VideoManager2Log) << "GStreamer ready, QML already done — creating receivers";
         _createVideoReceivers();
         return;
+#endif
     default:
         qCWarning(VideoManager2Log) << "_onGstInitComplete: unexpected state" << static_cast<int>(_initState);
         return;
     }
 }
 
+#ifdef QGC_ENABLE_QML
 void VideoManager2::_createVideoReceivers()
 {
 #ifdef QGC_UNITTEST_BUILD
@@ -295,6 +302,7 @@ void VideoManager2::_createVideoReceivers()
         _initVideoReceiver(receiver, _mainWindow);
     }
 }
+#endif // QGC_ENABLE_QML
 
 void VideoManager2::cleanup()
 {
@@ -897,6 +905,7 @@ void VideoManager2::_startReceiver(VideoReceiver *receiver)
     receiver->start(timeout);
 }
 
+#ifdef QGC_ENABLE_QML
 void VideoManager2::_initVideoReceiver(VideoReceiver *receiver, QQuickWindow *window)
 {
     if (_videoReceivers.contains(receiver)) {
@@ -1051,6 +1060,7 @@ void VideoManager2::_initVideoReceiver(VideoReceiver *receiver, QQuickWindow *wi
         _startReceiver(receiver);
     }
 }
+#endif // QGC_ENABLE_QML
 
 void VideoManager2::startVideo()
 {
