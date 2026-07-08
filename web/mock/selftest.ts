@@ -396,6 +396,89 @@ async function main(): Promise<void> {
   conn.send({ type: "unsubscribe", id: "v4", channel: "video", streamId: 2 });
   await conn.next("video unsubscribeAck (stream 2)", (m) => m.type === "unsubscribeAck" && m.id === "v4");
 
+  // --- mission channel (PROTOCOL.md §7): subscribe -> snapshot with the
+  // default fixture mission (takeoff + 5 waypoints + RTL, seq 0..6).
+  const isMissionState = (m: Record<string, unknown>) => m.type === "missionState";
+  conn.send({ type: "subscribe", id: "mi1", channel: "mission", vehicleId: 1 });
+  const missionSubAck = await conn.next("mission subscribeAck", (m) => m.type === "subscribeAck" && m.id === "mi1");
+  check(
+    "mission subscribeAck echoes id/channel/vehicleId",
+    missionSubAck.channel === "mission" && missionSubAck.vehicleId === 1,
+    missionSubAck,
+  );
+  const missionSnapshot = await conn.next("mission snapshot", isMissionState);
+  const missionItems0 = missionSnapshot.items as Record<string, unknown>[];
+  check(
+    "mission snapshot has seq 1 + snapshot true + 7 fixture items",
+    missionSnapshot.seq === 1 && missionSnapshot.snapshot === true && missionItems0.length === 7,
+    { seq: missionSnapshot.seq, snapshot: missionSnapshot.snapshot, itemCount: missionItems0.length },
+  );
+  check(
+    "mission snapshot items match the §7.1 schema",
+    missionItems0.every(
+      (it) =>
+        typeof it.seq === "number" &&
+        typeof it.frame === "number" &&
+        typeof it.command === "number" &&
+        typeof it.current === "boolean" &&
+        typeof it.autoContinue === "boolean" &&
+        typeof it.param1 === "number" &&
+        typeof it.lat === "number" &&
+        typeof it.lon === "number" &&
+        typeof it.alt === "number",
+    ),
+    missionItems0,
+  );
+
+  // --- missionUpload: valid 2-item mission -> ack accepted itemCount 2,
+  // then the mission stream sees a missionState update reflecting it.
+  const uploadedItems = [
+    { seq: 0, frame: 6, command: 16, current: true, autoContinue: true, param1: 0, param2: 0, param3: 0, param4: 0, lat: 13.74, lon: 100.53, alt: 25 },
+    { seq: 1, frame: 6, command: 20, current: false, autoContinue: true, param1: 0, param2: 0, param3: 0, param4: 0, lat: 0, lon: 0, alt: 0 },
+  ];
+  conn.send({ type: "missionUpload", id: "mu1", vehicleId: 1, items: uploadedItems });
+  const uploadAck = await conn.next("missionUpload ack", (m) => m.type === "missionAck" && m.id === "mu1");
+  check(
+    "missionUpload -> missionAck accepted itemCount 2",
+    uploadAck.status === "accepted" && uploadAck.itemCount === 2,
+    uploadAck,
+  );
+  const afterUpload = await conn.next("missionState update after upload", isMissionState, 2000);
+  const afterUploadItems = afterUpload.items as Record<string, unknown>[];
+  check(
+    "missionState update after upload reflects the new 2-item mission",
+    afterUploadItems.length === 2 && afterUploadItems[0]?.command === 16 && afterUploadItems[1]?.command === 20,
+    afterUploadItems,
+  );
+
+  // --- missionClear: ack accepted itemCount 0, then the stream reflects an empty mission.
+  conn.send({ type: "missionClear", id: "mc1", vehicleId: 1 });
+  const clearAck = await conn.next("missionClear ack", (m) => m.type === "missionAck" && m.id === "mc1");
+  check("missionClear -> missionAck accepted itemCount 0", clearAck.status === "accepted" && clearAck.itemCount === 0, clearAck);
+  const afterClear = await conn.next("missionState update after clear", isMissionState, 2000);
+  check(
+    "missionState update after clear has an empty item list",
+    Array.isArray(afterClear.items) && (afterClear.items as unknown[]).length === 0,
+    afterClear.items,
+  );
+
+  // --- missionUpload: malformed items (missing required fields) -> rejected with a reason.
+  conn.send({
+    type: "missionUpload",
+    id: "mu2",
+    vehicleId: 1,
+    items: [{ seq: 0, frame: 6, command: 16 /* missing current/autoContinue/param1-4/lat/lon/alt */ }],
+  });
+  const badUploadAck = await conn.next("bad missionUpload ack", (m) => m.type === "missionAck" && m.id === "mu2");
+  check(
+    "missionUpload with malformed items -> rejected with reason",
+    badUploadAck.status === "rejected" && typeof badUploadAck.reason === "string",
+    badUploadAck,
+  );
+
+  conn.send({ type: "unsubscribe", id: "mi2", channel: "mission", vehicleId: 1 });
+  await conn.next("mission unsubscribeAck", (m) => m.type === "unsubscribeAck" && m.id === "mi2");
+
   conn.close();
 }
 

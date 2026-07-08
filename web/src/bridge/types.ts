@@ -9,7 +9,7 @@
  */
 
 /** Channels the bridge publishes on. */
-export type Channel = "telemetry" | "tick" | "command" | "video";
+export type Channel = "telemetry" | "tick" | "command" | "video" | "mission";
 
 /** Fields common to every message on any channel. */
 export interface ChannelMessage {
@@ -139,6 +139,97 @@ export interface ParamValue {
 export type CommandResponse = CommandAck | CommandProgress;
 
 /**
+ * Mission item schema, PROTOCOL.md §7.1 — field-for-field with MAVLink
+ * `MISSION_ITEM_INT` (coordinates as plain degrees/meters; the bridge handles
+ * the `int32 * 1e7` wire conversion). Unlike {@link Telemetry}, mission items
+ * are fully specified by the autopilot — no nullable-field discipline here.
+ */
+export interface MissionItem {
+  seq: number;
+  /** `MAV_FRAME`, e.g. 6 = `GLOBAL_RELATIVE_ALT_INT`. */
+  frame: number;
+  /** `MAV_CMD`, e.g. 16 = `NAV_WAYPOINT`, 22 = `NAV_TAKEOFF`. */
+  command: number;
+  current: boolean;
+  autoContinue: boolean;
+  param1: number;
+  param2: number;
+  param3: number;
+  param4: number;
+  /** Degrees. */
+  lat: number;
+  /** Degrees. */
+  lon: number;
+  /** Meters. */
+  alt: number;
+}
+
+/**
+ * Mission state snapshot/update, PROTOCOL.md §7.2 — the on-vehicle mission is
+ * state like any other channel; subscribing to `"mission"` yields this
+ * stream (full item list + the index the vehicle is currently flying to).
+ */
+export interface MissionState extends VehicleMessage {
+  channel: "mission";
+  snapshot: boolean;
+  currentSeq: number;
+  items: MissionItem[];
+}
+
+/** Upload request, PROTOCOL.md §7.2 — replaces the vehicle's mission wholesale. */
+export interface MissionUpload {
+  type: "missionUpload";
+  id: string;
+  vehicleId: number;
+  items: MissionItem[];
+}
+
+/** Download request, PROTOCOL.md §7.2 — answered by {@link MissionItems}. */
+export interface MissionDownload {
+  type: "missionDownload";
+  id: string;
+  vehicleId: number;
+}
+
+/** Clear request, PROTOCOL.md §7.2 — answered by {@link MissionAck} with `itemCount: 0`. */
+export interface MissionClear {
+  type: "missionClear";
+  id: string;
+  vehicleId: number;
+}
+
+/**
+ * Response to missionUpload/missionClear, PROTOCOL.md §7.2 — request/response
+ * keyed by `id`, same shape as {@link CommandAck}.
+ */
+export interface MissionAck {
+  type: "missionAck";
+  id: string;
+  vehicleId: number;
+  status: "accepted" | "rejected";
+  itemCount?: number;
+  /** Human-readable rejection cause; present when rejected. */
+  reason?: string;
+  /** MAV_MISSION_RESULT integer when the autopilot answered. */
+  mavResult?: number;
+}
+
+/** Response to missionDownload, PROTOCOL.md §7.2. */
+export interface MissionItems {
+  type: "missionItems";
+  id: string;
+  vehicleId: number;
+  items: MissionItem[];
+}
+
+/**
+ * Mission-lifecycle messages the bridge pushes, keyed by request id — mirrors
+ * {@link CommandResponse}; deliberately excluded from {@link BridgeMessage}
+ * since they aren't part of the channel/seq snapshot stream.
+ */
+export type MissionResponse = MissionAck | MissionItems;
+
+/**
  * Periodic bridge heartbeat, PROTOCOL.md §11.1 — sent 1 Hz after helloAck,
  * outside the channel/seq envelope (no subscription, no ordering).
  */
@@ -152,7 +243,7 @@ export interface Tick {
 }
 
 /** Any message the bridge can push to the client. */
-export type BridgeMessage = Telemetry | Tick | ParamValue;
+export type BridgeMessage = Telemetry | Tick | ParamValue | MissionState;
 
 /** Session handshake, PROTOCOL.md §1.1 — must be the first client message. */
 export interface Hello {
@@ -213,4 +304,13 @@ export interface SetParam {
 }
 
 /** Any message the client can send to the bridge. */
-export type ClientMessage = Command | Hello | Subscribe | Unsubscribe | GetParam | SetParam;
+export type ClientMessage =
+  | Command
+  | Hello
+  | Subscribe
+  | Unsubscribe
+  | GetParam
+  | SetParam
+  | MissionUpload
+  | MissionDownload
+  | MissionClear;

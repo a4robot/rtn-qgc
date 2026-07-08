@@ -1,8 +1,9 @@
 /**
  * WebBridge mock server — implements the PROTOCOL.md §12 M1 conformance set
  * (hello auth, 1 Hz tick, telemetry subscribe/stream/unsubscribe, error
- * envelope) plus a stateful `command` lifecycle (§5) and binary H.264 video
- * streaming (§9), so the web UI can be developed against a fake ghost.
+ * envelope) plus a stateful `command` lifecycle (§5), a stateful `mission`
+ * channel + upload/download/clear (§7), and binary H.264 video streaming
+ * (§9), so the web UI can be developed against a fake ghost.
  *
  * Telemetry is played back from fixtures/telemetry.json (a scripted flight,
  * one sample per second) on a global loop clock shared by all clients; the
@@ -11,6 +12,8 @@
  * per-connection playback position — see §"video fixture" below). Commands
  * are acknowledged and, for the flight-affecting actions, drive progress
  * messages and a small vehicle-state override layered on telemetry playback.
+ * The mission is a single GLOBAL served mission (like `vehicleOverride`
+ * above) — see §"mission fixture" below.
  *
  * Run: bun run mock   (listens on ws://127.0.0.1:8877/)
  */
@@ -156,6 +159,106 @@ const vehicleOverride: { armed: boolean | null } = { armed: null };
 function currentTelemetry(): TelemetryPayload {
   const base = telemetryAt(playbackTimeS());
   return vehicleOverride.armed === null ? base : { ...base, armed: vehicleOverride.armed };
+}
+
+// --- mission fixture --------------------------------------------------------
+
+/** Wire shape of a mission item, PROTOCOL.md §7.1 (MISSION_ITEM_INT field-for-field). */
+interface MissionItemPayload {
+  seq: number;
+  frame: number;
+  command: number;
+  current: boolean;
+  autoContinue: boolean;
+  param1: number;
+  param2: number;
+  param3: number;
+  param4: number;
+  lat: number;
+  lon: number;
+  alt: number;
+}
+
+/** MAV_CMD ids used below: 16 NAV_WAYPOINT, 20 NAV_RETURN_TO_LAUNCH, 22 NAV_TAKEOFF. */
+const MAV_CMD_NAV_WAYPOINT = 16;
+const MAV_CMD_NAV_RETURN_TO_LAUNCH = 20;
+const MAV_CMD_NAV_TAKEOFF = 22;
+/** MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, PROTOCOL.md §7.1's example. */
+const FRAME_GLOBAL_RELATIVE_ALT = 6;
+
+function missionItem(
+  seq: number,
+  command: number,
+  lat: number,
+  lon: number,
+  alt: number,
+): MissionItemPayload {
+  return {
+    seq,
+    frame: FRAME_GLOBAL_RELATIVE_ALT,
+    command,
+    current: seq === 0,
+    autoContinue: true,
+    param1: 0,
+    param2: 0,
+    param3: 0,
+    param4: 0,
+    lat,
+    lon,
+    alt,
+  };
+}
+
+/**
+ * Takeoff + a 5-waypoint loop + RTL around the same launch point as the
+ * telemetry fixture's orbit (13.7367, 100.5232, Bangkok). RTL's lat/lon are
+ * 0,0 — real autopilots compute the return point onboard from home, so it
+ * has no meaningful coordinate — a deliberate case for clients to filter.
+ */
+function defaultMissionItems(): MissionItemPayload[] {
+  return [
+    missionItem(0, MAV_CMD_NAV_TAKEOFF, 13.7367, 100.5232, 30),
+    missionItem(1, MAV_CMD_NAV_WAYPOINT, 13.7375, 100.5232, 30),
+    missionItem(2, MAV_CMD_NAV_WAYPOINT, 13.738, 100.524, 30),
+    missionItem(3, MAV_CMD_NAV_WAYPOINT, 13.7375, 100.5248, 30),
+    missionItem(4, MAV_CMD_NAV_WAYPOINT, 13.736, 100.5244, 30),
+    missionItem(5, MAV_CMD_NAV_WAYPOINT, 13.7358, 100.5236, 30),
+    missionItem(6, MAV_CMD_NAV_RETURN_TO_LAUNCH, 0, 0, 0),
+  ];
+}
+
+/** How often `currentSeq` advances to the next item while a mission is served, ms. */
+const MISSION_SEQ_ADVANCE_MS = 10_000;
+
+/**
+ * GLOBAL served mission (like `vehicleOverride` above) — the mock simulates
+ * exactly one vehicle, so there's exactly one served mission shared by every
+ * connected client. `loopStartMs` anchors the `currentSeq` advance clock;
+ * `version` is bumped on every upload/clear so per-connection mission
+ * streams (which poll this shared state) know to push a fresh update even
+ * if `currentSeq` itself didn't change.
+ */
+const missionState: { items: MissionItemPayload[]; loopStartMs: number; version: number } = {
+  items: defaultMissionItems(),
+  loopStartMs: Date.now(),
+  version: 0,
+};
+
+/** The item seq the vehicle is "currently flying to": advances every ~10s, looping. */
+function currentMissionSeq(): number {
+  const items = missionState.items;
+  if (items.length === 0) {
+    return 0;
+  }
+  const elapsedMs = Date.now() - missionState.loopStartMs;
+  const index = Math.floor(elapsedMs / MISSION_SEQ_ADVANCE_MS) % items.length;
+  return items[index]!.seq;
+}
+
+function replaceMission(items: MissionItemPayload[]): void {
+  missionState.items = items;
+  missionState.loopStartMs = Date.now();
+  missionState.version += 1;
 }
 
 // --- video fixture ----------------------------------------------------------
@@ -305,6 +408,14 @@ interface VideoStream {
   timer: ReturnType<typeof setInterval>;
 }
 
+/** Poll-and-diff against the GLOBAL `missionState` (see "mission fixture" above). */
+interface MissionStream {
+  seq: number;
+  timer: ReturnType<typeof setInterval>;
+  lastVersion: number;
+  lastCurrentSeq: number;
+}
+
 interface Session {
   authed: boolean;
   closed: boolean;
@@ -313,6 +424,8 @@ interface Session {
   streams: Map<string, Stream>;
   /** Active video subscriptions keyed by streamId. */
   videoStreams: Map<number, VideoStream>;
+  /** Active mission subscriptions keyed by "mission/<vehicleId>". */
+  missionStreams: Map<string, MissionStream>;
   /** Pending commandProgress timers, cleared on disconnect. */
   commandTimers: Set<ReturnType<typeof setTimeout>>;
 }
@@ -351,6 +464,13 @@ function stopVideoStreams(session: Session): void {
     clearInterval(stream.timer);
   }
   session.videoStreams.clear();
+}
+
+function stopMissionStreams(session: Session): void {
+  for (const stream of session.missionStreams.values()) {
+    clearInterval(stream.timer);
+  }
+  session.missionStreams.clear();
 }
 
 // --- message handlers ------------------------------------------------------
@@ -414,8 +534,8 @@ function checkChannelId(ws: Socket, msg: Record<string, unknown>): { id: string;
   return { id, channel: msg.channel };
 }
 
-/** Validate the telemetry-specific `vehicleId` field; reply with an error and return null if bad. */
-function checkTelemetryEnvelope(
+/** Validate the vehicle-scoped `vehicleId` field shared by telemetry/mission/command requests; reply with an error and return null if bad. */
+function checkVehicleEnvelope(
   ws: Socket,
   msg: Record<string, unknown>,
   id: string,
@@ -465,7 +585,7 @@ function sendTelemetry(ws: Socket, stream: Stream, snapshot: boolean): void {
 }
 
 function handleTelemetrySubscribe(ws: Socket, msg: Record<string, unknown>, base: { id: string }): void {
-  const req = checkTelemetryEnvelope(ws, msg, base.id);
+  const req = checkVehicleEnvelope(ws, msg, base.id);
   if (!req) {
     return;
   }
@@ -491,7 +611,7 @@ function handleTelemetrySubscribe(ws: Socket, msg: Record<string, unknown>, base
 }
 
 function handleTelemetryUnsubscribe(ws: Socket, msg: Record<string, unknown>, base: { id: string }): void {
-  const req = checkTelemetryEnvelope(ws, msg, base.id);
+  const req = checkVehicleEnvelope(ws, msg, base.id);
   if (!req) {
     return;
   }
@@ -505,6 +625,84 @@ function handleTelemetryUnsubscribe(ws: Socket, msg: Record<string, unknown>, ba
     type: "unsubscribeAck",
     id: req.id,
     channel: "telemetry",
+    vehicleId: req.vehicleId,
+  });
+}
+
+/** How often a mission stream polls the GLOBAL `missionState` for changes. */
+const MISSION_POLL_INTERVAL_MS = 500;
+
+function sendMissionState(ws: Socket, stream: MissionStream, snapshot: boolean): void {
+  const currentSeq = currentMissionSeq();
+  send(ws, {
+    type: "missionState",
+    channel: "mission",
+    vehicleId: VEHICLE_ID,
+    seq: stream.seq,
+    snapshot,
+    timeUs: nowUs(),
+    currentSeq,
+    items: missionState.items,
+  });
+  stream.seq += 1;
+  stream.lastVersion = missionState.version;
+  stream.lastCurrentSeq = currentSeq;
+}
+
+function handleMissionSubscribe(ws: Socket, msg: Record<string, unknown>, base: { id: string }): void {
+  const req = checkVehicleEnvelope(ws, msg, base.id);
+  if (!req) {
+    return;
+  }
+  const key = `mission/${req.vehicleId}`;
+
+  // Re-subscribing restarts the stream: seq back to 1 with a fresh snapshot.
+  const existing = ws.data.missionStreams.get(key);
+  if (existing) {
+    clearInterval(existing.timer);
+  }
+
+  send(ws, {
+    type: "subscribeAck",
+    id: req.id,
+    channel: "mission",
+    vehicleId: req.vehicleId,
+  });
+
+  const stream: MissionStream = {
+    seq: 1,
+    timer: 0 as unknown as ReturnType<typeof setInterval>,
+    lastVersion: missionState.version,
+    lastCurrentSeq: currentMissionSeq(),
+  };
+  sendMissionState(ws, stream, true);
+  // State-not-events: only push when something actually changed (currentSeq
+  // advanced, or the served mission was replaced by upload/clear) rather
+  // than re-sending an identical snapshot every poll tick.
+  stream.timer = setInterval(() => {
+    const currentSeq = currentMissionSeq();
+    if (currentSeq !== stream.lastCurrentSeq || missionState.version !== stream.lastVersion) {
+      sendMissionState(ws, stream, false);
+    }
+  }, MISSION_POLL_INTERVAL_MS);
+  ws.data.missionStreams.set(key, stream);
+}
+
+function handleMissionUnsubscribe(ws: Socket, msg: Record<string, unknown>, base: { id: string }): void {
+  const req = checkVehicleEnvelope(ws, msg, base.id);
+  if (!req) {
+    return;
+  }
+  const key = `mission/${req.vehicleId}`;
+  const stream = ws.data.missionStreams.get(key);
+  if (stream) {
+    clearInterval(stream.timer);
+    ws.data.missionStreams.delete(key);
+  }
+  send(ws, {
+    type: "unsubscribeAck",
+    id: req.id,
+    channel: "mission",
     vehicleId: req.vehicleId,
   });
 }
@@ -583,11 +781,15 @@ function handleSubscribe(ws: Socket, msg: Record<string, unknown>): void {
     handleTelemetrySubscribe(ws, msg, base);
     return;
   }
+  if (base.channel === "mission") {
+    handleMissionSubscribe(ws, msg, base);
+    return;
+  }
   if (base.channel === "video") {
     handleVideoSubscribe(ws, msg, base);
     return;
   }
-  // Valid protocol channels (mission, adsb), but out of scope for this mock (§12).
+  // Valid protocol channel (adsb), but out of scope for this mock (§12).
   sendError(ws, "UNKNOWN_CHANNEL", `channel ${base.channel} is not implemented by the M1 mock`, {
     id: base.id,
     retryable: true,
@@ -601,6 +803,10 @@ function handleUnsubscribe(ws: Socket, msg: Record<string, unknown>): void {
   }
   if (base.channel === "telemetry") {
     handleTelemetryUnsubscribe(ws, msg, base);
+    return;
+  }
+  if (base.channel === "mission") {
+    handleMissionUnsubscribe(ws, msg, base);
     return;
   }
   if (base.channel === "video") {
@@ -761,6 +967,91 @@ function handleCommand(ws: Socket, msg: Record<string, unknown>): void {
   }
 }
 
+/** Validate every field of a candidate mission item against PROTOCOL.md §7.1's schema. */
+function isValidMissionItem(item: unknown): item is MissionItemPayload {
+  if (typeof item !== "object" || item === null) {
+    return false;
+  }
+  const it = item as Record<string, unknown>;
+  const num = (v: unknown) => typeof v === "number" && Number.isFinite(v);
+  return (
+    num(it.seq) &&
+    num(it.frame) &&
+    num(it.command) &&
+    typeof it.current === "boolean" &&
+    typeof it.autoContinue === "boolean" &&
+    num(it.param1) &&
+    num(it.param2) &&
+    num(it.param3) &&
+    num(it.param4) &&
+    num(it.lat) &&
+    num(it.lon) &&
+    num(it.alt)
+  );
+}
+
+/**
+ * `missionUpload` (§7.2): validate envelope + every item against the §7.1
+ * schema, then replace the GLOBAL served mission wholesale. Malformed
+ * uploads (missing/wrong-typed fields on any item) are rejected with a
+ * reason and never touch `missionState`.
+ */
+function handleMissionUpload(ws: Socket, msg: Record<string, unknown>): void {
+  const id = typeof msg.id === "string" ? msg.id : undefined;
+  if (id === undefined) {
+    sendError(ws, "BAD_MESSAGE", "missionUpload requires a string id");
+    return;
+  }
+  const req = checkVehicleEnvelope(ws, msg, id);
+  if (!req) {
+    return;
+  }
+  if (!Array.isArray(msg.items) || msg.items.length === 0 || !msg.items.every(isValidMissionItem)) {
+    send(ws, {
+      type: "missionAck",
+      id,
+      vehicleId: VEHICLE_ID,
+      status: "rejected",
+      reason:
+        "malformed items: expected a non-empty array of {seq,frame,command,current,autoContinue," +
+        "param1-4,lat,lon,alt} (PROTOCOL.md §7.1)",
+    });
+    return;
+  }
+  const items = msg.items as MissionItemPayload[];
+  replaceMission(items.map((item) => ({ ...item })));
+  send(ws, { type: "missionAck", id, vehicleId: VEHICLE_ID, status: "accepted", itemCount: items.length });
+}
+
+/** `missionDownload` (§7.2): answer with the GLOBAL served mission's current items. */
+function handleMissionDownload(ws: Socket, msg: Record<string, unknown>): void {
+  const id = typeof msg.id === "string" ? msg.id : undefined;
+  if (id === undefined) {
+    sendError(ws, "BAD_MESSAGE", "missionDownload requires a string id");
+    return;
+  }
+  const req = checkVehicleEnvelope(ws, msg, id);
+  if (!req) {
+    return;
+  }
+  send(ws, { type: "missionItems", id, vehicleId: VEHICLE_ID, items: missionState.items });
+}
+
+/** `missionClear` (§7.2): empty the GLOBAL served mission, ack with itemCount 0. */
+function handleMissionClear(ws: Socket, msg: Record<string, unknown>): void {
+  const id = typeof msg.id === "string" ? msg.id : undefined;
+  if (id === undefined) {
+    sendError(ws, "BAD_MESSAGE", "missionClear requires a string id");
+    return;
+  }
+  const req = checkVehicleEnvelope(ws, msg, id);
+  if (!req) {
+    return;
+  }
+  replaceMission([]);
+  send(ws, { type: "missionAck", id, vehicleId: VEHICLE_ID, status: "accepted", itemCount: 0 });
+}
+
 function handleMessage(ws: Socket, raw: string | Buffer): void {
   let msg: unknown;
   if (typeof raw === "string") {
@@ -808,6 +1099,15 @@ function handleMessage(ws: Socket, raw: string | Buffer): void {
     case "command":
       handleCommand(ws, parsed);
       break;
+    case "missionUpload":
+      handleMissionUpload(ws, parsed);
+      break;
+    case "missionDownload":
+      handleMissionDownload(ws, parsed);
+      break;
+    case "missionClear":
+      handleMissionClear(ws, parsed);
+      break;
     default:
       sendError(ws, "UNKNOWN_TYPE", `unrecognized type: ${parsed.type}`, {
         ...(typeof parsed.id === "string" ? { id: parsed.id } : {}),
@@ -827,6 +1127,7 @@ const server = Bun.serve<Session, never>({
       tickTimer: null,
       streams: new Map(),
       videoStreams: new Map(),
+      missionStreams: new Map(),
       commandTimers: new Set(),
     };
     if (srv.upgrade(req, { data: session })) {
@@ -846,6 +1147,7 @@ const server = Bun.serve<Session, never>({
       }
       stopStreams(ws.data);
       stopVideoStreams(ws.data);
+      stopMissionStreams(ws.data);
       for (const timer of ws.data.commandTimers) {
         clearTimeout(timer);
       }

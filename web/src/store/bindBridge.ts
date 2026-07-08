@@ -6,6 +6,7 @@
  *  - connection state changes  → connectionStore.setState
  *  - "tick"                    → connectionStore.applyTick + vehicleStore.syncVehicleIds
  *  - "telemetry"               → vehicleStore.applyTelemetry
+ *  - "mission"                  → missionStore.applyMissionState
  *  - seq gaps                  → connectionStore.recordSeqGap
  */
 
@@ -13,6 +14,7 @@ import type { BridgeClient } from "../bridge/BridgeClient.ts";
 import { useConnectionStore } from "./connectionStore.ts";
 import { useVehicleStore } from "./vehicleStore.ts";
 import { useParamStore } from "./paramStore.ts";
+import { useMissionStore } from "./missionStore.ts";
 
 /**
  * Subscribe the stores to a BridgeClient. Returns a cleanup function that
@@ -22,6 +24,7 @@ export function bindBridgeToStores(client: BridgeClient): () => void {
   const connection = useConnectionStore.getState();
   const vehicles = useVehicleStore.getState();
   const params = useParamStore.getState();
+  const missions = useMissionStore.getState();
 
   // Reflect the client's current state immediately; onStateChange only
   // fires on transitions.
@@ -49,6 +52,18 @@ export function bindBridgeToStores(client: BridgeClient): () => void {
         return;
       }
       vehicles.applyTelemetry(message);
+    }),
+
+    client.subscribe("mission", (message) => {
+      if (!("channel" in message) || message.channel !== "mission") {
+        return;
+      }
+      // subscribeAck also rides the mission channel — only missionState
+      // snapshots (they alone carry `items`) belong in the store.
+      if (!("items" in message) || !Array.isArray(message.items)) {
+        return;
+      }
+      missions.applyMissionState(message);
     }),
 
     client.onParamValue((message) => {
