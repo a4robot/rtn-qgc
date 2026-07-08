@@ -1,0 +1,102 @@
+/**
+ * Slide-to-confirm control. Colors fall back to the app's dark palette
+ * (app.css :root) so the control looks right even outside actions-panel's
+ * --status-* scope; actions.css's --status-critical/--status-ok values take
+ * over automatically when nested inside .actions-panel.
+ */
+
+.slider-root {
+  --slider-accent: var(--accent, #2f81f7);
+  --slider-danger: var(--status-critical, #f85149);
+
+  display: block;
+  width: 100%;
+  outline: none;
+  border-radius: 16px;
+}
+
+.slider-root:focus-visible .slider-track {
+  box-shadow: 0 0 0 2px var(--slider-accent);
+}
+
+.slider-root--danger:focus-visible .slider-track {
+  box-shadow: 0 0 0 2px var(--slider-danger);
+}
+
+.slider-root--disabled {
+  pointer-events: none;
+  opacity: 0.45;
+}
+
+.slider-track {
+  position: relative;
+  height: 32px;
+  border-radius: 16px;
+  border: 1px solid var(--border, #30363d);
+  background: var(--bg, #0d1117);
+  overflow: hidden;
+  user-select: none;
+  touch-action: none;
+}
+
+.slider-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: color-mix(in srgb, var(--slider-accent) 22%, transparent);
+  transition: width 0.12s ease;
+  pointer-events: none;
+}
+
+.slider-root--danger .slider-fill {
+  background: color-mix(in srgb, var(--slider-danger) 22%, transparent);
+}
+
+.slider-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--fg-dim, #8b949e);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.slider-thumb {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  width: 28px;
+  height: 26px;
+  border-radius: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--slider-accent);
+  color: #0d1117;
+  font-weight: 700;
+  cursor: grab;
+  touch-action: none;
+  will-change: left;
+}
+
+.slider-root--danger .slider-thumb {
+  background: var(--slider-danger);
+}
+
+.slider-thumb--snapping {
+  transition: left 0.2s ease;
+}
+
+.slider-root--dragging .slider-thumb,
+.slider-root--holding .slider-thumb {
+  cursor: grabbing;
+}
+
+.slider-root--disabled .slider-thumb {
+  cursor: not-allowed;
+}

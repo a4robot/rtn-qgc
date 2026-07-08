@@ -4,8 +4,10 @@
  *
  * Each button sends a `command` through the bridge client and tracks its
  * lifecycle (pending -> accepted|rejected, plus streamed progress) via
- * `useCommandRequests`. Destructive actions (arm, takeoff, land, rtl)
- * require a two-step press-then-confirm within a 3s window.
+ * `useCommandRequests`. Destructive actions (arm, disarm-while-armed,
+ * takeoff, land, rtl) require a slide-to-confirm gesture (`Slider`, see
+ * ../guided/Slider.tsx) instead of a plain click; PAUSE is non-destructive
+ * and stays a plain button.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -13,11 +15,10 @@ import { useCallback, useEffect, useState } from "react";
 import type { BridgeClient } from "../../bridge/BridgeClient.ts";
 import type { CommandAction } from "../../bridge/types.ts";
 import { useConnection, useVehicle } from "../../store/index.ts";
+import { Slider } from "../guided/Slider.tsx";
 import { latestRequestForAction, useCommandRequests, type CommandRequestState } from "./useCommandRequests.ts";
 import "./actions.css";
 
-/** How long a press-to-confirm stays armed before it must be re-pressed. */
-const CONFIRM_WINDOW_MS = 3000;
 /** How long the "not connected" note stays visible after a dropped send. */
 const NOT_CONNECTED_NOTE_MS = 2500;
 
@@ -34,18 +35,7 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
   const { requests, send } = useCommandRequests(client);
 
   const [altitude, setAltitude] = useState(DEFAULT_TAKEOFF_ALT_M);
-  const [confirming, setConfirming] = useState<{ action: CommandAction; expiresAtMs: number } | null>(null);
   const [notConnectedNote, setNotConnectedNote] = useState(false);
-
-  // Auto-drop the confirm state once its window elapses.
-  useEffect(() => {
-    if (!confirming) {
-      return;
-    }
-    const remainingMs = Math.max(confirming.expiresAtMs - Date.now(), 0);
-    const timer = setTimeout(() => setConfirming(null), remainingMs);
-    return () => clearTimeout(timer);
-  }, [confirming]);
 
   // Auto-clear the "not connected" note.
   useEffect(() => {
@@ -66,23 +56,6 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
       }
     },
     [send, vehicleId],
-  );
-
-  const handlePress = useCallback(
-    (action: CommandAction, destructive: boolean, params?: Record<string, string | number | boolean>) => {
-      if (!destructive) {
-        dispatchCommand(action, params);
-        return;
-      }
-      const isConfirmed = confirming?.action === action && confirming.expiresAtMs > Date.now();
-      if (isConfirmed) {
-        setConfirming(null);
-        dispatchCommand(action, params);
-      } else {
-        setConfirming({ action, expiresAtMs: Date.now() + CONFIRM_WINDOW_MS });
-      }
-    },
-    [confirming, dispatchCommand],
   );
 
   if (!vehicle) {
@@ -106,18 +79,19 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
         {armed ? (
           <ActionButton
             label="DISARM"
+            danger
             disabled={!ready}
             request={latestRequestForAction(requests, "disarm")}
-            onClick={() => handlePress("disarm", false)}
+            onClick={() => dispatchCommand("disarm")}
           />
         ) : (
           <ActionButton
             label="ARM"
             tone="critical"
+            danger
             disabled={!ready}
-            confirming={confirming?.action === "arm"}
             request={latestRequestForAction(requests, "arm")}
-            onClick={() => handlePress("arm", true)}
+            onClick={() => dispatchCommand("arm")}
           />
         )}
 
@@ -139,35 +113,35 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
             label="TAKEOFF"
             tone="accent"
             disabled={!ready || !armed}
-            confirming={confirming?.action === "takeoff"}
             request={latestRequestForAction(requests, "takeoff")}
-            onClick={() => handlePress("takeoff", true, { alt: altitude })}
+            onClick={() => dispatchCommand("takeoff", { alt: altitude })}
           />
         </div>
 
         <ActionButton
           label="LAND"
           tone="critical"
+          danger
           disabled={!ready || !armed}
-          confirming={confirming?.action === "land"}
           request={latestRequestForAction(requests, "land")}
-          onClick={() => handlePress("land", true)}
+          onClick={() => dispatchCommand("land")}
         />
 
         <ActionButton
           label="RTL"
           tone="critical"
+          danger
           disabled={!ready || !armed}
-          confirming={confirming?.action === "rtl"}
           request={latestRequestForAction(requests, "rtl")}
-          onClick={() => handlePress("rtl", true)}
+          onClick={() => dispatchCommand("rtl")}
         />
 
         <ActionButton
           label="PAUSE"
+          plain
           disabled={!ready || !armed}
           request={latestRequestForAction(requests, "pause")}
-          onClick={() => handlePress("pause", false)}
+          onClick={() => dispatchCommand("pause")}
         />
       </div>
     </div>
@@ -179,15 +153,17 @@ interface ActionButtonProps {
   onClick: () => void;
   disabled?: boolean;
   tone?: "accent" | "critical";
-  confirming?: boolean;
+  /** Tints the slider red and requires the full slide gesture. */
+  danger?: boolean;
+  /** Non-destructive actions (PAUSE) keep the plain click button. */
+  plain?: boolean;
   request?: CommandRequestState;
 }
 
-function ActionButton({ label, onClick, disabled, tone, confirming, request }: ActionButtonProps) {
+function ActionButton({ label, onClick, disabled, tone, danger, plain, request }: ActionButtonProps) {
   const pending = request?.phase === "pending";
-  const phaseClass = confirming
-    ? "actions-button--confirm"
-    : request?.phase === "accepted"
+  const phaseClass =
+    request?.phase === "accepted"
       ? "actions-button--accepted"
       : request?.phase === "rejected"
         ? "actions-button--rejected"
@@ -199,15 +175,34 @@ function ActionButton({ label, onClick, disabled, tone, confirming, request }: A
 
   return (
     <div className="actions-tile">
-      <button
-        type="button"
-        className={`actions-button ${phaseClass}`.trim()}
-        disabled={disabled || pending}
-        onClick={onClick}
-      >
-        {pending && <span className="actions-spinner" aria-hidden="true" />}
-        {confirming ? `Confirm ${label}?` : label}
-      </button>
+      {plain ? (
+        <button
+          type="button"
+          className={`actions-button ${phaseClass}`.trim()}
+          disabled={disabled || pending}
+          onClick={onClick}
+        >
+          {pending && <span className="actions-spinner" aria-hidden="true" />}
+          {label}
+        </button>
+      ) : (
+        <div className="actions-slider-slot">
+          <Slider
+            label={label}
+            onConfirm={onClick}
+            disabled={disabled || pending}
+            danger={danger}
+            className={
+              request?.phase === "accepted"
+                ? "actions-slider--accepted"
+                : request?.phase === "rejected"
+                  ? "actions-slider--rejected"
+                  : undefined
+            }
+          />
+          {pending && <span className="actions-spinner actions-spinner--overlay" aria-hidden="true" />}
+        </div>
+      )}
       {request?.phase === "rejected" && request.reason && (
         <span className="actions-reason" role="alert">
           {request.reason}

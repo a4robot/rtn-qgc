@@ -117,12 +117,6 @@
   cursor: wait;
 }
 
-.actions-button--confirm {
-  background: rgba(210, 153, 34, 0.15);
-  border-color: var(--status-warn);
-  color: var(--status-warn);
-}
-
 .actions-button--accepted {
   background: rgba(63, 185, 80, 0.18);
   border-color: var(--status-ok);
@@ -143,6 +137,29 @@
   border-top-color: transparent;
   animation: actions-spin 0.7s linear infinite;
   flex: none;
+}
+
+.actions-slider-slot {
+  position: relative;
+}
+
+.actions-spinner--overlay {
+  position: absolute;
+  top: 50%;
+  left: 0.5rem;
+  transform: translateY(-50%);
+  color: var(--fg-dim);
+  z-index: 1;
+}
+
+.actions-slider--accepted .slider-track {
+  border-color: var(--status-ok);
+  background: rgba(63, 185, 80, 0.18);
+}
+
+.actions-slider--rejected .slider-track {
+  border-color: var(--status-critical);
+  background: rgba(248, 81, 73, 0.18);
 }
 
 @keyframes actions-spin {
