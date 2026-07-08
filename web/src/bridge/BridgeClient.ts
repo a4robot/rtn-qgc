@@ -7,8 +7,13 @@
  * Responsibilities:
  *  - connect/reconnect with exponential backoff
  *  - fan incoming channel messages out to subscribers
- *  - detect per-channel seq gaps (stub: logs + notifies; recovery is
- *    "ask bridge for fresh snapshot", to be implemented with the protocol)
+ *  - liveness watchdog (PROTOCOL.md §11.1): any message (of any kind) resets
+ *    a 5s timer while connected; silence past that forces the socket closed
+ *    and lets the normal reconnect path take over
+ *  - detect per-channel seq gaps (PROTOCOL.md §2.4) and notify via
+ *    `onResubscribeNeeded` — the client doesn't know subscribe payloads
+ *    (vehicleId/streamId live in the session layer), so it only signals
+ *    *which* channel needs a fresh subscribe; the caller re-sends it
  */
 
 import type {
@@ -31,6 +36,13 @@ export type CommandResponseHandler = (message: CommandResponse) => void;
 export type ParamValueHandler = (message: ParamValue) => void;
 export type StateHandler = (state: ConnectionState) => void;
 export type SeqGapHandler = (gap: SeqGap) => void;
+/**
+ * Fired when a channel needs a fresh subscribe (seq gap, PROTOCOL.md §2.4).
+ * The client only knows *which* channel gapped — it has no idea what
+ * vehicleId/streamId payload the subscribe needs, so the session layer
+ * (which owns that) is expected to re-send the appropriate subscribe(s).
+ */
+export type ResubscribeHandler = (channel: Channel) => void;
 /** Raw binary WS frame (video, PROTOCOL.md §9.2) — undecoded, header and all. */
 export type BinaryFrameHandler = (data: ArrayBuffer) => void;
 
@@ -47,6 +59,17 @@ export interface BridgeClientOptions {
   reconnectMaxDelayMs?: number;
   /** Multiplier applied to the delay after each failed attempt. Default 2. */
   reconnectBackoffFactor?: number;
+  /**
+   * Liveness watchdog timeout in ms (PROTOCOL.md §11.1: "no message of any
+   * kind for 5 s" => dead connection). Default 5_000.
+   */
+  livenessTimeoutMs?: number;
+  /**
+   * How long a channel's resubscribe-needed signal stays debounced: once
+   * fired, further gaps on the same channel are suppressed until either a
+   * fresh snapshot (seq 1) arrives or this much time passes. Default 2_000.
+   */
+  resubscribeDebounceMs?: number;
 }
 
 export class BridgeClient {
@@ -60,10 +83,18 @@ export class BridgeClient {
   private readonly baseDelayMs: number;
   private readonly maxDelayMs: number;
   private readonly backoffFactor: number;
+  private readonly livenessTimeoutMs: number;
+  private readonly resubscribeDebounceMs: number;
+
+  /** §11.1 liveness watchdog: reset by any incoming message while connected. */
+  private livenessTimer: ReturnType<typeof setTimeout> | null = null;
+  /** §2.4 per-channel debounce: one resubscribe signal in flight at a time. */
+  private readonly resubscribePending = new Map<Channel, ReturnType<typeof setTimeout>>();
 
   private readonly subscribers = new Map<Channel, Set<MessageHandler>>();
   private readonly stateHandlers = new Set<StateHandler>();
   private readonly seqGapHandlers = new Set<SeqGapHandler>();
+  private readonly resubscribeHandlers = new Set<ResubscribeHandler>();
   private readonly commandResponseHandlers = new Set<CommandResponseHandler>();
   private readonly paramValueHandlers = new Set<ParamValueHandler>();
   private readonly binaryFrameHandlers = new Set<BinaryFrameHandler>();
@@ -73,6 +104,8 @@ export class BridgeClient {
     this.baseDelayMs = options.reconnectBaseDelayMs ?? 500;
     this.maxDelayMs = options.reconnectMaxDelayMs ?? 10_000;
     this.backoffFactor = options.reconnectBackoffFactor ?? 2;
+    this.livenessTimeoutMs = options.livenessTimeoutMs ?? 5_000;
+    this.resubscribeDebounceMs = options.resubscribeDebounceMs ?? 2_000;
   }
 
   get connectionState(): ConnectionState {
@@ -93,6 +126,7 @@ export class BridgeClient {
     this.intentionalClose = true;
     this.clearReconnectTimer();
     this.closeSocket();
+    this.clearAllResubscribePending();
     this.setState("disconnected");
   }
 
@@ -135,11 +169,26 @@ export class BridgeClient {
     };
   }
 
-  /** Observe detected seq gaps. Returns an unsubscribe function. */
+  /** Observe detected seq gaps (observability only). Returns an unsubscribe function. */
   onSeqGap(callback: SeqGapHandler): () => void {
     this.seqGapHandlers.add(callback);
     return () => {
       this.seqGapHandlers.delete(callback);
+    };
+  }
+
+  /**
+   * Observe channels that need a fresh subscribe after a seq gap (§2.4).
+   * The client has no knowledge of subscribe payloads (vehicleId/streamId
+   * live in the session layer) — this only says *which* channel gapped.
+   * Debounced per channel: fires once per gap "episode" (see
+   * {@link BridgeClientOptions.resubscribeDebounceMs}). Returns an
+   * unsubscribe function.
+   */
+  onResubscribeNeeded(callback: ResubscribeHandler): () => void {
+    this.resubscribeHandlers.add(callback);
+    return () => {
+      this.resubscribeHandlers.delete(callback);
     };
   }
 
@@ -190,13 +239,18 @@ export class BridgeClient {
       this.reconnectAttempts = 0;
       // Fresh session: seq numbering restarts on the bridge side.
       this.lastSeqByChannel.clear();
+      this.clearAllResubscribePending();
       this.setState("connected");
+      this.armLivenessTimer();
     };
 
     socket.onmessage = (event: MessageEvent) => {
       if (socket !== this.socket) {
         return;
       }
+      // §11.1: ANY message (parseable or not, text or binary) counts as
+      // liveness — reset the watchdog before we even look at the payload.
+      this.armLivenessTimer();
       this.handleRawMessage(event.data);
     };
 
@@ -205,6 +259,7 @@ export class BridgeClient {
         return;
       }
       this.socket = null;
+      this.clearLivenessTimer();
       if (this.intentionalClose) {
         this.setState("disconnected");
         return;
@@ -218,6 +273,7 @@ export class BridgeClient {
   }
 
   private closeSocket(): void {
+    this.clearLivenessTimer();
     if (this.socket) {
       const socket = this.socket;
       this.socket = null;
@@ -227,6 +283,40 @@ export class BridgeClient {
       socket.onerror = null;
       socket.close();
     }
+  }
+
+  /**
+   * §11.1 liveness: (re)arm the "dead connection" timer. Called on connect
+   * and on every incoming message; a fresh timer replaces any pending one.
+   */
+  private armLivenessTimer(): void {
+    if (this.livenessTimer !== null) {
+      clearTimeout(this.livenessTimer);
+    }
+    this.livenessTimer = setTimeout(() => {
+      this.livenessTimer = null;
+      this.handleLivenessTimeout();
+    }, this.livenessTimeoutMs);
+  }
+
+  private clearLivenessTimer(): void {
+    if (this.livenessTimer !== null) {
+      clearTimeout(this.livenessTimer);
+      this.livenessTimer = null;
+    }
+  }
+
+  /**
+   * §11.1: no message of any kind for `livenessTimeoutMs` — the connection
+   * is considered dead. Force-close the socket (without marking this an
+   * intentional close) so `onclose` runs the normal reconnect path, which
+   * re-runs the session's hello+subscribe handshake.
+   */
+  private handleLivenessTimeout(): void {
+    console.warn(
+      `[BridgeClient] no messages for ${this.livenessTimeoutMs}ms; treating connection as dead`,
+    );
+    this.socket?.close();
   }
 
   private scheduleReconnect(): void {
@@ -314,17 +404,20 @@ export class BridgeClient {
   }
 
   /**
-   * Seq-gap detection (stub).
+   * Seq-gap detection (PROTOCOL.md §2.4).
    *
-   * State-not-events protocol: a gap never requires replay — the next
-   * snapshot supersedes anything missed. For now we just record and notify;
-   * later this will trigger an explicit snapshot request to the bridge.
+   * State-not-events protocol: a gap never requires replay — a fresh
+   * subscribe/snapshot supersedes anything missed. On a gap we notify
+   * observers (`onSeqGap`) and signal `onResubscribeNeeded` so the layer
+   * that owns subscribe payloads (session) can re-subscribe the channel.
    */
   private checkSeq(channel: Channel, seq: number): void {
     const last = this.lastSeqByChannel.get(channel);
     // §2.4: seq restarts at 1 on (re)subscribe — a fresh stream, not a gap.
     if (seq === 1) {
       this.lastSeqByChannel.set(channel, seq);
+      // The resubscribe we asked for (or an independent one) landed.
+      this.clearResubscribePending(channel);
       return;
     }
     if (last !== undefined && seq !== last + 1) {
@@ -339,9 +432,42 @@ export class BridgeClient {
       for (const handler of this.seqGapHandlers) {
         handler(gap);
       }
-      // TODO(W0b): request a fresh snapshot for this channel from the bridge.
+      this.requestResubscribe(channel);
     }
     this.lastSeqByChannel.set(channel, seq);
+  }
+
+  /**
+   * Fire `onResubscribeNeeded` for `channel`, debounced: once fired, further
+   * calls are suppressed until either a fresh snapshot (seq 1) arrives via
+   * {@link checkSeq} or `resubscribeDebounceMs` passes, whichever is first.
+   */
+  private requestResubscribe(channel: Channel): void {
+    if (this.resubscribePending.has(channel)) {
+      return; // already in flight — wait for seq 1 or the debounce window
+    }
+    const timer = setTimeout(() => {
+      this.resubscribePending.delete(channel);
+    }, this.resubscribeDebounceMs);
+    this.resubscribePending.set(channel, timer);
+    for (const handler of this.resubscribeHandlers) {
+      handler(channel);
+    }
+  }
+
+  private clearResubscribePending(channel: Channel): void {
+    const timer = this.resubscribePending.get(channel);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      this.resubscribePending.delete(channel);
+    }
+  }
+
+  private clearAllResubscribePending(): void {
+    for (const timer of this.resubscribePending.values()) {
+      clearTimeout(timer);
+    }
+    this.resubscribePending.clear();
   }
 
   private dispatch(key: Channel, message: BridgeMessage): void {

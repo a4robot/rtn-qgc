@@ -5,15 +5,31 @@
  * the subscribe may ride directly behind the hello without awaiting the ack;
  * per §2.4 each (re)subscribe restarts that stream's seq at 1, which the
  * client's own seq-gap tracking already treats as a fresh stream.
+ *
+ * Multi-vehicle: the session tracks one "active" vehicle at a time for the
+ * telemetry channel (video streams are vehicle-agnostic camera feeds and are
+ * unaffected by vehicle switches). `setVehicle` on the returned handle moves
+ * the active vehicle, unsubscribing the old telemetry stream and subscribing
+ * the new one per PROTOCOL.md §2.2/§3.1 (`{ type: "unsubscribe", channel:
+ * "telemetry", vehicleId }` then a fresh `subscribe`). On (re)connect the
+ * handshake always (re)subscribes whatever vehicle is active at that moment.
+ *
+ * Seq-gap recovery (§2.4): BridgeClient can't know subscribe payloads (it
+ * has no idea about vehicleId/streamId), so it only signals *which* channel
+ * gapped via `onResubscribeNeeded`. This module owns the payloads, so it
+ * re-sends the appropriate subscribe(s): telemetry → the current active
+ * vehicle; video → every stream this session subscribes to (the client
+ * can't distinguish which streamId gapped since video seq tracking is keyed
+ * by channel only, so all subscribed streams are refreshed).
  */
 
-import type { BridgeClient } from "./BridgeClient.ts";
+import type { BridgeClient, ConnectionState } from "./BridgeClient.ts";
 
 export interface BridgeSessionOptions {
   /** Bridge websocket URL. Default: the mock/ghost port on localhost. */
   url?: string;
-  /** Vehicle whose telemetry stream to subscribe. Default 1. */
-  vehicleId?: number;
+  /** Vehicle whose telemetry stream to subscribe first. Default 1. */
+  initialVehicleId?: number;
   /**
    * Video streams to subscribe to (§9.1), by numeric streamId — see the
    * type-level note on `Subscribe.streamId` in ./types.ts for why this is a
@@ -24,50 +40,158 @@ export interface BridgeSessionOptions {
   videoStreamIds?: number[];
 }
 
+/** Handle returned by {@link startBridgeSession} for driving the live session. */
+export interface BridgeSessionHandle {
+  /**
+   * Switch the active vehicle. No-op if `id` is already active. If currently
+   * connected, immediately unsubscribes the previous vehicle's telemetry
+   * stream and subscribes the new one (fresh seq per §2.4). If not
+   * connected, only updates the active id — the next connect handshake
+   * subscribes it.
+   */
+  setVehicle(id: number): void;
+  /** Unbind the state handler and disconnect the client. */
+  stop(): void;
+}
+
 const DEFAULT_URL = "ws://127.0.0.1:8877";
 
 /**
- * Connect and keep the session subscribed across reconnects.
- * Returns a cleanup that unbinds the handler and disconnects the client.
+ * Pure switch decision, extracted so the branching is unit-testable without
+ * a real BridgeClient/WebSocket: given the currently active vehicle, the
+ * requested vehicle, and the live connection state, decide whether the
+ * active id actually changes and whether an immediate resubscribe is needed
+ * (vs. deferring to the next connect handshake).
+ */
+export function planVehicleSwitch(
+  currentVehicleId: number,
+  nextVehicleId: number,
+  connectionState: ConnectionState,
+): { changed: boolean; resubscribeNow: boolean } {
+  const changed = nextVehicleId !== currentVehicleId;
+  return { changed, resubscribeNow: changed && connectionState === "connected" };
+}
+
+/**
+ * Connect and keep the session subscribed across reconnects, tracking one
+ * active vehicle for the telemetry channel.
  */
 export function startBridgeSession(
   client: BridgeClient,
   options: BridgeSessionOptions = {},
-): () => void {
-  const vehicleId = options.vehicleId ?? 1;
-  let handshakeSeq = 0;
+): BridgeSessionHandle {
+  let activeVehicleId = options.initialVehicleId ?? 1;
+  let msgSeq = 0;
+  const nextId = (prefix: string) => `${prefix}-${++msgSeq}`;
+
+  function subscribeTelemetry(vehicleId: number): void {
+    client.send({
+      type: "subscribe",
+      id: nextId("sub-telemetry"),
+      channel: "telemetry",
+      vehicleId,
+    });
+  }
+
+  function unsubscribeTelemetry(vehicleId: number): void {
+    client.send({
+      type: "unsubscribe",
+      id: nextId("unsub-telemetry"),
+      channel: "telemetry",
+      vehicleId,
+    });
+  }
+
+  // Mission is vehicle-scoped like telemetry (§7): same subscribe lifecycle.
+  function subscribeMission(vehicleId: number): void {
+    client.send({
+      type: "subscribe",
+      id: nextId("sub-mission"),
+      channel: "mission",
+      vehicleId,
+    });
+  }
+
+  function unsubscribeMission(vehicleId: number): void {
+    client.send({
+      type: "unsubscribe",
+      id: nextId("unsub-mission"),
+      channel: "mission",
+      vehicleId,
+    });
+  }
+
+  function subscribeVideo(streamId: number): void {
+    client.send({
+      type: "subscribe",
+      id: nextId(`sub-video-${streamId}`),
+      channel: "video",
+      streamId,
+    });
+  }
 
   const unbindState = client.onStateChange((state) => {
     if (state !== "connected") {
       return;
     }
-    handshakeSeq += 1;
     client.send({
       type: "hello",
-      id: `hello-${handshakeSeq}`,
+      id: nextId("hello"),
       token: "dev",
       protocolVersion: "0.1",
     });
-    client.send({
-      type: "subscribe",
-      id: `sub-telemetry-${handshakeSeq}`,
-      channel: "telemetry",
-      vehicleId,
-    });
+    subscribeTelemetry(activeVehicleId);
+    subscribeMission(activeVehicleId);
     for (const streamId of options.videoStreamIds ?? []) {
-      client.send({
-        type: "subscribe",
-        id: `sub-video-${streamId}-${handshakeSeq}`,
-        channel: "video",
-        streamId,
-      });
+      subscribeVideo(streamId);
+    }
+  });
+
+  // §2.4: on a detected seq gap, re-subscribe the channel that gapped with
+  // a fresh id. The client only tells us *which* channel — this is the one
+  // place that knows the vehicleId/streamId payloads to re-send.
+  const unbindResubscribe = client.onResubscribeNeeded((channel) => {
+    if (channel === "telemetry") {
+      subscribeTelemetry(activeVehicleId);
+      return;
+    }
+    if (channel === "mission") {
+      subscribeMission(activeVehicleId);
+      return;
+    }
+    if (channel === "video") {
+      for (const streamId of options.videoStreamIds ?? []) {
+        subscribeVideo(streamId);
+      }
     }
   });
 
   client.connect(options.url ?? DEFAULT_URL);
 
-  return () => {
-    unbindState();
-    client.disconnect();
+  return {
+    setVehicle(id: number): void {
+      const previousVehicleId = activeVehicleId;
+      const { changed, resubscribeNow } = planVehicleSwitch(
+        previousVehicleId,
+        id,
+        client.connectionState,
+      );
+      if (!changed) {
+        return;
+      }
+      activeVehicleId = id;
+      if (resubscribeNow) {
+        unsubscribeTelemetry(previousVehicleId);
+        unsubscribeMission(previousVehicleId);
+        subscribeTelemetry(id);
+        subscribeMission(id);
+      }
+      // else: not connected — the next connect handshake subscribes `id`.
+    },
+    stop(): void {
+      unbindState();
+      unbindResubscribe();
+      client.disconnect();
+    },
   };
 }
