@@ -9,6 +9,8 @@
  */
 
 const URL_ = `ws://127.0.0.1:${process.env.MOCK_PORT ?? 8877}/`;
+/** Mirrors server.ts's own check — selftest spawns the server with the same env/argv, so this must match. */
+const FIXTURE_MODE = process.env.MOCK_FIXTURE === "1" || process.argv.includes("--fixture");
 
 let passed = 0;
 let failed = 0;
@@ -397,8 +399,11 @@ async function main(): Promise<void> {
   await conn.next("video unsubscribeAck (stream 2)", (m) => m.type === "unsubscribeAck" && m.id === "v4");
 
   // --- mission channel (PROTOCOL.md §7): subscribe -> snapshot with the
-  // default fixture mission (takeoff + 5 waypoints + RTL, seq 0..6).
+  // initial served mission — default (takeoff + 5 waypoints + RTL, seq 0..6,
+  // 7 items) or, in fixture mode, the survey mission (takeoff + 4 survey
+  // waypoints + RTL, seq 0..5, 6 items).
   const isMissionState = (m: Record<string, unknown>) => m.type === "missionState";
+  const expectedInitialItemCount = FIXTURE_MODE ? 6 : 7;
   conn.send({ type: "subscribe", id: "mi1", channel: "mission", vehicleId: 1 });
   const missionSubAck = await conn.next("mission subscribeAck", (m) => m.type === "subscribeAck" && m.id === "mi1");
   check(
@@ -409,8 +414,10 @@ async function main(): Promise<void> {
   const missionSnapshot = await conn.next("mission snapshot", isMissionState);
   const missionItems0 = missionSnapshot.items as Record<string, unknown>[];
   check(
-    "mission snapshot has seq 1 + snapshot true + 7 fixture items",
-    missionSnapshot.seq === 1 && missionSnapshot.snapshot === true && missionItems0.length === 7,
+    `mission snapshot has seq 1 + snapshot true + ${expectedInitialItemCount} fixture items`,
+    missionSnapshot.seq === 1 &&
+      missionSnapshot.snapshot === true &&
+      missionItems0.length === expectedInitialItemCount,
     { seq: missionSnapshot.seq, snapshot: missionSnapshot.snapshot, itemCount: missionItems0.length },
   );
   check(

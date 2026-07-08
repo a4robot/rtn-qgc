@@ -15,12 +15,24 @@
  * The mission is a single GLOBAL served mission (like `vehicleOverride`
  * above) — see §"mission fixture" below.
  *
+ * Opt-in fixture mode (`MOCK_FIXTURE=1` or `--fixture`, see §"fixture mode"
+ * below) swaps both the telemetry loop and the initial served mission for a
+ * recorded-style survey flight (fixtures/telemetry-survey.json +
+ * fixtures/mission-survey.json) instead of the default orbit flight. Without
+ * the flag, behavior is unchanged.
+ *
  * Run: bun run mock   (listens on ws://127.0.0.1:8877/)
+ *      MOCK_FIXTURE=1 bun run mock   (survey flight fixture instead)
  */
 
 import type { ServerWebSocket } from "bun";
 
 import fixture from "./fixtures/telemetry.json";
+import surveyFixture from "./fixtures/telemetry-survey.json";
+import surveyMission from "./fixtures/mission-survey.json";
+
+/** `MOCK_FIXTURE=1` env var or `--fixture` CLI flag — see §"fixture mode" below. */
+const FIXTURE_MODE = process.env.MOCK_FIXTURE === "1" || process.argv.includes("--fixture");
 
 const HOSTNAME = "127.0.0.1";
 const PORT = Number(process.env.MOCK_PORT ?? 8877);
@@ -69,7 +81,36 @@ interface Fixture {
   samples: FixtureSample[];
 }
 
-const FLIGHT = fixture as Fixture;
+/**
+ * Wire shape of a "recorded-style" fixture (§"fixture mode" below): a flat
+ * rate plus plain §4 leaf sets, no per-sample `t`. `telemetryAt`/`lerp` below
+ * only understand the `{ loopS, samples: FixtureSample[] }` shape above, so
+ * `normalizeRecordedFixture` derives `t` (and `loopS`) from `rateHz` once at
+ * startup rather than teaching the interpolation code two sample shapes.
+ */
+interface RecordedFixture {
+  description: string;
+  rateHz: number;
+  samples: TelemetryPayload[];
+}
+
+function normalizeRecordedFixture(f: RecordedFixture): Fixture {
+  const dtS = 1 / f.rateHz;
+  return {
+    description: f.description,
+    loopS: f.samples.length * dtS,
+    samples: f.samples.map((sample, i) => ({ ...sample, t: i * dtS })),
+  };
+}
+
+/**
+ * Default: fixtures/telemetry.json (orbit flight), unchanged unless
+ * `FIXTURE_MODE` (`MOCK_FIXTURE=1`/`--fixture`) is set, in which case the
+ * recorded-style survey flight (fixtures/telemetry-survey.json) replaces it.
+ */
+const FLIGHT: Fixture = FIXTURE_MODE
+  ? normalizeRecordedFixture(surveyFixture as RecordedFixture)
+  : (fixture as Fixture);
 const serverStartMs = Date.now();
 
 const nowUs = () => Date.now() * 1000;
@@ -227,6 +268,19 @@ function defaultMissionItems(): MissionItemPayload[] {
   ];
 }
 
+/**
+ * Initial served mission: the default Bangkok orbit mission, or — in fixture
+ * mode (`FIXTURE_MODE`) — fixtures/mission-survey.json's 6-item survey
+ * mission (takeoff, 4 survey waypoints, RTL) matching the recorded-style
+ * telemetry fixture's flight path.
+ */
+function initialMissionItems(): MissionItemPayload[] {
+  if (!FIXTURE_MODE) {
+    return defaultMissionItems();
+  }
+  return (surveyMission as { items: MissionItemPayload[] }).items.map((item) => ({ ...item }));
+}
+
 /** How often `currentSeq` advances to the next item while a mission is served, ms. */
 const MISSION_SEQ_ADVANCE_MS = 10_000;
 
@@ -239,7 +293,7 @@ const MISSION_SEQ_ADVANCE_MS = 10_000;
  * if `currentSeq` itself didn't change.
  */
 const missionState: { items: MissionItemPayload[]; loopStartMs: number; version: number } = {
-  items: defaultMissionItems(),
+  items: initialMissionItems(),
   loopStartMs: Date.now(),
   version: 0,
 };
@@ -1158,6 +1212,6 @@ const server = Bun.serve<Session, never>({
 
 console.log(
   `WebBridge mock listening on ws://${server.hostname}:${server.port}/ ` +
-    `(fixture: ${FLIGHT.samples.length} samples, ${FLIGHT.loopS} s loop; ` +
+    `(fixture${FIXTURE_MODE ? " [survey]" : ""}: ${FLIGHT.samples.length} samples, ${FLIGHT.loopS} s loop; ` +
     `video: ${VIDEO_AUS.length} AUs, ${VIDEO_AUS.length / VIDEO_FPS} s loop @ ${VIDEO_FPS} fps)`,
 );
