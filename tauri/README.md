@@ -33,15 +33,29 @@ The shell:
 
 ## Wire the dummy sidecar
 
-The real headless QGC binary doesn't exist yet. Use the dummy:
+The real headless QGC binary doesn't exist yet. Use the dummy — either the
+one-liner or the helper script (same effect):
 
 ```sh
 TRIPLE=$(rustc -vV | sed -n 's/^host: //p')
 cp tauri/dummy-ghost/dummy_ghost.sh "tauri/src-tauri/binaries/ghost-$TRIPLE"
 chmod +x "tauri/src-tauri/binaries/ghost-$TRIPLE"
+
+# or:
+tauri/scripts/link-ghost.sh tauri/dummy-ghost/dummy_ghost.sh
 ```
 
-Details in [`src-tauri/binaries/README.md`](src-tauri/binaries/README.md).
+**This is required even for `cargo check` / `cargo build`**, not just
+`cargo tauri dev`: `tauri-build`'s codegen validates that every
+`bundle.externalBin` resource resolves to a file on disk at compile time,
+regardless of `bundle.active`. Without a `binaries/ghost-<target-triple>`
+file present, the build fails with `resource path
+"binaries/ghost-<target-triple>" doesn't exist` before your code is even
+checked.
+
+Details in [`src-tauri/binaries/README.md`](src-tauri/binaries/README.md)
+and [`scripts/link-ghost.sh`](scripts/link-ghost.sh) (also used to wire a
+real ghost build later — see that script's header).
 
 ## Run it
 
@@ -74,21 +88,34 @@ tauri/
 ├── .gitignore                    # target/, gen/schemas/, binaries/ghost-*
 ├── dummy-ghost/
 │   └── dummy_ghost.sh            # dev stand-in for headless QGC
+├── scripts/
+│   └── link-ghost.sh             # copy a built ghost binary into binaries/
 └── src-tauri/
     ├── Cargo.toml                # tauri v2 + tauri-plugin-shell
     ├── build.rs
-    ├── tauri.conf.json           # devUrl :3000, externalBin binaries/ghost
+    ├── tauri.conf.json           # devUrl :3000, externalBin binaries/ghost,
+    │                             # bundle targets (appimage+deb, nsis)
     ├── capabilities/default.json # shell sidecar permissions
+    ├── icons/                    # app icons (required for compile + bundle)
     ├── binaries/                 # ghost-<triple> goes here (gitignored)
     └── src/
         ├── main.rs
         └── lib.rs                # sidecar spawn + watchdog + ghost-status
 ```
 
+## Bundling
+
+`bundle.active` is `true` and `bundle.targets` is explicit:
+`appimage` + `deb` on Linux, `nsis` on Windows (the bundler skips targets
+that don't apply to the host OS). Building actual installers needs the
+Tauri CLI (`cargo install tauri-cli --version "^2"`, not installed by
+this scaffold) plus platform packaging tools Tauri fetches or expects on
+`PATH` (e.g. `appimagetool`/`linuxdeploy` for AppImage, `makensis` for
+NSIS) — none of that has been exercised here, only `cargo check` /
+`cargo build` of the shell binary itself.
+
 ## Notes
 
-- `bundle.active` is `false` for now: bundling needs app icons, which are
-  not part of this scaffold. `cargo tauri dev` does not require them.
 - The ghost contract is documented at the top of
   [`src-tauri/src/lib.rs`](src-tauri/src/lib.rs) — keep it in sync with
   the real headless QGC as it lands.
