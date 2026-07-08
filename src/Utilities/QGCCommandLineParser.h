@@ -39,6 +39,8 @@ struct CommandLineParseResult
     bool simpleBootTest = false;
     bool headless = false;      ///< Run without the QML UI; core + web bridge only
     uint bridgePort = 0;        ///< Web bridge port (0 = use default)
+    std::optional<QString> bridgeHost;   ///< Web bridge bind address (unset = localhost-only default)
+    std::optional<QString> bridgeToken;  ///< Required web bridge `hello` token (unset = any non-empty token accepted)
     bool mockLink = false;      ///< Start a simulated PX4 vehicle (requires QGC_ENABLE_MOCKLINK build)
 
     // --- Test options (command-line parsing only in QGC_UNITTEST_BUILD) ---

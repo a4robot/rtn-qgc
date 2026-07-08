@@ -25,6 +25,8 @@ constexpr QLatin1StringView kOptLogOutput     = QLatin1StringView("log-output");
 constexpr QLatin1StringView kOptSimpleBoot    = QLatin1StringView("simple-boot-test");
 constexpr QLatin1StringView kOptHeadless      = QLatin1StringView("headless");
 constexpr QLatin1StringView kOptBridgePort    = QLatin1StringView("bridge-port");
+constexpr QLatin1StringView kOptBridgeHost    = QLatin1StringView("bridge-host");
+constexpr QLatin1StringView kOptBridgeToken   = QLatin1StringView("bridge-token");
 constexpr QLatin1StringView kOptMockLink      = QLatin1StringView("mock-link");
 
 #if !defined(Q_OS_ANDROID) && !defined(Q_OS_IOS)
@@ -165,6 +167,18 @@ CommandLineParseResult parseCommandLine()
         QCoreApplication::translate("main", "Web bridge listen port (uses default port if omitted)."),
         QCoreApplication::translate("main", "port"));
     (void) parser.addOption(bridgePortOpt);
+
+    const QCommandLineOption bridgeHostOpt(
+        QString(kOptBridgeHost),
+        QCoreApplication::translate("main", "Web bridge bind address (default: 127.0.0.1, localhost only; use 0.0.0.0 for LAN access)."),
+        QCoreApplication::translate("main", "address"));
+    (void) parser.addOption(bridgeHostOpt);
+
+    const QCommandLineOption bridgeTokenOpt(
+        QString(kOptBridgeToken),
+        QCoreApplication::translate("main", "Require this token in the web bridge hello handshake (default: any non-empty token accepted)."),
+        QCoreApplication::translate("main", "token"));
+    (void) parser.addOption(bridgeTokenOpt);
 
     const QCommandLineOption mockLinkOpt(
         QString(kOptMockLink),
@@ -370,6 +384,16 @@ CommandLineParseResult parseCommandLine()
         }
         out.bridgePort = bridgePort;
         qCDebug(QGCCommandLineParserLog) << "Bridge port:" << bridgePort;
+    }
+
+    if (parser.isSet(bridgeHostOpt)) {
+        out.bridgeHost = parser.value(bridgeHostOpt);
+        qCDebug(QGCCommandLineParserLog) << "Bridge host:" << out.bridgeHost.value();
+    }
+
+    if (parser.isSet(bridgeTokenOpt)) {
+        out.bridgeToken = parser.value(bridgeTokenOpt);
+        qCDebug(QGCCommandLineParserLog) << "Bridge token: <redacted>";
     }
 
     out.mockLink = parser.isSet(mockLinkOpt);

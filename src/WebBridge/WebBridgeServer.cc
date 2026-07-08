@@ -42,13 +42,19 @@ bool WebBridgeServer::start()
         return false;
     }
 
-    // Localhost-only bind per PROTOCOL.md §1 transport table security note.
-    if (!_server.listen(QHostAddress::LocalHost, _bridge->listenPort())) {
-        qCWarning(WebBridgeServerLog) << "failed to listen on 127.0.0.1:" << _bridge->listenPort() << _server.errorString();
+    // Localhost-only bind by default per PROTOCOL.md §1 transport table security note;
+    // --bridge-host lets an operator opt into a wider bind (e.g. 0.0.0.0 for LAN use).
+    if (_listenAddress != QHostAddress::LocalHost && _listenAddress != QHostAddress::LocalHostIPv6) {
+        qCWarning(WebBridgeServerLog) << "binding non-localhost address" << _listenAddress.toString()
+                                       << "-- the bridge protocol has no transport encryption; only do this on a trusted network";
+    }
+
+    if (!_server.listen(_listenAddress, _bridge->listenPort())) {
+        qCWarning(WebBridgeServerLog) << "failed to listen on" << _listenAddress.toString() << ":" << _bridge->listenPort() << _server.errorString();
         return false;
     }
 
-    qCDebug(WebBridgeServerLog) << "listening on 127.0.0.1:" << _bridge->listenPort();
+    qCDebug(WebBridgeServerLog) << "listening on" << _listenAddress.toString() << ":" << _bridge->listenPort();
     return true;
 }
 
@@ -266,6 +272,15 @@ void WebBridgeServer::_handleHello(QWebSocket *client, const QJsonObject &obj)
     if (!protocolVersion.isEmpty() && protocolVersion.section(QLatin1Char('.'), 0, 0) != QString(kProtocolVersion).section(QLatin1Char('.'), 0, 0)) {
         _sendError(client, QStringLiteral("UNSUPPORTED_VERSION"), QStringLiteral("Unsupported protocolVersion: %1").arg(protocolVersion), false, id);
         client->close(QWebSocketProtocol::CloseCodeProtocolError, QStringLiteral("unsupported protocol version"));
+        return;
+    }
+
+    // PROTOCOL.md §1.1 / --bridge-token: when the server is configured with a token
+    // (setAuthToken()), the client's token must match it exactly. Unconfigured (the v0.1
+    // default) keeps accepting any non-empty token, checked above.
+    if (!_authToken.isEmpty() && token != _authToken) {
+        _sendError(client, QStringLiteral("AUTH_FAILED"), QStringLiteral("Token rejected"), false, id);
+        client->close(QWebSocketProtocol::CloseCodePolicyViolated, QStringLiteral("auth failed"));
         return;
     }
 

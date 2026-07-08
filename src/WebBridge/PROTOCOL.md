@@ -37,6 +37,8 @@ Server response:
 
 If `protocolVersion` major version is unsupported, server replies with error `UNSUPPORTED_VERSION` and closes.
 
+> **`--bridge-token` (bridge security hardening).** The C++ bridge accepts an optional `--bridge-token <token>` CLI flag. When set, `hello.token` is checked against it exactly; a mismatch (or missing token) replies error `AUTH_FAILED` and the server closes the connection (WS close code 1008), same as `AUTH_REQUIRED`. When `--bridge-token` is **not** set, the field stays unvalidated as above (any non-empty string accepted) — this is the default and matches the mock server's behavior. The bridge also binds `127.0.0.1` (localhost only) by default regardless of token configuration; `--bridge-host <addr>` opts into a wider bind (e.g. `0.0.0.0` for LAN use) and is logged as a warning, since the protocol has no transport encryption of its own.
+
 ---
 
 ## 2. Principles (normative)

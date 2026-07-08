@@ -7,6 +7,7 @@
 #include <QtCore/QObject>
 #include <QtCore/QSet>
 #include <QtCore/QString>
+#include <QtNetwork/QHostAddress>
 #include <QtWebSockets/QWebSocket>
 #include <QtWebSockets/QWebSocketServer>
 
@@ -35,9 +36,22 @@ public:
     explicit WebBridgeServer(WebBridge *bridge, QObject *parent = nullptr);
     ~WebBridgeServer() override;
 
-    /// Binds the websocket server to 127.0.0.1:WebBridge::listenPort(). Localhost-only per the
-    /// PROTOCOL.md §1 transport table security note. Idempotent (returns true if already
-    /// listening). Returns false if the bind fails (port in use, etc.).
+    /// Overrides the bind address used by start() (default QHostAddress::LocalHost, i.e.
+    /// 127.0.0.1, per the PROTOCOL.md §1 transport table security note). Set from --bridge-host
+    /// before calling start() to expose the bridge beyond localhost (e.g. QHostAddress::Any or a
+    /// specific LAN address for --bridge-host 0.0.0.0). No effect once already listening.
+    void setListenAddress(const QHostAddress &address) { _listenAddress = address; }
+
+    /// Sets the token that a client's `hello` (PROTOCOL.md §1.1) must present to authenticate.
+    /// Empty (the default) keeps v0.1 behavior: any non-empty token is accepted. Set from
+    /// --bridge-token. Takes effect on the next `hello` processed, so it should be called before
+    /// start().
+    void setAuthToken(const QString &token) { _authToken = token; }
+
+    /// Binds the websocket server to WebBridgeServer::listenAddress():WebBridge::listenPort().
+    /// Localhost-only by default per the PROTOCOL.md §1 transport table security note; logs a
+    /// warning if configured (via setListenAddress()) to bind a non-localhost address. Idempotent
+    /// (returns true if already listening). Returns false if the bind fails (port in use, etc.).
     bool start();
 
     /// Closes the listening socket and forcibly disconnects every connected client. Idempotent.
@@ -136,8 +150,9 @@ private:
 
     /// Handles a `hello` message: validates the (non-empty, per §1.1) token and, if present, the
     /// major protocolVersion, then marks the client authenticated and replies `helloAck`.
-    /// Replies `BAD_MESSAGE` for a missing/empty token, or `UNSUPPORTED_VERSION` (+ close) for a
-    /// protocolVersion major-version mismatch.
+    /// Replies `BAD_MESSAGE` for a missing/empty token, `UNSUPPORTED_VERSION` (+ close) for a
+    /// protocolVersion major-version mismatch, or `AUTH_FAILED` (+ close) if a server token is
+    /// configured (setAuthToken()) and the client's token does not match it.
     void _handleHello(QWebSocket *client, const QJsonObject &obj);
 
     /// Handles `subscribe`/`unsubscribe` (§2.2): validates the channel, updates the client's
@@ -173,6 +188,8 @@ private:
     static constexpr const char *kServerVersion = "rtn-qgc 5.0";     ///< PROTOCOL.md §1.1 helloAck `serverVersion`
 
     WebBridge *_bridge = nullptr;    ///< Not owned; must outlive this object
+    QHostAddress _listenAddress = QHostAddress::LocalHost;    ///< Bind address for start() (--bridge-host override)
+    QString _authToken;              ///< Required `hello` token (--bridge-token); empty = accept any non-empty token
     QWebSocketServer _server;
     QHash<QWebSocket *, ClientState> _clients;
     QHash<quint64, QWebSocket *> _tokenToClient;    ///< Reverse index of ClientState::token for sendToClient()

@@ -9,6 +9,7 @@
 #include <QtCore/QRegularExpression>
 #include <QtGui/QFontDatabase>
 #include <QtGui/QIcon>
+#include <QtNetwork/QHostAddress>
 #include "QGCNetworkHelper.h"
 #ifdef QGC_ENABLE_QML
 #include <QtQml/QQmlApplicationEngine>
@@ -76,6 +77,8 @@ QGCApplication::QGCApplication(int &argc, char *argv[], const QGCCommandLinePars
     , _simpleBootTest(cli.simpleBootTest)
     , _headless(cli.headless)
     , _bridgePort(static_cast<quint16>(cli.bridgePort))
+    , _bridgeHost(cli.bridgeHost.value_or(QString()))
+    , _bridgeToken(cli.bridgeToken.value_or(QString()))
     , _mockLink(cli.mockLink)
     , _fakeMobile(cli.fakeMobile)
     , _logOutput(cli.logOutput)
@@ -418,6 +421,12 @@ void QGCApplication::_initForHeadlessBoot()
     if (_bridgePort != 0) {
         _webBridge = new WebBridge(_bridgePort, this);
         _webBridgeServer = new WebBridgeServer(_webBridge, this);
+        if (!_bridgeHost.isEmpty()) {
+            _webBridgeServer->setListenAddress(QHostAddress(_bridgeHost));
+        }
+        if (!_bridgeToken.isEmpty()) {
+            _webBridgeServer->setAuthToken(_bridgeToken);
+        }
         _telemetryChannel = new TelemetryChannel(_webBridge, this);
         _factChannel = new FactChannel(this);
         _commandChannel = new CommandChannel(_webBridge, this);
@@ -456,7 +465,7 @@ void QGCApplication::_initForHeadlessBoot()
         _webBridge->start();
 
         if (!_webBridgeServer->start()) {
-            qCCritical(QGCApplicationLog) << "WebBridge server failed to bind 127.0.0.1 port" << _bridgePort;
+            qCCritical(QGCApplicationLog) << "WebBridge server failed to bind" << (_bridgeHost.isEmpty() ? QStringLiteral("127.0.0.1") : _bridgeHost) << "port" << _bridgePort;
         }
     }
 

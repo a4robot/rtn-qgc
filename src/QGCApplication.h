@@ -147,6 +147,8 @@ private:
     bool _simpleBootTest = false;
     bool _headless = false;    ///< true: Running without the QML UI
     quint16 _bridgePort = 0;    ///< --bridge-port: websocket bridge listen port, 0 = bridge disabled
+    QString _bridgeHost;        ///< --bridge-host: websocket bridge bind address, empty = localhost-only default
+    QString _bridgeToken;       ///< --bridge-token: required web bridge hello token, empty = any non-empty token accepted
     bool _mockLink = false;    ///< --mock-link: start a simulated PX4 vehicle (requires QGC_ENABLE_MOCKLINK build)
     WebBridge *_webBridge = nullptr;                ///< Bridge core (headless + --bridge-port only)
     WebBridgeServer *_webBridgeServer = nullptr;    ///< Bridge websocket listener
