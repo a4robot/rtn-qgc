@@ -1,6 +1,8 @@
 qt_add_library(QGCGeoFormats STATIC
     GeoJsonHelper.cc
     GeoJsonHelper.h
+    QGCGeoJsonImport.cc
+    QGCGeoJsonImport.h
     KMLDomDocument.cc
     KMLDomDocument.h
     KMLHelper.cc
@@ -54,8 +56,6 @@ target_link_libraries(QGCGeoFormats
         Qt6::QmlIntegration
         Qt6::Xml
     PRIVATE
-        Qt6::Location
-        Qt6::LocationPrivate   # qgeojson_p.h
         shp
         QGCGeoMath
         QGCLogging

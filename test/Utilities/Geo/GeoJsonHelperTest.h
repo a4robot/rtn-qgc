@@ -21,4 +21,7 @@ private slots:
     void _loadPolylineFromPolygonFails_test();
     void _loadSaveGeoJsonCoordinate_test();
     void _loadSaveGeoJsonCoordinateWithAltitude_test();
+    void _loadPolygonFromMultiPolygon_test();
+    void _loadPolylineFromMultiLineString_test();
+    void _loadPolylineWithAltitudePositions_test();
 };

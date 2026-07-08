@@ -143,6 +143,74 @@ const QByteArray kNoShapesGeoJson = R"JSON(
 
 const QByteArray kInvalidGeoJson = "{not valid json";
 
+const QByteArray kMultiPolygonGeoJson = R"JSON(
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [9.0, 48.0],
+              [9.1, 48.0],
+              [9.1, 48.1],
+              [9.0, 48.0]
+            ]
+          ],
+          [
+            [
+              [9.2, 48.2],
+              [9.3, 48.2],
+              [9.3, 48.3],
+              [9.2, 48.2]
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}
+)JSON";
+
+const QByteArray kMultiLineStringGeoJson = R"JSON(
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "MultiLineString",
+        "coordinates": [
+          [
+            [9.5, 48.5],
+            [9.6, 48.6]
+          ],
+          [
+            [9.7, 48.7],
+            [9.8, 48.8]
+          ]
+        ]
+      }
+    }
+  ]
+}
+)JSON";
+
+// LineString positions carrying an optional altitude ([lon, lat, alt]) -- lon/lat order must
+// still be honored, and the extra element must not be rejected.
+const QByteArray kPolylineWithAltitudeGeoJson = R"JSON(
+{
+  "type": "LineString",
+  "coordinates": [
+    [8.5, 47.5, 100.0],
+    [8.6, 47.6, 150.0]
+  ]
+}
+)JSON";
+
 } // namespace
 
 void GeoJsonHelperTest::_determineShapeTypePolygon_test()
@@ -327,6 +395,54 @@ void GeoJsonHelperTest::_loadSaveGeoJsonCoordinateWithAltitude_test()
     QVERIFY(errorString.isEmpty());
     QCOMPARE_FUZZY(loaded.latitude(), original.latitude(), 1e-7);
     QCOMPARE_FUZZY(loaded.longitude(), original.longitude(), 1e-7);
+}
+
+void GeoJsonHelperTest::_loadPolygonFromMultiPolygon_test()
+{
+    const QString filePath = _writeGeoJsonFile(tempDirPath(), "multipolygon.geojson", kMultiPolygonGeoJson);
+    QList<QGeoCoordinate> vertices;
+    QString error;
+
+    const bool loaded = GeoJsonHelper::loadPolygonFromFile(filePath, vertices, error);
+    QVERIFY(loaded);
+    QVERIFY(error.isEmpty());
+    QVERIFY(vertices.size() >= 4);
+    // First polygon in the MultiPolygon wins.
+    QCOMPARE(vertices.first().latitude(), 48.0);
+    QCOMPARE(vertices.first().longitude(), 9.0);
+}
+
+void GeoJsonHelperTest::_loadPolylineFromMultiLineString_test()
+{
+    const QString filePath = _writeGeoJsonFile(tempDirPath(), "multilinestring.geojson", kMultiLineStringGeoJson);
+    QList<QGeoCoordinate> coords;
+    QString error;
+
+    const bool loaded = GeoJsonHelper::loadPolylineFromFile(filePath, coords, error);
+    QVERIFY(loaded);
+    QVERIFY(error.isEmpty());
+    QCOMPARE(coords.size(), 2);
+    // First line in the MultiLineString wins.
+    QCOMPARE(coords.at(0).latitude(), 48.5);
+    QCOMPARE(coords.at(0).longitude(), 9.5);
+    QCOMPARE(coords.at(1).latitude(), 48.6);
+    QCOMPARE(coords.at(1).longitude(), 9.6);
+}
+
+void GeoJsonHelperTest::_loadPolylineWithAltitudePositions_test()
+{
+    const QString filePath = _writeGeoJsonFile(tempDirPath(), "line-alt.geojson", kPolylineWithAltitudeGeoJson);
+    QList<QGeoCoordinate> coords;
+    QString error;
+
+    const bool loaded = GeoJsonHelper::loadPolylineFromFile(filePath, coords, error);
+    QVERIFY(loaded);
+    QVERIFY(error.isEmpty());
+    QCOMPARE(coords.size(), 2);
+    QCOMPARE(coords.at(0).latitude(), 47.5);
+    QCOMPARE(coords.at(0).longitude(), 8.5);
+    QCOMPARE(coords.at(1).latitude(), 47.6);
+    QCOMPARE(coords.at(1).longitude(), 8.6);
 }
 
 UT_REGISTER_TEST(GeoJsonHelperTest, TestLabel::Unit, TestLabel::Utilities)
