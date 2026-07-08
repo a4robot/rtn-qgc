@@ -1,0 +1,59 @@
+/* Actions-column tab strip (FLY | PLAN | PARAMS) — replaces the old
+   always-stacked .gcs-actions-col. Follows the tab-toggle visual convention
+   from WaypointList.css's mode toggle (same active tint). */
+
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.side-panel-tabs {
+  display: flex;
+  flex: none;
+  height: 32px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
+.side-panel-tab {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--fg-dim);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.side-panel-tab + .side-panel-tab {
+  border-left: 1px solid var(--border);
+}
+
+.side-panel-tab:hover {
+  color: var(--fg);
+}
+
+.side-panel-tab--active {
+  background: rgba(47, 129, 247, 0.15);
+  color: var(--accent);
+}
+
+.side-panel-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.side-panel-content > * {
+  height: 100%;
+}

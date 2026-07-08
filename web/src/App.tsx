@@ -15,6 +15,7 @@ import { WaypointList } from "./components/plan/WaypointList.tsx";
 import { Attitude } from "./components/telemetry/Attitude.tsx";
 import { Status } from "./components/telemetry/Status.tsx";
 import { ParamTable } from "./components/params/ParamTable.tsx";
+import { SidePanel } from "./components/SidePanel.tsx";
 import { VehicleSelect } from "./components/VehicleSelect.tsx";
 import { DualCam } from "./components/video/DualCam.tsx";
 import {
@@ -100,11 +101,11 @@ export function App() {
           </div>
         </section>
         <section className="gcs-panel gcs-actions" aria-label="Actions">
-          <div className="gcs-actions-col">
-            <ActionsPanel client={client} vehicleId={activeVehicleId} />
-            <WaypointList client={client} vehicleId={activeVehicleId} />
-            <ParamTable vehicleId={activeVehicleId} />
-          </div>
+          <SidePanel
+            flyContent={<ActionsPanel client={client} vehicleId={activeVehicleId} />}
+            planContent={<WaypointList client={client} vehicleId={activeVehicleId} />}
+            paramsContent={<ParamTable vehicleId={activeVehicleId} />}
+          />
         </section>
       </main>
     </div>
