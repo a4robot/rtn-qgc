@@ -36,13 +36,11 @@ if(QGC_ENABLE_GST_VIDEOSTREAMING)
         PRIVATE
             GStreamer::GStreamer
             Qt6::Multimedia
-            # NOT gate-able on QGC_ENABLE_QML yet: this target also provides
-            # the include path for qquickvideooutput_p.h, which VideoManager.cc/
-            # VideoManager2.cc/QtMultimediaReceiver.cc/UVCReceiver.cc include
-            # unconditionally (QQuickVideoOutput in core video plumbing).
-            # Cutting libQt6MultimediaQuick from the QML-OFF ghost needs those
-            # usages split first — see the wave-9 link audit.
-            Qt6::MultimediaQuickPrivate  # found by root CMakeLists.txt find_package
+            # qquickvideooutput_p.h (QQuickVideoOutput) usages in VideoManager.cc/
+            # VideoManager2.cc/QtMultimediaReceiver.cc/UVCReceiver.cc are now wrapped
+            # in #ifdef QGC_ENABLE_QML (wave-10), so the private-header include path
+            # this target provides is only needed when QML is enabled.
+            $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::MultimediaQuickPrivate>  # found by root CMakeLists.txt find_package
     )
 
     # iOS GStreamer.cc references gst_ios_{pre,post}_init defined in GStreamer::mobile.

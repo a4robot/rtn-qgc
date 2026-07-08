@@ -12,7 +12,9 @@
 #include <QtMultimedia/QImageCapture>
 #include <QtMultimedia/QMediaCaptureSession>
 #include <QtMultimedia/QMediaDevices>
+#ifdef QGC_ENABLE_QML
 #include <QtMultimediaQuick/private/qquickvideooutput_p.h>
+#endif
 #include <QtQuick/QQuickItem>
 
 QGC_LOGGING_CATEGORY(UVCReceiverLog, "Video.UVCReceiver")
@@ -52,6 +54,7 @@ bool UVCReceiver::enabled()
 
 void UVCReceiver::adjustAspectRatio()
 {
+#ifdef QGC_ENABLE_QML
     if (!_videoOutput) {
         return;
     }
@@ -69,6 +72,7 @@ void UVCReceiver::adjustAspectRatio()
             _videoOutput->setHeight(width / aspectRatio);
         }
     }
+#endif
 }
 
 QCameraDevice UVCReceiver::findCameraDevice(const QString &cameraId)

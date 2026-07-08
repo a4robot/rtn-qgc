@@ -8,7 +8,9 @@
 #include <QtMultimedia/QMediaRecorder>
 #include <QtMultimedia/QVideoFrame>
 #include <QtMultimedia/QVideoSink>
+#ifdef QGC_ENABLE_QML
 #include <QtMultimediaQuick/private/qquickvideooutput_p.h>
+#endif
 #include <QtQuick/QQuickItem>
 #include <QtQuick/QQuickItemGrabResult>
 
@@ -107,10 +109,14 @@ void *QtMultimediaReceiver::createVideoSink(QQuickItem *widget, QObject *parent)
     Q_UNUSED(parent);
 
     QVideoSink *videoSink = nullptr;
+#ifdef QGC_ENABLE_QML
     if (widget) {
         QQuickVideoOutput *const videoOutput = reinterpret_cast<QQuickVideoOutput*>(widget);
         videoSink = videoOutput->videoSink();
     }
+#else
+    Q_UNUSED(widget);
+#endif
 
     return videoSink;
 }

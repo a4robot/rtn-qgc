@@ -25,7 +25,9 @@
 #include "VideoReceiver/GStreamer/HwBuffers/QGCRhiCapture.h"
 #endif
 #include <QtMultimedia/QVideoSink>
+#ifdef QGC_ENABLE_QML
 #include <QtMultimediaQuick/private/qquickvideooutput_p.h>
+#endif
 #endif
 
 #include <QtConcurrent/QtConcurrent>
@@ -913,7 +915,7 @@ void VideoManager2::_initVideoReceiver(VideoReceiver *receiver, QQuickWindow *wi
     }
     receiver->setSink(sink);
 
-#ifdef QGC_GST_STREAMING
+#if defined(QGC_GST_STREAMING) && defined(QGC_ENABLE_QML)
     if (sink && widget) {
         auto *videoOutput = qobject_cast<QQuickVideoOutput *>(widget);
         if (videoOutput) {
