@@ -5,10 +5,13 @@ import { BridgeClient } from "./bridge/BridgeClient.ts";
 import { BridgeContext } from "./bridge/BridgeContext.ts";
 import { startBridgeSession, type BridgeSessionHandle } from "./bridge/session.ts";
 import { ActionsPanel } from "./components/actions/ActionsPanel.tsx";
+import { Instruments } from "./components/flyview/Instruments.tsx";
 import { CoreMap } from "./components/map/CoreMap.tsx";
 import { GotoOnClick } from "./components/map/GotoOnClick.tsx";
 import { MissionLayer } from "./components/map/MissionLayer.tsx";
 import { VehicleLayer } from "./components/map/VehicleLayer.tsx";
+import { WaypointAdder } from "./components/plan/WaypointAdder.tsx";
+import { WaypointList } from "./components/plan/WaypointList.tsx";
 import { Attitude } from "./components/telemetry/Attitude.tsx";
 import { Status } from "./components/telemetry/Status.tsx";
 import { ParamTable } from "./components/params/ParamTable.tsx";
@@ -18,6 +21,7 @@ import {
   bindBridgeToStores,
   useActiveVehicle,
   useConnection,
+  useMapMode,
   useUiStore,
 } from "./store/index.ts";
 
@@ -36,6 +40,7 @@ export function App() {
   const [map, setMap] = useState<maplibregl.Map | null>(null);
   const activeVehicleId = useActiveVehicle() ?? INITIAL_VEHICLE_ID;
   const setActiveVehicleId = useUiStore((s) => s.setActiveVehicleId);
+  const mapMode = useMapMode();
   const sessionRef = useRef<BridgeSessionHandle | null>(null);
 
   const client = useMemo(() => new BridgeClient(), []);
@@ -79,9 +84,16 @@ export function App() {
           <CoreMap onMapReady={setMap} />
           <VehicleLayer map={map} vehicleId={activeVehicleId} follow />
           <MissionLayer map={map} vehicleId={activeVehicleId} />
-          <GotoOnClick map={map} client={client} vehicleId={activeVehicleId} />
+          {/* Fly-mode clicks are goto; plan-mode clicks add draft waypoints.
+              WaypointAdder gates its own clicks, GotoOnClick is mode-blind —
+              mount it only in fly mode so the two never race one click. */}
+          {mapMode === "fly" && (
+            <GotoOnClick map={map} client={client} vehicleId={activeVehicleId} />
+          )}
+          <WaypointAdder map={map} client={client} vehicleId={activeVehicleId} />
         </section>
         <section className="gcs-panel gcs-telemetry" aria-label="Telemetry">
+          <Instruments vehicleId={activeVehicleId} />
           <div className="gcs-telemetry-row">
             <Attitude vehicleId={activeVehicleId} />
             <Status vehicleId={activeVehicleId} />
@@ -90,6 +102,7 @@ export function App() {
         <section className="gcs-panel gcs-actions" aria-label="Actions">
           <div className="gcs-actions-col">
             <ActionsPanel client={client} vehicleId={activeVehicleId} />
+            <WaypointList client={client} vehicleId={activeVehicleId} />
             <ParamTable vehicleId={activeVehicleId} />
           </div>
         </section>
