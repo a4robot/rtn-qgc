@@ -6,3 +6,4 @@ src-tauri/gen/schemas/
 
 # Sidecar binaries (dummy or real headless QGC) — never committed
 src-tauri/binaries/ghost-*
+dist/
