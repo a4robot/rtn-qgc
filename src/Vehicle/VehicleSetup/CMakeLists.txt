@@ -40,27 +40,33 @@ endif()
 # ----------------------------------------------------------------------------
 # Vehicle Setup QML Module
 # ----------------------------------------------------------------------------
-qt_add_library(VehicleSetupModule STATIC)
+# VehicleSetupModule holds only the setup/calibration-page QML — no C++
+# sources of its own (RemoteControlCalibrationController/JoystickConfigController
+# above, which core code needs, are unconditional). Skip it entirely when
+# headless so it doesn't pull Qt6::Qml/Quick.
+if(QGC_ENABLE_QML)
+    qt_add_library(VehicleSetupModule STATIC)
 
-qt_add_qml_module(VehicleSetupModule
-    URI QGroundControl.VehicleSetup
-    VERSION 1.0
-    RESOURCE_PREFIX /qml
-    QML_FILES
-        FirmwareUpgrade.qml
-        JoystickComponent.qml
-        JoystickComponentButtons.qml
-        JoystickComponentButtonMonitor.qml
-        JoystickComponentSettings.qml
-        OpticalFlowSensor.qml
-        RemoteControlCalibration.qml
-        RemoteControlChannelMonitor.qml
-        RemoteControlChannelValueDisplay.qml
-        SetupParameterEditor.qml
-        VehicleConfigView.qml
-        VehicleSummary.qml
-    NO_PLUGIN
-)
+    qt_add_qml_module(VehicleSetupModule
+        URI QGroundControl.VehicleSetup
+        VERSION 1.0
+        RESOURCE_PREFIX /qml
+        QML_FILES
+            FirmwareUpgrade.qml
+            JoystickComponent.qml
+            JoystickComponentButtons.qml
+            JoystickComponentButtonMonitor.qml
+            JoystickComponentSettings.qml
+            OpticalFlowSensor.qml
+            RemoteControlCalibration.qml
+            RemoteControlChannelMonitor.qml
+            RemoteControlChannelValueDisplay.qml
+            SetupParameterEditor.qml
+            VehicleConfigView.qml
+            VehicleSummary.qml
+        NO_PLUGIN
+    )
+endif()
 
 qt_add_resources(${CMAKE_PROJECT_NAME} vehiclesetup_qmlimages
     PREFIX "/qmlimages"

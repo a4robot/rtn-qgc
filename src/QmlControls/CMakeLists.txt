@@ -60,8 +60,6 @@ target_sources(${CMAKE_PROJECT_NAME}
         RCToParamDialogController.h
         ScreenToolsController.cc
         ScreenToolsController.h
-        TerrainProfile.cc
-        TerrainProfile.h
         ToolStripAction.cc
         ToolStripAction.h
         ToolStripActionList.cc
@@ -72,11 +70,29 @@ target_sources(${CMAKE_PROJECT_NAME}
         ServoOutputMonitorController.h
 )
 
+# TerrainProfile is a QQuickItem (chart renderer for PlanView/TerrainStatus.qml,
+# which is itself QML-only) — unlike the rest of this directory, it has no
+# headless caller (MissionController::recalcTerrainProfile is just a signal
+# name; it doesn't reference this class). It's also the only non-AnalyzeView
+# user of QtGraphs, so gating it lets Qt6::Graphs itself be gated below.
+if(QGC_ENABLE_QML)
+    target_sources(${CMAKE_PROJECT_NAME}
+        PRIVATE
+            TerrainProfile.cc
+            TerrainProfile.h
+    )
+endif()
+
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 # ----------------------------------------------------------------------------
 # QML Controls Module
 # ----------------------------------------------------------------------------
+# QGroundControlControlsModule holds only the reusable QML widget/dialog
+# library — no C++ sources of its own (the controller/model classes above,
+# which core code needs, are unconditional target_sources on the exe). Skip
+# it entirely when headless so it doesn't pull Qt6::Qml/Quick.
+if(QGC_ENABLE_QML)
 qt_add_library(QGroundControlControlsModule STATIC)
 
 set_source_files_properties(ScreenTools.qml PROPERTIES
@@ -192,6 +208,7 @@ qt_add_qml_module(QGroundControlControlsModule
         ScreenTools.qml
     NO_PLUGIN
 )
+endif() # QGC_ENABLE_QML
 
 # ----------------------------------------------------------------------------
 # Control Configuration Resources
@@ -202,6 +219,13 @@ qt_add_resources(${CMAKE_PROJECT_NAME} json_controls
     FILES ${JSON_FILES}
 )
 
+# Remaining resources are embedded into QGroundControlControlsModule itself
+# (QML icons/images for the widget library above), so they only exist when
+# that module does. Note: FactValueGrid (core, unconditional) enumerates the
+# :/InstrumentValueIcons/ prefix at runtime to build its icon picker — in a
+# headless (QGC_ENABLE_QML=OFF) build that enumeration is simply empty, which
+# is fine since there is no QML icon-picker UI to populate.
+if(QGC_ENABLE_QML)
 qt_add_resources(QGroundControlControlsModule qmlcontrols_resources
     PREFIX "/res"
     BASE "${CMAKE_SOURCE_DIR}/resources"
@@ -238,3 +262,4 @@ qt_add_resources(QGroundControlControlsModule instrument_value_icons
     BASE "${CMAKE_SOURCE_DIR}/resources/InstrumentValueIcons"
     FILES ${INSTRUMENT_VALUE_ICONS}
 )
+endif() # QGC_ENABLE_QML

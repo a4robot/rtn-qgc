@@ -37,18 +37,23 @@ qt_add_resources(${CMAKE_PROJECT_NAME} firmaware_plugin_px4_resource
 
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-# Add qml module
-qt_add_library(PX4FirmwareModule STATIC)
+# Add qml module — PX4FirmwareModule holds only toolbar/status-indicator
+# QML, no C++ sources of its own (the real firmware-plugin logic above is
+# unconditional). Skip it entirely when headless so it doesn't pull
+# Qt6::Qml/Quick.
+if(QGC_ENABLE_QML)
+    qt_add_library(PX4FirmwareModule STATIC)
 
-qt_add_qml_module(PX4FirmwareModule
-    URI QGroundControl.FirmwarePlugin.PX4
-    VERSION 1.0
-    RESOURCE_PREFIX /qml
-    QML_FILES
-        PX4BatteryIndicator.qml
-        PX4FlightModeIndicator.qml
-        PX4MainStatusIndicator.qml
-    NO_PLUGIN
-)
+    qt_add_qml_module(PX4FirmwareModule
+        URI QGroundControl.FirmwarePlugin.PX4
+        VERSION 1.0
+        RESOURCE_PREFIX /qml
+        QML_FILES
+            PX4BatteryIndicator.qml
+            PX4FlightModeIndicator.qml
+            PX4MainStatusIndicator.qml
+        NO_PLUGIN
+    )
 
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE PX4FirmwareModule)
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE PX4FirmwareModule)
+endif()

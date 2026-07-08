@@ -30,22 +30,27 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_
 # ----------------------------------------------------------------------------
 # Common AutoPilot Plugins QML Module
 # ----------------------------------------------------------------------------
-qt_add_library(AutoPilotPluginsCommonModule STATIC)
+# AutoPilotPluginsCommonModule holds only the component-editor QML pages — no
+# C++ sources of its own (the controller classes above are unconditional).
+# Skip it entirely when headless so it doesn't pull Qt6::Qml/Quick.
+if(QGC_ENABLE_QML)
+    qt_add_library(AutoPilotPluginsCommonModule STATIC)
 
-qt_add_qml_module(AutoPilotPluginsCommonModule
-    URI QGroundControl.AutoPilotPlugins.Common
-    VERSION 1.0
-    RESOURCE_PREFIX /qml
-    QML_FILES
-        ESP8266Component.qml
-        ESP8266ComponentSummary.qml
-        ScriptingComponent.qml
-        JoystickComponentSummary.qml
-        MotorComponent.qml
-        RadioComponent.qml
-        SyslinkComponent.qml
-    NO_PLUGIN
-)
+    qt_add_qml_module(AutoPilotPluginsCommonModule
+        URI QGroundControl.AutoPilotPlugins.Common
+        VERSION 1.0
+        RESOURCE_PREFIX /qml
+        QML_FILES
+            ESP8266Component.qml
+            ESP8266ComponentSummary.qml
+            ScriptingComponent.qml
+            JoystickComponentSummary.qml
+            MotorComponent.qml
+            RadioComponent.qml
+            SyslinkComponent.qml
+        NO_PLUGIN
+    )
+endif()
 
 # ----------------------------------------------------------------------------
 # Common AutoPilot Plugins Resources

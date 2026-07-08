@@ -120,7 +120,11 @@ target_include_directories(${CMAKE_PROJECT_NAME}
 target_link_libraries(${CMAKE_PROJECT_NAME}
     PRIVATE
         # Qt6 Core
-        Qt6::Graphs
+        # QtGraphs backs AnalyzeView's MAVLinkChart/LogViewer charts and (only
+        # via QQuickItem) QmlControls/TerrainProfile — both QML-only. Its .so
+        # itself hard-NEEDs Quick3D/Quick3DRuntimeRender/Quick3DUtils, so
+        # gating it also drops those from a headless link.
+        $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Graphs>
         Qt6::Concurrent
         Qt6::Core
         Qt6::CorePrivate
@@ -153,27 +157,29 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         # QGC Modules
         $<$<BOOL:${QGC_ENABLE_QML}>:AnalyzeViewModule>
         $<$<BOOL:${QGC_ENABLE_QML}>:AppSettingsModule>
-        AutoPilotPluginsCommonModule
-        FactControlsModule
+        $<$<BOOL:${QGC_ENABLE_QML}>:AutoPilotPluginsCommonModule>
+        $<$<BOOL:${QGC_ENABLE_QML}>:FactControlsModule>
         $<$<BOOL:${QGC_ENABLE_QML}>:FirstRunPromptDialogsModule>
         $<$<BOOL:${QGC_ENABLE_QML}>:FlyViewModule>
         $<$<BOOL:${QGC_ENABLE_QML}>:FlightMapModule>
         $<$<BOOL:${QGC_ENABLE_QML}>:PlanViewModule>
-        QGroundControlControlsModule
+        $<$<BOOL:${QGC_ENABLE_QML}>:QGroundControlControlsModule>
         QGroundControlModule
         $<$<BOOL:${QGC_ENABLE_QML}>:ToolbarModule>
-        VehicleSetupModule
+        $<$<BOOL:${QGC_ENABLE_QML}>:VehicleSetupModule>
         WebBridgeModule
 )
 
 # ----------------------------------------------------------------------------
 # Optional/Conditional Modules
 # ----------------------------------------------------------------------------
-if(NOT QGC_DISABLE_APM_PLUGIN)
+# AutoPilotPluginsAPM/PX4Module hold only QML config-page UI (see their own
+# CMakeLists) — no target exists for them when QGC_ENABLE_QML is OFF.
+if(NOT QGC_DISABLE_APM_PLUGIN AND QGC_ENABLE_QML)
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE AutoPilotPluginsAPMModule)
 endif()
 
-if(NOT QGC_DISABLE_PX4_PLUGIN)
+if(NOT QGC_DISABLE_PX4_PLUGIN AND QGC_ENABLE_QML)
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE AutoPilotPluginsPX4Module)
 endif()
 

@@ -11,16 +11,22 @@ qt_add_library(QGCLogManager STATIC
     LogManager.h
 )
 
-qt_add_qml_module(QGCLogManager
-    URI QGroundControl.LogManager
-    VERSION 1.0
-    RESOURCE_PREFIX /qml
-    DEPENDENCIES
-        QGroundControl.Controls
-        QGroundControl.Logging
-    QML_FILES
-        LoggingCategoriesDialog.qml
-)
+# LoggingCategoriesDialog.qml is the only UI surface here; LogEntry/LogModel/
+# LogFormatter/LogManager itself are core (main.cc, QGCApplication.cc call
+# LogManager::instance() unconditionally). Skip module/plugin generation
+# when headless so no Qt6::Qml/Quick runtime dependency is pulled in.
+if(QGC_ENABLE_QML)
+    qt_add_qml_module(QGCLogManager
+        URI QGroundControl.LogManager
+        VERSION 1.0
+        RESOURCE_PREFIX /qml
+        DEPENDENCIES
+            QGroundControl.Controls
+            QGroundControl.Logging
+        QML_FILES
+            LoggingCategoriesDialog.qml
+    )
+endif()
 
 target_include_directories(QGCLogManager
     PUBLIC
@@ -34,11 +40,11 @@ target_include_directories(QGCLogManager
 target_link_libraries(QGCLogManager
     PUBLIC
         Qt6::Core
-        Qt6::Qml
+        $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Qml>
         Qt6::QmlIntegration
     PRIVATE
         Qt6::Concurrent
-        Qt6::Quick
+        $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Quick>
         QGCFileSystem
         QGCLogging
 )
@@ -53,5 +59,10 @@ target_precompile_headers(QGCLogManager PRIVATE
 
 # AppLogging.qml is loaded via dynamic URL (SettingsPages.json), so the QML
 # import scanner can't see QGroundControl.LogManager. Force-link the plugin
-# so its type registrations end up in the executable.
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE QGCLogManager QGCLogManagerplugin)
+# so its type registrations end up in the executable (QML builds only — no
+# plugin target exists when QGC_ENABLE_QML is OFF).
+target_link_libraries(${CMAKE_PROJECT_NAME}
+    PRIVATE
+        QGCLogManager
+        $<$<BOOL:${QGC_ENABLE_QML}>:QGCLogManagerplugin>
+)

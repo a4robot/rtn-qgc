@@ -111,66 +111,78 @@ foreach(_name IN LISTS _config_generated_qml_names)
     )
 endforeach()
 
+# VehicleComponent::_ensureSectionsCached() (core, unconditional) reads these
+# at the same resource path the QML module below would otherwise embed them
+# at. Keep them available headless by embedding into the exe directly.
+qt_add_resources(${CMAKE_PROJECT_NAME} px4_vehicleconfig_json
+    PREFIX "/qml/QGroundControl/AutoPilotPlugins/PX4"
+    FILES
+        VehicleConfig/Power.VehicleConfig.json
+        VehicleConfig/Safety.VehicleConfig.json
+)
+
 # ----------------------------------------------------------------------------
 # PX4 QML Module
 # ----------------------------------------------------------------------------
-qt_add_library(AutoPilotPluginsPX4Module STATIC)
+# AutoPilotPluginsPX4Module holds only the vehicle-config-page QML — no C++
+# sources of its own (the controller classes above are unconditional). Skip
+# it entirely when headless so it doesn't pull Qt6::Qml/Quick.
+if(QGC_ENABLE_QML)
+    qt_add_library(AutoPilotPluginsPX4Module STATIC)
 
-# Ensure generated files exist before the module is built
-add_dependencies(AutoPilotPluginsPX4Module GenerateConfigQmlPX4)
+    # Ensure generated files exist before the module is built
+    add_dependencies(AutoPilotPluginsPX4Module GenerateConfigQmlPX4)
 
-qt_add_qml_module(AutoPilotPluginsPX4Module
-    URI QGroundControl.AutoPilotPlugins.PX4
-    VERSION 1.0
-    RESOURCE_PREFIX /qml
-    QML_FILES
-        # Generated from VehicleConfig.json definitions (output in build tree)
-        ${_config_generated_qml}
+    qt_add_qml_module(AutoPilotPluginsPX4Module
+        URI QGroundControl.AutoPilotPlugins.PX4
+        VERSION 1.0
+        RESOURCE_PREFIX /qml
+        QML_FILES
+            # Generated from VehicleConfig.json definitions (output in build tree)
+            ${_config_generated_qml}
 
-        # Hand-coded pages and components
-        ActuatorComponent.qml
-        ActuatorFact.qml
-        ActuatorSlider.qml
-        AirframeComponent.qml
-        AirframeComponentSummary.qml
-        BatteryParams.qml
-        CalcAmpsPerVoltDialog.qml
-        CalcVoltageDividerDialog.qml
-        ESCCalibrationDialog.qml
-        FlightModesComponentSummary.qml
-        PowerComponentSummary.qml
-        PX4FlightBehaviorCopter.qml
-        PX4FlightModes.qml
-        PX4RadioComponentSummary.qml
-        PX4TuningComponent.qml
-        PX4TuningComponentCopter.qml
-        PX4TuningComponentCopterAll.qml
-        PX4TuningComponentCopterAttitude.qml
-        PX4TuningComponentCopterPosition.qml
-        PX4TuningComponentCopterRate.qml
-        PX4TuningComponentCopterVelocity.qml
-        PX4TuningComponentPlane.qml
-        PX4TuningComponentPlaneAll.qml
-        PX4TuningComponentPlaneAttitude.qml
-        PX4TuningComponentPlaneRate.qml
-        PX4TuningComponentPlaneTECS.qml
-        PX4TuningComponentSpacecraft.qml
-        PX4TuningComponentSpacecraftAll.qml
-        PX4TuningComponentSpacecraftAttitude.qml
-        PX4TuningComponentSpacecraftPosition.qml
-        PX4TuningComponentSpacecraftRate.qml
-        PX4TuningComponentSpacecraftVelocity.qml
-        PX4TuningComponentVTOL.qml
-        SafetyComponentSummary.qml
-        SensorsComponent.qml
-        SensorsComponentSummary.qml
-        SensorsComponentSummaryFixedWing.qml
-        SensorsSetup.qml
-    RESOURCES
-        VehicleConfig/Power.VehicleConfig.json
-        VehicleConfig/Safety.VehicleConfig.json
-    NO_PLUGIN
-)
+            # Hand-coded pages and components
+            ActuatorComponent.qml
+            ActuatorFact.qml
+            ActuatorSlider.qml
+            AirframeComponent.qml
+            AirframeComponentSummary.qml
+            BatteryParams.qml
+            CalcAmpsPerVoltDialog.qml
+            CalcVoltageDividerDialog.qml
+            ESCCalibrationDialog.qml
+            FlightModesComponentSummary.qml
+            PowerComponentSummary.qml
+            PX4FlightBehaviorCopter.qml
+            PX4FlightModes.qml
+            PX4RadioComponentSummary.qml
+            PX4TuningComponent.qml
+            PX4TuningComponentCopter.qml
+            PX4TuningComponentCopterAll.qml
+            PX4TuningComponentCopterAttitude.qml
+            PX4TuningComponentCopterPosition.qml
+            PX4TuningComponentCopterRate.qml
+            PX4TuningComponentCopterVelocity.qml
+            PX4TuningComponentPlane.qml
+            PX4TuningComponentPlaneAll.qml
+            PX4TuningComponentPlaneAttitude.qml
+            PX4TuningComponentPlaneRate.qml
+            PX4TuningComponentPlaneTECS.qml
+            PX4TuningComponentSpacecraft.qml
+            PX4TuningComponentSpacecraftAll.qml
+            PX4TuningComponentSpacecraftAttitude.qml
+            PX4TuningComponentSpacecraftPosition.qml
+            PX4TuningComponentSpacecraftRate.qml
+            PX4TuningComponentSpacecraftVelocity.qml
+            PX4TuningComponentVTOL.qml
+            SafetyComponentSummary.qml
+            SensorsComponent.qml
+            SensorsComponentSummary.qml
+            SensorsComponentSummaryFixedWing.qml
+            SensorsSetup.qml
+        NO_PLUGIN
+    )
+endif()
 
 qt_add_resources(${CMAKE_PROJECT_NAME} autopilot_plugin_px4_qmlimages
     PREFIX "/qmlimages"

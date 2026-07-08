@@ -126,71 +126,83 @@ foreach(_name IN LISTS _apm_config_generated_qml_names)
     )
 endforeach()
 
-# ----------------------------------------------------------------------------
-# APM QML Module
-# ----------------------------------------------------------------------------
-qt_add_library(AutoPilotPluginsAPMModule STATIC)
-
-# Ensure generated files exist before the module is built
-add_dependencies(AutoPilotPluginsAPMModule GenerateConfigQmlAPM)
-
-qt_add_qml_module(AutoPilotPluginsAPMModule
-    URI QGroundControl.AutoPilotPlugins.APM
-    VERSION 1.0
-    RESOURCE_PREFIX /qml
-    QML_FILES
-        # Generated from VehicleConfig.json definitions (output in build tree)
-        ${_apm_config_generated_qml}
-
-        # Hand-coded pages and components
-        APMAirframeComponent.qml
-        APMAirframeComponentSummary.qml
-        APMAirspeedComponent.qml
-        APMAirspeedComponentSummary.qml
-        APMBatteryParams.qml
-        APMCalcAmpsPerVoltDialog.qml
-        APMCalcVoltageDividerDialog.qml
-        APMESCComponent.qml
-        APMESCComponentSummary.qml
-        APMFailsafesComponentSummary.qml
-        APMFailsafesComponentSummarySub.qml
-        APMFlightModesComponent.qml
-        APMFlightModesComponentSummary.qml
-        APMFollowComponent.qml
-        APMFollowComponentSummary.qml
-        APMGimbalComponent.qml
-        APMGimbalInstance.qml
-        APMGimbalParams.qml
-        APMHeliComponent.qml
-        APMLightsComponent.qml
-        APMLightsComponentSummary.qml
-        APMMotorComponent.qml
-        APMServoComponent.qml
-        APMNotSupported.qml
-        APMPowerComponentSummary.qml
-        APMRadioComponentSummary.qml
-        APMRemoteSupportComponent.qml
-        APMFlightSafetyComponentSub.qml
-        APMFlightSafetyComponentSummary.qml
-        APMFlightSafetyComponentSummarySub.qml
-        APMSensorsComponent.qml
-        APMSensorsComponentSummary.qml
-        APMSensorIdDecoder.qml
-        APMSensorParams.qml
-        APMSubFrameComponent.qml
-        APMSubFrameComponentSummary.qml
-        APMSubMotorComponent.qml
-        APMTuningComponentSub.qml
-        APMAutoTuneChannelSelector.qml
-        APMAdvancedTuningCopterComponent.qml
-    RESOURCES
+# VehicleComponent::_ensureSectionsCached() (core, unconditional) reads these
+# at the same resource path the QML module below would otherwise embed them
+# at. Keep them available headless by embedding into the exe directly.
+qt_add_resources(${CMAKE_PROJECT_NAME} apm_vehicleconfig_json
+    PREFIX "/qml/QGroundControl/AutoPilotPlugins/APM"
+    FILES
         VehicleConfig/APMFailsafes.VehicleConfig.json
         VehicleConfig/APMLogging.VehicleConfig.json
         VehicleConfig/APMPower.VehicleConfig.json
         VehicleConfig/APMFlightSafety.VehicleConfig.json
         VehicleConfig/APMTuningCopter.VehicleConfig.json
-    NO_PLUGIN
 )
+
+# ----------------------------------------------------------------------------
+# APM QML Module
+# ----------------------------------------------------------------------------
+# AutoPilotPluginsAPMModule holds only the vehicle-config-page QML — no C++
+# sources of its own (the controller classes above are unconditional). Skip
+# it entirely when headless so it doesn't pull Qt6::Qml/Quick.
+if(QGC_ENABLE_QML)
+    qt_add_library(AutoPilotPluginsAPMModule STATIC)
+
+    # Ensure generated files exist before the module is built
+    add_dependencies(AutoPilotPluginsAPMModule GenerateConfigQmlAPM)
+
+    qt_add_qml_module(AutoPilotPluginsAPMModule
+        URI QGroundControl.AutoPilotPlugins.APM
+        VERSION 1.0
+        RESOURCE_PREFIX /qml
+        QML_FILES
+            # Generated from VehicleConfig.json definitions (output in build tree)
+            ${_apm_config_generated_qml}
+
+            # Hand-coded pages and components
+            APMAirframeComponent.qml
+            APMAirframeComponentSummary.qml
+            APMAirspeedComponent.qml
+            APMAirspeedComponentSummary.qml
+            APMBatteryParams.qml
+            APMCalcAmpsPerVoltDialog.qml
+            APMCalcVoltageDividerDialog.qml
+            APMESCComponent.qml
+            APMESCComponentSummary.qml
+            APMFailsafesComponentSummary.qml
+            APMFailsafesComponentSummarySub.qml
+            APMFlightModesComponent.qml
+            APMFlightModesComponentSummary.qml
+            APMFollowComponent.qml
+            APMFollowComponentSummary.qml
+            APMGimbalComponent.qml
+            APMGimbalInstance.qml
+            APMGimbalParams.qml
+            APMHeliComponent.qml
+            APMLightsComponent.qml
+            APMLightsComponentSummary.qml
+            APMMotorComponent.qml
+            APMServoComponent.qml
+            APMNotSupported.qml
+            APMPowerComponentSummary.qml
+            APMRadioComponentSummary.qml
+            APMRemoteSupportComponent.qml
+            APMFlightSafetyComponentSub.qml
+            APMFlightSafetyComponentSummary.qml
+            APMFlightSafetyComponentSummarySub.qml
+            APMSensorsComponent.qml
+            APMSensorsComponentSummary.qml
+            APMSensorIdDecoder.qml
+            APMSensorParams.qml
+            APMSubFrameComponent.qml
+            APMSubFrameComponentSummary.qml
+            APMSubMotorComponent.qml
+            APMTuningComponentSub.qml
+            APMAutoTuneChannelSelector.qml
+            APMAdvancedTuningCopterComponent.qml
+        NO_PLUGIN
+    )
+endif()
 
 # ----------------------------------------------------------------------------
 # APM Component Metadata

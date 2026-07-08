@@ -13,11 +13,16 @@ qt_add_library(QGCGeoFormats STATIC
     SHPFileHelper.h
 )
 
-qt_add_qml_module(QGCGeoFormats
-    URI QGroundControl.Geo
-    VERSION 1.0
-    RESOURCE_PREFIX /qml
-)
+# No QML_FILES here — this only registers ShapeFileHelper as a
+# QML_ELEMENT/QML_SINGLETON for QML callers. Skip module/plugin generation
+# entirely so no Qt6::Qml runtime dependency is pulled in.
+if(QGC_ENABLE_QML)
+    qt_add_qml_module(QGCGeoFormats
+        URI QGroundControl.Geo
+        VERSION 1.0
+        RESOURCE_PREFIX /qml
+    )
+endif()
 
 qt_add_resources(QGCGeoFormats "kml_schema"
     PREFIX "/kml"
@@ -45,7 +50,7 @@ target_link_libraries(QGCGeoFormats
         Qt6::Core
         Qt6::Gui
         Qt6::Positioning
-        Qt6::Qml
+        $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Qml>
         Qt6::QmlIntegration
         Qt6::Xml
     PRIVATE

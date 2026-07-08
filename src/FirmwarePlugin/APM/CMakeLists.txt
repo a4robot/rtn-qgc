@@ -112,18 +112,23 @@ qt_add_resources(${CMAKE_PROJECT_NAME} "qgcresources_apm_params"
     FILES ${_apm_param_resources}
 )
 
-qt_add_library(APMFirmwareModule STATIC)
+# APMFirmwareModule holds only toolbar/status-indicator QML — no C++ sources
+# of its own (the real firmware-plugin logic above is unconditional). Skip it
+# entirely when headless so it doesn't pull Qt6::Qml/Quick.
+if(QGC_ENABLE_QML)
+    qt_add_library(APMFirmwareModule STATIC)
 
-qt_add_qml_module(APMFirmwareModule
-    URI QGroundControl.FirmwarePlugin.APM
-    VERSION 1.0
-    RESOURCE_PREFIX /qml
-    QML_FILES
-        APMBatteryIndicator.qml
-        APMFlightModeIndicator.qml
-        APMMainStatusIndicator.qml
-        APMSupportForwardingIndicator.qml
-    NO_PLUGIN
-)
+    qt_add_qml_module(APMFirmwareModule
+        URI QGroundControl.FirmwarePlugin.APM
+        VERSION 1.0
+        RESOURCE_PREFIX /qml
+        QML_FILES
+            APMBatteryIndicator.qml
+            APMFlightModeIndicator.qml
+            APMMainStatusIndicator.qml
+            APMSupportForwardingIndicator.qml
+        NO_PLUGIN
+    )
 
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE APMFirmwareModule)
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE APMFirmwareModule)
+endif()
