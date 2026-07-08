@@ -199,6 +199,49 @@ test("seq gap: fires again once the debounce window elapses without a fresh snap
   client.disconnect();
 });
 
+test("mission response: onMissionResponse receives missionAck and missionItems, ignores other types", () => {
+  const client = new BridgeClient();
+  client.connect("ws://fake");
+  const socket = latestSocket();
+  socket.simulateOpen();
+
+  const seen: string[] = [];
+  client.onMissionResponse((message) => seen.push(message.type));
+
+  socket.simulateMessage(
+    JSON.stringify({ type: "missionAck", id: "m-1", vehicleId: 1, status: "accepted", itemCount: 2 }),
+  );
+  socket.simulateMessage(
+    JSON.stringify({ type: "missionItems", id: "m-2", vehicleId: 1, items: [] }),
+  );
+  socket.simulateMessage(
+    JSON.stringify({ type: "commandAck", id: "c-1", vehicleId: 1, status: "accepted" }),
+  );
+
+  expect(seen).toEqual(["missionAck", "missionItems"]);
+
+  client.disconnect();
+});
+
+test("mission response: unsubscribe stops delivery", () => {
+  const client = new BridgeClient();
+  client.connect("ws://fake");
+  const socket = latestSocket();
+  socket.simulateOpen();
+
+  const seen: string[] = [];
+  const unsubscribe = client.onMissionResponse((message) => seen.push(message.type));
+  unsubscribe();
+
+  socket.simulateMessage(
+    JSON.stringify({ type: "missionAck", id: "m-1", vehicleId: 1, status: "rejected", reason: "seq mismatch" }),
+  );
+
+  expect(seen).toEqual([]);
+
+  client.disconnect();
+});
+
 test("onSeqGap still observes gaps independently of the resubscribe hook", () => {
   const client = new BridgeClient({ resubscribeDebounceMs: 10_000 });
   client.connect("ws://fake");

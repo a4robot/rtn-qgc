@@ -21,6 +21,7 @@ import type {
   Channel,
   ClientMessage,
   CommandResponse,
+  MissionResponse,
   Telemetry,
   ParamValue,
 } from "./types.ts";
@@ -34,6 +35,7 @@ export type ConnectionState =
 export type MessageHandler = (message: BridgeMessage) => void;
 export type CommandResponseHandler = (message: CommandResponse) => void;
 export type ParamValueHandler = (message: ParamValue) => void;
+export type MissionResponseHandler = (message: MissionResponse) => void;
 export type StateHandler = (state: ConnectionState) => void;
 export type SeqGapHandler = (gap: SeqGap) => void;
 /**
@@ -97,6 +99,7 @@ export class BridgeClient {
   private readonly resubscribeHandlers = new Set<ResubscribeHandler>();
   private readonly commandResponseHandlers = new Set<CommandResponseHandler>();
   private readonly paramValueHandlers = new Set<ParamValueHandler>();
+  private readonly missionResponseHandlers = new Set<MissionResponseHandler>();
   private readonly binaryFrameHandlers = new Set<BinaryFrameHandler>();
   private readonly lastSeqByChannel = new Map<Channel, number>();
 
@@ -166,6 +169,14 @@ export class BridgeClient {
     this.paramValueHandlers.add(callback);
     return () => {
       this.paramValueHandlers.delete(callback);
+    };
+  }
+
+  /** Observe mission upload/download/clear responses (§7.2, keyed by request id). Returns an unsubscribe function. */
+  onMissionResponse(callback: MissionResponseHandler): () => void {
+    this.missionResponseHandlers.add(callback);
+    return () => {
+      this.missionResponseHandlers.delete(callback);
     };
   }
 
@@ -379,6 +390,14 @@ export class BridgeClient {
     if (type === "paramValue") {
       for (const handler of this.paramValueHandlers) {
         handler(message as unknown as ParamValue);
+      }
+      return;
+    }
+
+    // §7.2: mission upload/download/clear responses are keyed by request id, not a channel stream.
+    if (type === "missionAck" || type === "missionItems") {
+      for (const handler of this.missionResponseHandlers) {
+        handler(message as unknown as MissionResponse);
       }
       return;
     }

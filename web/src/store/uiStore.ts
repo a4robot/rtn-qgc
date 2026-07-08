@@ -20,10 +20,16 @@
 
 import { create } from "zustand";
 
+/** Map interaction mode: "fly" drives GotoOnClick, "plan" drives WaypointAdder. */
+export type MapMode = "fly" | "plan";
+
 export interface UiStoreState {
   /** Vehicle currently shown across telemetry/map/actions panels. */
   activeVehicleId: number;
   setActiveVehicleId: (id: number) => void;
+  /** Which map-click behavior is active. Default "fly" (click-to-goto). */
+  mapMode: MapMode;
+  setMapMode: (mode: MapMode) => void;
 }
 
 export const useUiStore = create<UiStoreState>()((set) => ({
@@ -31,7 +37,14 @@ export const useUiStore = create<UiStoreState>()((set) => ({
   // the `?vehicle=` URL override) once on mount.
   activeVehicleId: 1,
   setActiveVehicleId: (id) => set({ activeVehicleId: id }),
+  mapMode: "fly",
+  setMapMode: (mode) => set({ mapMode: mode }),
 }));
+
+/** Current map interaction mode. */
+export function useMapMode(): MapMode {
+  return useUiStore((state) => state.mapMode);
+}
 
 /** The currently active vehicle id. */
 export function useActiveVehicle(): number {
