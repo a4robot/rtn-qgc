@@ -1,9 +1,17 @@
 #pragma once
 
-#include <QtQuick/QQuickItem>
 #include <QtQmlIntegration/QtQmlIntegration>
 
 #include "FactPanelController.h"
+
+// Qt 6 moc static-asserts on pointer Q_PROPERTYs of incomplete types, so the
+// QQuickItem properties below are gated together with this include; headless
+// builds see only the forward declaration (enough for the raw pointer members).
+#ifdef QGC_ENABLE_QML
+#include <QtQuick/QQuickItem>
+#else
+class QQuickItem;
+#endif
 
 /// \brief Sensors Component MVC Controller for SensorsComponent.qml.
 ///
@@ -14,10 +22,12 @@ class SensorsComponentController : public FactPanelController
 public:
     SensorsComponentController(void);
 
+#ifdef QGC_ENABLE_QML
     Q_PROPERTY(QQuickItem* statusLog MEMBER _statusLog)
     Q_PROPERTY(QQuickItem* progressBar MEMBER _progressBar)
 
     Q_PROPERTY(QQuickItem* orientationCalAreaHelpText MEMBER _orientationCalAreaHelpText)
+#endif
 
     Q_PROPERTY(bool calibrationActive READ calibrationActive NOTIFY calibrationActiveChanged)
 

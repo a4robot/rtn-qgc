@@ -9,6 +9,9 @@
 #include "Vehicle.h"
 #include "VehicleLinkManager.h"
 
+#ifdef QGC_ENABLE_QML
+#include <QtQuick/QQuickItem>
+#endif
 #include <QtCore/QVariant>
 
 QGC_LOGGING_CATEGORY(APMSensorsComponentControllerLog, "AutoPilotPlugins.APMSensorsComponentController")
@@ -42,10 +45,14 @@ APMSensorsComponentController::~APMSensorsComponentController()
 
 void APMSensorsComponentController::_appendStatusLog(const QString &text)
 {
+#ifdef QGC_ENABLE_QML
     Q_ASSERT(_statusLog);
 
     const QString varText = text;
     (void) QMetaObject::invokeMethod(_statusLog, "append", varText);
+#else
+    Q_UNUSED(text);
+#endif
 }
 
 void APMSensorsComponentController::_startLogCalibration()
@@ -55,10 +62,12 @@ void APMSensorsComponentController::_startLogCalibration()
     (void) connect(_vehicle, &Vehicle::textMessageReceived, this, &APMSensorsComponentController::_handleTextMessage);
 
     emit setAllCalButtonsEnabled(false);
+#ifdef QGC_ENABLE_QML
     if ((_calTypeInProgress == QGCMAVLink::CalibrationAccel) || (_calTypeInProgress == QGCMAVLink::CalibrationAPMCompassMot)) {
         _nextButton->setEnabled(true);
     }
     _cancelButton->setEnabled(_calTypeInProgress == QGCMAVLink::CalibrationMag);
+#endif
 
     (void) connect(MAVLinkProtocol::instance(), &MAVLinkProtocol::messageReceived, this, &APMSensorsComponentController::_mavlinkMessageReceived);
 }
@@ -66,12 +75,16 @@ void APMSensorsComponentController::_startLogCalibration()
 void APMSensorsComponentController::_startVisualCalibration()
 {
     emit setAllCalButtonsEnabled(false);
+#ifdef QGC_ENABLE_QML
     _cancelButton->setEnabled(true);
     _nextButton->setEnabled(false);
+#endif
 
     _resetInternalState();
 
+#ifdef QGC_ENABLE_QML
     (void) _progressBar->setProperty("value", 0);
+#endif
 
     (void) connect(MAVLinkProtocol::instance(), &MAVLinkProtocol::messageReceived, this, &APMSensorsComponentController::_mavlinkMessageReceived);
 }
@@ -110,8 +123,10 @@ void APMSensorsComponentController::_stopCalibration(APMSensorsComponentControll
     (void) disconnect(_vehicle, &Vehicle::textMessageReceived, this, &APMSensorsComponentController::_handleTextMessage);
 
     emit setAllCalButtonsEnabled(true);
+#ifdef QGC_ENABLE_QML
     _nextButton->setEnabled(false);
     _cancelButton->setEnabled(false);
+#endif
 
     if (_calTypeInProgress == QGCMAVLink::CalibrationMag) {
         _restorePreviousCompassCalFitness();
@@ -119,12 +134,16 @@ void APMSensorsComponentController::_stopCalibration(APMSensorsComponentControll
 
     if (code == StopCalibrationSuccess) {
         _resetInternalState();
+#ifdef QGC_ENABLE_QML
         (void) _progressBar->setProperty("value", 1);
+#endif
         if (parameterExists(ParameterManager::defaultComponentId, QStringLiteral("COMPASS_LEARN"))) {
             getParameterFact(ParameterManager::defaultComponentId, QStringLiteral("COMPASS_LEARN"))->setRawValue(0);
         }
     } else {
+#ifdef QGC_ENABLE_QML
         (void) _progressBar->setProperty("value", 0);
+#endif
     }
 
     _waitingForCancel = false;
@@ -134,7 +153,9 @@ void APMSensorsComponentController::_stopCalibration(APMSensorsComponentControll
 
     switch (code) {
     case StopCalibrationSuccess:
+#ifdef QGC_ENABLE_QML
         (void) _orientationCalAreaHelpText->setProperty("text", tr("Calibration complete"));
+#endif
         emit resetStatusTextArea();
         emit calibrationComplete(_calTypeInProgress);
         break;
@@ -273,8 +294,10 @@ void APMSensorsComponentController::calibrateAccel(bool doSimpleAccelCal)
     }
     _vehicle->vehicleLinkManager()->setCommunicationLostEnabled(false);
     _startVisualCalibration();
+#ifdef QGC_ENABLE_QML
     _cancelButton->setEnabled(false);
     (void) _orientationCalAreaHelpText->setProperty("text", tr("Hold still in the current orientation and press Next when ready"));
+#endif
 
     // Reset all progress indication
     _orientationCalDownSideDone = false;
@@ -397,7 +420,9 @@ void APMSensorsComponentController::_hideAllCalAreas()
 
 void APMSensorsComponentController::cancelCalibration()
 {
+#ifdef QGC_ENABLE_QML
     _cancelButton->setEnabled(false);
+#endif
 
     if (_calTypeInProgress == QGCMAVLink::CalibrationMag) {
         _vehicle->sendMavCommand(_vehicle->defaultComponentId(), MAV_CMD_DO_CANCEL_MAG_CAL, true /* showError */);
@@ -509,9 +534,11 @@ void APMSensorsComponentController::_handleMagCalProgress(const mavlink_message_
         _rgCompassCalProgress[magCalProgress.compass_id] = magCalProgress.completion_pct / compassCalCount;
     }
 
+#ifdef QGC_ENABLE_QML
     if (_progressBar) {
         (void) _progressBar->setProperty("value", static_cast<float>(_rgCompassCalProgress[0] + _rgCompassCalProgress[1] + _rgCompassCalProgress[2]) / 100.0);
     }
+#endif
 }
 
 void APMSensorsComponentController::_handleMagCalReport(const mavlink_message_t &message)
@@ -572,7 +599,9 @@ bool APMSensorsComponentController::_handleCmdLongAccelcalVehiclePos(const mavli
         if (!_orientationCalDownSideInProgress) {
             updateImages = true;
             _orientationCalDownSideInProgress = true;
+#ifdef QGC_ENABLE_QML
             _nextButton->setEnabled(true);
+#endif
         }
         break;
     case ACCELCAL_VEHICLE_POS_LEFT:
@@ -581,7 +610,9 @@ bool APMSensorsComponentController::_handleCmdLongAccelcalVehiclePos(const mavli
             _orientationCalDownSideDone = true;
             _orientationCalDownSideInProgress = false;
             _orientationCalLeftSideInProgress = true;
+#ifdef QGC_ENABLE_QML
             (void) _progressBar->setProperty("value", static_cast<qreal>(17 / 100.0));
+#endif
         }
         break;
     case ACCELCAL_VEHICLE_POS_RIGHT:
@@ -590,7 +621,9 @@ bool APMSensorsComponentController::_handleCmdLongAccelcalVehiclePos(const mavli
             _orientationCalLeftSideDone = true;
             _orientationCalLeftSideInProgress = false;
             _orientationCalRightSideInProgress = true;
+#ifdef QGC_ENABLE_QML
             (void) _progressBar->setProperty("value", static_cast<qreal>(34 / 100.0));
+#endif
         }
         break;
     case ACCELCAL_VEHICLE_POS_NOSEDOWN:
@@ -599,7 +632,9 @@ bool APMSensorsComponentController::_handleCmdLongAccelcalVehiclePos(const mavli
             _orientationCalRightSideDone = true;
             _orientationCalRightSideInProgress = false;
             _orientationCalNoseDownSideInProgress = true;
+#ifdef QGC_ENABLE_QML
             (void) _progressBar->setProperty("value", static_cast<qreal>(51 / 100.0));
+#endif
         }
         break;
     case ACCELCAL_VEHICLE_POS_NOSEUP:
@@ -608,7 +643,9 @@ bool APMSensorsComponentController::_handleCmdLongAccelcalVehiclePos(const mavli
             _orientationCalNoseDownSideDone = true;
             _orientationCalNoseDownSideInProgress = false;
             _orientationCalTailDownSideInProgress = true;
+#ifdef QGC_ENABLE_QML
             (void) _progressBar->setProperty("value", static_cast<qreal>(68 / 100.0));
+#endif
         }
         break;
     case ACCELCAL_VEHICLE_POS_BACK:
@@ -617,7 +654,9 @@ bool APMSensorsComponentController::_handleCmdLongAccelcalVehiclePos(const mavli
             _orientationCalTailDownSideDone = true;
             _orientationCalTailDownSideInProgress = false;
             _orientationCalUpsideDownSideInProgress = true;
+#ifdef QGC_ENABLE_QML
             (void) _progressBar->setProperty("value", static_cast<qreal>(85 / 100.0));
+#endif
         }
         break;
     case ACCELCAL_VEHICLE_POS_SUCCESS:

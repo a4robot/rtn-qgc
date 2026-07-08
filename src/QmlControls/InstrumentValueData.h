@@ -141,4 +141,9 @@ private:
 
 };
 
+// QML_DECLARE_TYPE comes from qqml.h (Qt6::Qml) — currently supplied by the pch's
+// QQmlEngine include. Gated so this unconditional header survives a headless pch
+// without QtQml once Qt6::Qml is dropped from the QGC_ENABLE_QML=OFF link.
+#ifdef QGC_ENABLE_QML
 QML_DECLARE_TYPE(InstrumentValueData)
+#endif

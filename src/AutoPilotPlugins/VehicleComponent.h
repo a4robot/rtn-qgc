@@ -70,7 +70,10 @@ public:
     // @return true: Setup panel can be shown while vehicle is flying (and armed)
     virtual bool allowSetupWhileFlying() const { return false; }
 
+#ifdef QGC_ENABLE_QML
+    /// No callers currently (C++ or QML); QML-only since it builds a QML component.
     virtual void addSummaryQmlComponent(QQmlContext* context, QQuickItem* parent);
+#endif
 
     /// Returns an list of parameter names for which a change should cause the setupCompleteChanged
     /// signal to be emitted.

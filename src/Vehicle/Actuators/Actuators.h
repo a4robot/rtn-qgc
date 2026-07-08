@@ -31,6 +31,7 @@ public:
     Q_PROPERTY(Mixer::Mixers* mixer                                             READ mixer                     CONSTANT)
     Q_PROPERTY(ActuatorOutputs::ActuatorOutput* selectedActuatorOutput          READ selectedActuatorOutput    NOTIFY selectedActuatorOutputChanged)
 
+    /// Only reachable from ActuatorComponent.qml / APMMotorComponent.qml (both QML-only); no-op headless.
     Q_INVOKABLE void imageClicked(QSizeF displaySize, float x, float y);
 
     Q_INVOKABLE void selectActuatorOutput(int index);

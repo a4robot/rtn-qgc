@@ -4,6 +4,9 @@
 #include "Vehicle.h"
 #include "VehicleLinkManager.h"
 #include "QGCLoggingCategory.h"
+#ifdef QGC_ENABLE_QML
+#include <QtQuick/QQuickItem>
+#endif
 
 QGC_LOGGING_CATEGORY(SensorsComponentControllerLog, "AutoPilotPlugins.SensorsComponentController")
 
@@ -60,6 +63,7 @@ bool SensorsComponentController::usingUDPLink(void)
 /// Appends the specified text to the status log area in the ui
 void SensorsComponentController::_appendStatusLog(const QString& text)
 {
+#ifdef QGC_ENABLE_QML
     if (!_statusLog) {
         qWarning() << "Internal error";
         return;
@@ -69,6 +73,9 @@ void SensorsComponentController::_appendStatusLog(const QString& text)
     QMetaObject::invokeMethod(_statusLog,
                               "append",
                               Q_ARG(QString, varText));
+#else
+    Q_UNUSED(text);
+#endif
 }
 
 void SensorsComponentController::_startLogCalibration(void)
@@ -83,7 +90,9 @@ void SensorsComponentController::_startVisualCalibration(void)
 {
     _resetInternalState();
 
+#ifdef QGC_ENABLE_QML
     _progressBar->setProperty("value", 0);
+#endif
 }
 
 void SensorsComponentController::_resetInternalState(void)
@@ -119,9 +128,13 @@ void SensorsComponentController::_stopCalibration(SensorsComponentController::St
     if (code == StopCalibrationSuccess) {
         _resetInternalState();
 
+#ifdef QGC_ENABLE_QML
         _progressBar->setProperty("value", 1);
+#endif
     } else {
+#ifdef QGC_ENABLE_QML
         _progressBar->setProperty("value", 0);
+#endif
     }
 
     _waitingForCancel = false;
@@ -131,7 +144,9 @@ void SensorsComponentController::_stopCalibration(SensorsComponentController::St
 
     switch (code) {
         case StopCalibrationSuccess:
+#ifdef QGC_ENABLE_QML
             _orientationCalAreaHelpText->setProperty("text", tr("Calibration complete"));
+#endif
             if (!_airspeedCalInProgress && !_levelCalInProgress) {
                 emit resetStatusTextArea();
             }
@@ -208,13 +223,15 @@ void SensorsComponentController::_handleUASTextMessage(int uasId, int compId, in
     if (text.contains("progress <")) {
         QString percent = text.split("<").last().split(">").first();
         bool ok;
-        int p = percent.toInt(&ok);
+        const int p [[maybe_unused]] = percent.toInt(&ok);
         if (ok) {
+#ifdef QGC_ENABLE_QML
             if (_progressBar) {
                 _progressBar->setProperty("value", (float)(p / 100.0));
             } else {
                 qWarning() << "Internal error";
             }
+#endif
         }
         return;
     }
@@ -274,7 +291,9 @@ void SensorsComponentController::_handleUASTextMessage(int uasId, int compId, in
             _orientationCalTailDownSideVisible = false;
             _orientationCalNoseDownSideVisible = false;
 
+#ifdef QGC_ENABLE_QML
             _orientationCalAreaHelpText->setProperty("text", tr("Place your vehicle into one of the Incomplete orientations shown below and hold it still"));
+#endif
 
             if (text == "accel") {
                 _accelCalInProgress = true;
@@ -359,11 +378,13 @@ void SensorsComponentController::_handleUASTextMessage(int uasId, int compId, in
             }
         }
 
+#ifdef QGC_ENABLE_QML
         if (_magCalInProgress) {
             _orientationCalAreaHelpText->setProperty("text", tr("Rotate the vehicle continuously as shown in the diagram until marked as Completed"));
         } else {
             _orientationCalAreaHelpText->setProperty("text", tr("Hold still in the current orientation"));
         }
+#endif
 
         emit orientationCalSidesInProgressChanged();
         emit orientationCalSidesRotateChanged();
@@ -400,7 +421,9 @@ void SensorsComponentController::_handleUASTextMessage(int uasId, int compId, in
             _orientationCalTailDownSideRotate = false;
         }
 
+#ifdef QGC_ENABLE_QML
         _orientationCalAreaHelpText->setProperty("text", tr("Place you vehicle into one of the orientations shown below and hold it still"));
+#endif
 
         emit orientationCalSidesInProgressChanged();
         emit orientationCalSidesDoneChanged();
@@ -409,7 +432,9 @@ void SensorsComponentController::_handleUASTextMessage(int uasId, int compId, in
     }
 
     if (text.endsWith("side already completed")) {
+#ifdef QGC_ENABLE_QML
         _orientationCalAreaHelpText->setProperty("text", tr("Orientation already completed, place you vehicle into one of the incomplete orientations shown below and hold it still"));
+#endif
         return;
     }
 

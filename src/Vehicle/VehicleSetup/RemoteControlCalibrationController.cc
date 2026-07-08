@@ -7,6 +7,9 @@
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QSettings>
+#ifdef QGC_ENABLE_QML
+#include <QtQuick/QQuickItem>
+#endif
 #include <algorithm>
 
 QGC_LOGGING_CATEGORY(RemoteControlCalibrationControllerLog, "RemoteControl.RemoteControlCalibrationController")
@@ -359,6 +362,7 @@ void RemoteControlCalibrationController::_setupCurrentState()
         ? _bothStickDisplayPositionThrottleCenteredMap.value(state.stepFunction).value(_transmitterMode, defaultPositions)
         : _bothStickDisplayPositionThrottleDownMap.value(state.stepFunction).value(_transmitterMode, defaultPositions);
 
+#ifdef QGC_ENABLE_QML
     QString msg = QCoreApplication::translate("RemoteControlCalibrationController", _stepFunctionToMsgStringMap.value(state.stepFunction, ""));
     if (state.stepFunction == StateMachineStepExtensionHighHorz || state.stepFunction == StateMachineStepExtensionHighVert ||
         state.stepFunction == StateMachineStepExtensionLowHorz  || state.stepFunction == StateMachineStepExtensionLowVert) {
@@ -375,11 +379,14 @@ void RemoteControlCalibrationController::_setupCurrentState()
         const char* extName = extensionNameMap.value(state.stickFunction, QT_TRANSLATE_NOOP("RemoteControlCalibrationController", "Unknown"));
         msg = msg.arg(QCoreApplication::translate("RemoteControlCalibrationController", extName));
     }
+#endif
 
     _setSingleStickDisplay(state.stepFunction == StateMachineStepExtensionHighHorz || state.stepFunction == StateMachineStepExtensionHighVert ||
                            state.stepFunction == StateMachineStepExtensionLowHorz  || state.stepFunction == StateMachineStepExtensionLowVert);
 
+#ifdef QGC_ENABLE_QML
     _statusText->setProperty("text", msg);
+#endif
     _stickDisplayPositions = { bothStickPositions.leftStick.horizontal, bothStickPositions.leftStick.vertical,
                                bothStickPositions.rightStick.horizontal, bothStickPositions.rightStick.vertical };
     emit stickDisplayPositionsChanged();
@@ -389,7 +396,9 @@ void RemoteControlCalibrationController::_setupCurrentState()
 
     _saveCurrentRawValues();
 
+#ifdef QGC_ENABLE_QML
     _nextButton->setEnabled(state.nextButtonFn != nullptr);
+#endif
     emit oneSidedButtonVisibleChanged(oneSidedButtonVisible());
 }
 
@@ -529,7 +538,9 @@ void RemoteControlCalibrationController::_inputCenterWaitBegin(StickFunction /*s
         }
     }
 
+#ifdef QGC_ENABLE_QML
     _nextButton->setEnabled(true);
+#endif
 }
 
 bool RemoteControlCalibrationController::_stickSettleComplete(int value)
@@ -843,8 +854,10 @@ void RemoteControlCalibrationController::_startCalibration()
         emit calibratingChanged(true);
     }
 
+#ifdef QGC_ENABLE_QML
     _nextButton->setProperty("text", tr("Next"));
     _cancelButton->setEnabled(true);
+#endif
 
     _currentStep = 0;
     _setupCurrentState();
@@ -871,6 +884,7 @@ void RemoteControlCalibrationController::_stopCalibration()
         emit calibratingChanged(false);
     }
 
+#ifdef QGC_ENABLE_QML
     if (_statusText) {
         _statusText->setProperty("text", "");
     }
@@ -883,6 +897,7 @@ void RemoteControlCalibrationController::_stopCalibration()
     if (_cancelButton) {
         _cancelButton->setEnabled(false);
     }
+#endif
 
     _stickDisplayPositions = { _stickDisplayPositionCentered.horizontal, _stickDisplayPositionCentered.vertical,
                                _stickDisplayPositionCentered.horizontal, _stickDisplayPositionCentered.vertical };

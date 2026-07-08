@@ -9,8 +9,15 @@
 #include "QGCMAVLinkTypes.h"
 
 #include <QtCore/QObject>
-#include <QtQuick/QQuickItem>
 #include <QtQmlIntegration/QtQmlIntegration>
+// Qt 6 moc static-asserts on pointer Q_PROPERTYs of incomplete types, so the
+// QQuickItem properties below are gated together with this include; headless
+// builds see only the forward declaration (enough for the raw pointer members).
+#ifdef QGC_ENABLE_QML
+#include <QtQuick/QQuickItem>
+#else
+class QQuickItem;
+#endif
 
 class APMSensorsComponent;
 
@@ -20,12 +27,14 @@ class APMSensorsComponentController : public FactPanelController
 {
     Q_OBJECT
     QML_ELEMENT
+#ifdef QGC_ENABLE_QML
     Q_PROPERTY(QQuickItem* statusLog                        MEMBER _statusLog)
     Q_PROPERTY(QQuickItem* progressBar                      MEMBER _progressBar)
 
     Q_PROPERTY(QQuickItem* nextButton                       MEMBER _nextButton)
     Q_PROPERTY(QQuickItem* cancelButton                     MEMBER _cancelButton)
     Q_PROPERTY(QQuickItem* orientationCalAreaHelpText       MEMBER _orientationCalAreaHelpText)
+#endif
 
     Q_PROPERTY(bool compassSetupNeeded                      READ compassSetupNeeded                         NOTIFY setupNeededChanged)
     Q_PROPERTY(bool accelSetupNeeded                        READ accelSetupNeeded                           NOTIFY setupNeededChanged)

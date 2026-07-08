@@ -1,6 +1,8 @@
 #include "Actuators.h"
 #include "MAVLinkLib.h"
+#ifdef QGC_ENABLE_QML
 #include "GeometryImage.h"
+#endif
 #include "ParameterManager.h"
 #include "Vehicle.h"
 #include "QGCLoggingCategory.h"
@@ -30,6 +32,7 @@ Actuators::Actuators(QObject* parent, Vehicle* vehicle)
 
 void Actuators::imageClicked(QSizeF displaySize, float x, float y)
 {
+#ifdef QGC_ENABLE_QML
     GeometryImage::VehicleGeometryImageProvider* provider = GeometryImage::VehicleGeometryImageProvider::instance();
     QPointF clickPosition{ x, y };
     int motorIndex = provider->getHighlightedMotorIndexAtPos(displaySize, clickPosition);
@@ -51,6 +54,11 @@ void Actuators::imageClicked(QSizeF displaySize, float x, float y)
             _motorAssignment.selectMotor(motorIndex);
         }
     }
+#else
+    Q_UNUSED(displaySize);
+    Q_UNUSED(x);
+    Q_UNUSED(y);
+#endif
 }
 
 void Actuators::selectActuatorOutput(int index)
@@ -71,6 +79,7 @@ ActuatorOutput* Actuators::selectedActuatorOutput() const
 
 void Actuators::updateGeometryImage()
 {
+#ifdef QGC_ENABLE_QML
     GeometryImage::VehicleGeometryImageProvider* provider = GeometryImage::VehicleGeometryImageProvider::instance();
 
     QList<ActuatorGeometry>& actuators = provider->actuators();
@@ -104,6 +113,7 @@ void Actuators::updateGeometryImage()
 
     _motorAssignmentEnabled = provider->numMotors() > 0;
     emit motorAssignmentEnabledChanged();
+#endif
 }
 
 bool Actuators::isMultirotor() const
@@ -781,6 +791,7 @@ bool Actuators::showUi() const
 
 bool Actuators::initMotorAssignment()
 {
+#ifdef QGC_ENABLE_QML
     GeometryImage::VehicleGeometryImageProvider* provider = GeometryImage::VehicleGeometryImageProvider::instance();
     int numMotors = provider->numMotors();
 
@@ -793,10 +804,14 @@ bool Actuators::initMotorAssignment()
         ret = _motorAssignment.initAssignment(_selectedActuatorOutput, iter->functionMin, numMotors);
     }
     return ret;
+#else
+    return false;
+#endif
 }
 
 void Actuators::highlightActuators(bool highlight)
 {
+#ifdef QGC_ENABLE_QML
     GeometryImage::VehicleGeometryImageProvider* provider = GeometryImage::VehicleGeometryImageProvider::instance();
     QList<ActuatorGeometry>& actuators = provider->actuators();
     for (auto& actuator : actuators) {
@@ -805,6 +820,9 @@ void Actuators::highlightActuators(bool highlight)
         }
     }
     updateGeometryImage();
+#else
+    Q_UNUSED(highlight);
+#endif
 }
 
 void Actuators::startMotorAssignment()

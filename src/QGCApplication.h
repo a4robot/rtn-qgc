@@ -14,8 +14,8 @@ namespace QGCCommandLineParser {
 #ifdef QGC_ENABLE_QML
 class QQmlApplicationEngine;
 class QQuickWindow;
-#endif
 class QGCImageProvider;
+#endif
 class QGCApplication;
 class QEvent;
 class QPostEventList;
@@ -118,7 +118,10 @@ public slots:
     /// one after the other.
     void showRebootAppMessage(const QString &message, const QString &title = QString());
 
+#ifdef QGC_ENABLE_QML
+    /// Image provider registered as "QGCImages" on the QML engine (MAVLink image protocol frames).
     QGCImageProvider *qgcImageProvider();
+#endif
 
 private slots:
     /// Called when the delay timer fires to show the missing parameters warning
@@ -210,5 +213,7 @@ private:
 
     const QString _settingsVersionKey = QStringLiteral("SettingsVersion"); ///< Settings key which hold settings version
 
+#ifdef QGC_ENABLE_QML
     const QString _qgcImageProviderId = QStringLiteral("QGCImages");
+#endif
 };

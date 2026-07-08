@@ -8,8 +8,10 @@
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
+#ifdef QGC_ENABLE_QML
 #include <QtQml/QQmlContext>
 #include <QtQuick/QQuickItem>
+#endif
 
 QGC_LOGGING_CATEGORY(VehicleComponentLog, "AutoPilotPlugins.VehicleComponent");
 
@@ -231,6 +233,7 @@ void VehicleComponent::_ensureSectionsCached() const
     }
 }
 
+#ifdef QGC_ENABLE_QML
 void VehicleComponent::addSummaryQmlComponent(QQmlContext *context, QQuickItem *parent)
 {
     if (!context) {
@@ -253,6 +256,7 @@ void VehicleComponent::addSummaryQmlComponent(QQmlContext *context, QQuickItem *
     item->setParentItem(parent);
     item->setProperty("vehicleComponent", QVariant::fromValue(this));
 }
+#endif // QGC_ENABLE_QML
 
 void VehicleComponent::setupTriggerSignals()
 {

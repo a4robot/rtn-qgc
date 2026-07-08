@@ -104,8 +104,12 @@ public:
 
     /// Allows the plugin to override the creation of VideoReceiver.
     virtual VideoReceiver *createVideoReceiver(QObject *parent);
+#ifdef QGC_ENABLE_QML
     /// Allows the plugin to override the creation of VideoSink.
+    /// QML-only: sinks render into a QQuickItem, and every caller
+    /// (VideoManager/VideoManager2::_initVideoReceiver) is itself QML-gated.
     virtual void *createVideoSink(QQuickItem *widget, QObject *parent);
+#endif
     /// Allows the plugin to override the release of VideoSink.
     virtual void releaseVideoSink(void *sink);
 

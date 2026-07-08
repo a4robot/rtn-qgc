@@ -306,6 +306,7 @@ VideoReceiver *QGCCorePlugin::createVideoReceiver(QObject *parent)
 #endif
 }
 
+#ifdef QGC_ENABLE_QML
 void *QGCCorePlugin::createVideoSink(QQuickItem *widget, QObject *parent)
 {
 #ifdef QGC_GST_STREAMING
@@ -317,6 +318,8 @@ void *QGCCorePlugin::createVideoSink(QQuickItem *widget, QObject *parent)
     return nullptr;
 #endif
 }
+#endif // QGC_ENABLE_QML
+
 void QGCCorePlugin::releaseVideoSink(void *sink)
 {
 #ifdef QGC_GST_STREAMING

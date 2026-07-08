@@ -51,7 +51,9 @@
 #include "QGCApplication.h"
 #include "QGCCameraManager.h"
 #include "QGCCorePlugin.h"
+#ifdef QGC_ENABLE_QML
 #include "QGCImageProvider.h"
+#endif
 #include "QGCLoggingCategory.h"
 #include "QGCQGeoCoordinate.h"
 #include "RallyPointManager.h"
@@ -3484,9 +3486,13 @@ void Vehicle::_createImageProtocolManager()
 {
     _imageProtocolManager = new ImageProtocolManager(this);
     (void) connect(_imageProtocolManager, &ImageProtocolManager::flowImageIndexChanged, this, &Vehicle::flowImageIndexChanged);
+#ifdef QGC_ENABLE_QML
     (void) connect(_imageProtocolManager, &ImageProtocolManager::imageReady, this, [this](const QImage &image) {
-        qgcApp()->qgcImageProvider()->setImage(image, _systemID);
+        if (QGCImageProvider *const provider = qgcApp()->qgcImageProvider()) {
+            provider->setImage(image, _systemID);
+        }
     });
+#endif
 }
 
 uint32_t Vehicle::flowImageIndex() const

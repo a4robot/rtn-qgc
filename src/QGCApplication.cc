@@ -821,16 +821,16 @@ bool QGCApplication::event(QEvent *e)
     return QGuiApplication::event(e);
 }
 
+#ifdef QGC_ENABLE_QML
 QGCImageProvider *QGCApplication::qgcImageProvider()
 {
-#ifdef QGC_ENABLE_QML
     if (_qmlAppEngine) {
         return dynamic_cast<QGCImageProvider*>(_qmlAppEngine->imageProvider(_qgcImageProviderId));
     }
-#endif
 
     return nullptr;
 }
+#endif // QGC_ENABLE_QML
 
 void QGCApplication::shutdown()
 {

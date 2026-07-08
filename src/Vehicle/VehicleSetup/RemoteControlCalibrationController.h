@@ -2,10 +2,18 @@
 
 #include <QtCore/QElapsedTimer>
 #include <QtQmlIntegration/QtQmlIntegration>
-#include <QtQuick/QQuickItem>
 
 #include "FactPanelController.h"
 #include "QGCMAVLink.h"
+
+// Qt 6 moc static-asserts on pointer Q_PROPERTYs of incomplete types, so the
+// QQuickItem properties below are gated together with this include; headless
+// builds see only the forward declaration (enough for the raw pointer members).
+#ifdef QGC_ENABLE_QML
+#include <QtQuick/QQuickItem>
+#else
+class QQuickItem;
+#endif
 
 /// \brief Abstract base class for calibrating RC and Joystick controller.
 ///
@@ -13,9 +21,11 @@ class RemoteControlCalibrationController : public FactPanelController
 {
     Q_OBJECT
 
+#ifdef QGC_ENABLE_QML
     Q_PROPERTY(QQuickItem*  statusText                              MEMBER  _statusText                                 REQUIRED)
     Q_PROPERTY(QQuickItem*  cancelButton                            MEMBER  _cancelButton                               REQUIRED)
     Q_PROPERTY(QQuickItem*  nextButton                              MEMBER  _nextButton                                 REQUIRED)
+#endif
 
     Q_PROPERTY(int          minChannelCount                         MEMBER  _chanMinimum                                CONSTANT)
     Q_PROPERTY(int          channelCount                            READ    channelCount                                NOTIFY channelCountChanged)

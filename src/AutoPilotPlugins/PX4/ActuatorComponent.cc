@@ -1,11 +1,11 @@
 #include "ActuatorComponent.h"
 #include "MAVLinkLib.h"
 #include "QGCApplication.h"
-#include "GeometryImage.h"
 #include "Actuators/Actuators.h"
 #include "Vehicle.h"
 
 #ifdef QGC_ENABLE_QML
+#include "GeometryImage.h"
 #include <QtQml/QQmlApplicationEngine>
 
 static bool imageProviderAdded{false};

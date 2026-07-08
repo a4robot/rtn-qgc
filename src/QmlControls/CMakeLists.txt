@@ -5,8 +5,6 @@
 
 target_sources(${CMAKE_PROJECT_NAME}
     PRIVATE
-        ColoredSvgImageProvider.cc
-        ColoredSvgImageProvider.h
         FactValueGridModel.cc
         FactValueGridModel.h
         FlightPathSegment.cc
@@ -31,8 +29,6 @@ target_sources(${CMAKE_PROJECT_NAME}
         QGCFileDialogController.h
         QGCGeoBoundingCube.cc
         QGCGeoBoundingCube.h
-        QGCImageProvider.cc
-        QGCImageProvider.h
         QGCMapCircle.cc
         QGCMapCircle.h
         QGCMapPalette.cc
@@ -58,10 +54,6 @@ target_sources(${CMAKE_PROJECT_NAME}
         RCToParamDialogController.h
         ScreenToolsController.cc
         ScreenToolsController.h
-        ToolStripAction.cc
-        ToolStripAction.h
-        ToolStripActionList.cc
-        ToolStripActionList.h
         TransformPositionController.cc
         TransformPositionController.h
         ServoOutputMonitorController.cc
@@ -80,15 +72,29 @@ target_sources(${CMAKE_PROJECT_NAME}
 # QML-only horizontal layout view used by HorizontalFactValueGrid.qml.
 # Headless callers (SubtitleWriter, QGCCorePlugin) use FactValueGridModel
 # directly so they don't need either of these.
+#
+# QGCImageProvider/ColoredSvgImageProvider inherit QQuickImageProvider and
+# only exist to be registered with the QQmlApplicationEngine (see
+# QGCApplication::_initForNormalAppBoot, itself QGC_ENABLE_QML-only). Their
+# one headless caller, Vehicle::_createImageProtocolManager, guards its use
+# of QGCApplication::qgcImageProvider() the same way.
 if(QGC_ENABLE_QML)
     target_sources(${CMAKE_PROJECT_NAME}
         PRIVATE
+            ColoredSvgImageProvider.cc
+            ColoredSvgImageProvider.h
             FactValueGrid.cc
             FactValueGrid.h
             HorizontalFactValueGrid.cc
             HorizontalFactValueGrid.h
+            QGCImageProvider.cc
+            QGCImageProvider.h
             TerrainProfile.cc
             TerrainProfile.h
+            ToolStripAction.cc
+            ToolStripAction.h
+            ToolStripActionList.cc
+            ToolStripActionList.h
     )
 endif()
 
