@@ -137,16 +137,23 @@ export function VehicleLayer({ map, vehicleId, follow = false }: VehicleLayerPro
       readyRef.current = true;
     };
 
-    if (map.isStyleLoaded()) {
-      setup();
-    } else {
-      map.once("load", setup);
-    }
+    // Same pitfall as MissionLayer: the map arrives post-"load" (CoreMap
+    // calls onMapReady from once("load")), so gate on isStyleLoaded() with an
+    // "idle" retry — never on the already-spent "load" event.
+    const trySetup = () => {
+      if (cancelled) return;
+      if (map.isStyleLoaded()) {
+        setup();
+      } else {
+        map.once("idle", trySetup);
+      }
+    };
+    trySetup();
 
     return () => {
       cancelled = true;
       readyRef.current = false;
-      map.off("load", setup);
+      map.off("idle", trySetup);
 
       markerRef.current?.remove();
       markerRef.current = null;
