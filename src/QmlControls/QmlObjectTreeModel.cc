@@ -10,7 +10,7 @@
 #include "QmlObjectTreeModel.h"
 
 #include <QtCore/QMetaMethod>
-#include <QtQml/QQmlEngine>
+#include "QGCQmlCompat.h"
 
 #include "QGCLoggingCategory.h"
 
@@ -170,7 +170,7 @@ bool QmlObjectTreeModel::setData(const QModelIndex& index, const QVariant& value
     node->object = value.value<QObject*>();
 
     if (node->object) {
-        QQmlEngine::setObjectOwnership(node->object, QQmlEngine::CppOwnership);
+        qgcSetCppOwnership(node->object);
         _connectDirtyChanged(node->object);
     }
 
@@ -264,7 +264,7 @@ QModelIndex QmlObjectTreeModel::insertItem(int row, QObject* object, const QMode
     node->nodeType = nodeType;
 
     if (object) {
-        QQmlEngine::setObjectOwnership(object, QQmlEngine::CppOwnership);
+        qgcSetCppOwnership(object);
         _connectDirtyChanged(object);
     }
 

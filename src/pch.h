@@ -45,7 +45,12 @@
 
 // Qt Qml/Quick - QML integration macros used in ~130 headers.
 // Note: QQuickItem intentionally omitted — pulls full QtQuick (scene graph, GL) everywhere.
+// QQmlEngine is QML-only: every headless setObjectOwnership caller now goes
+// through the qgcSetCppOwnership shim (QGCQmlCompat.h), so headless builds
+// carry no QtQml include and Qt6::Qml is gated off their link line.
+#ifdef QGC_ENABLE_QML
 #include <QtQml/QQmlEngine>
+#endif
 #include <QtQmlIntegration/QtQmlIntegration>
 
 // MAVLink - used in 400+ locations

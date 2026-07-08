@@ -138,14 +138,11 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         # Qt6 QML/Quick (Qt6::QmlIntegration stays unconditional — header-only QML_ELEMENT macros)
         $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Qml>
         Qt6::QmlIntegration
-        # QML-linkage debt (wave-10): headless-compiled objects still reference
-        # QQuick* symbols (QGCImageProvider/ColoredSvgImageProvider/GeometryImage
-        # inherit QQuickImageProvider; VideoManager+GStreamer use QQuickWindow;
-        # QGCCorePlugin/VehicleComponent use QQuickItem). Until those are gated,
-        # Qt6::Quick must stay linked even with QGC_ENABLE_QML=OFF. Previously
-        # this dependency was hidden: Qt6::Location (now gated) pulled Qt6::Quick
-        # in transitively, so the OFF binary has always linked libQt6Quick.
-        Qt6::Quick
+        # Wave-11 closed the QML-linkage debt: the image providers, VideoManager
+        # QQuickWindow plumbing, HwBuffers GPU tier, and QQuickItem-typed
+        # controller surfaces are all QGC_ENABLE_QML-gated, so headless objects
+        # reference no QQuick* symbols and Quick is QML-only.
+        $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Quick>
         $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Quick3D>
         $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::QuickControls2>
         $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::QuickVectorImage>

@@ -3,7 +3,9 @@
 #include <QtCore/QPointF>
 #include <QtCore/QTimer>
 #include <QtPositioning/QGeoCoordinate>
+#ifdef QGC_ENABLE_QML
 #include <QtQml/QJSValue>
+#endif
 #include <QtQmlIntegration/QtQmlIntegration>
 
 #include "QmlUnitsConversion.h"
@@ -140,6 +142,7 @@ public:
     ///   @param buttons        Dialog button flags (e.g. Dialog.Ok, Dialog.Yes | Dialog.No)
     ///   @param acceptFunction Optional callback invoked when the dialog is accepted
     ///   @param closeFunction  Optional callback invoked when the dialog is closed
+#ifdef QGC_ENABLE_QML
     Q_INVOKABLE void showMessageDialog(
         QObject* owner,
         const QString& title,
@@ -147,6 +150,7 @@ public:
         int buttons = kDefaultMessageDialogButtons,
         QJSValue acceptFunction = QJSValue(),
         QJSValue closeFunction = QJSValue());
+#endif
 
     // Test audio output
     Q_INVOKABLE void testAudioOutput();
@@ -217,7 +221,10 @@ signals:
     void mavlinkSystemIDChanged         (int id);
     void flightMapPositionChanged       (QGeoCoordinate flightMapPosition);
     void flightMapZoomChanged           (double flightMapZoom);
+#ifdef QGC_ENABLE_QML
+    // QJSValue callbacks exist only when a QML/JS engine does.
     void showMessageDialogRequested     (QObject* owner, QString title, QString text, int buttons, QJSValue acceptFunction, QJSValue closeFunction);
+#endif
 
 private:
     QGCMapEngineManager*    _mapEngineManager       = nullptr;

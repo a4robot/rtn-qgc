@@ -317,16 +317,21 @@ endif()
 # ----------------------------------------------------------------------------
 # QML Module Configuration
 # ----------------------------------------------------------------------------
-qt_add_qml_module(${CMAKE_PROJECT_NAME}
-    URI QGC
-    VERSION 1.0
-    RESOURCE_PREFIX /qml
-    IMPORTS
-        QtQuick
-        QtQuick.Controls
-        QtQuick.Dialogs
-        QtQuick.Layouts
-)
+# QML-only: the generated <target>_qmltyperegistrations.cpp references
+# QQmlModuleRegistration/QQmlPrivate::qmlregister, which would drag
+# libQt6Qml back into the otherwise Qml-free QGC_ENABLE_QML=OFF ghost.
+if(QGC_ENABLE_QML)
+    qt_add_qml_module(${CMAKE_PROJECT_NAME}
+        URI QGC
+        VERSION 1.0
+        RESOURCE_PREFIX /qml
+        IMPORTS
+            QtQuick
+            QtQuick.Controls
+            QtQuick.Dialogs
+            QtQuick.Layouts
+    )
+endif()
 
 # ----------------------------------------------------------------------------
 # Source & Test Subdirectories

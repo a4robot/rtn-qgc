@@ -309,6 +309,7 @@ QString QGroundControlQmlGlobal::altitudeFrameShortDescription(AltitudeFrame alt
     return QString();
 }
 
+#ifdef QGC_ENABLE_QML
 void QGroundControlQmlGlobal::showMessageDialog(
     QObject* owner,
     const QString& title,
@@ -319,6 +320,7 @@ void QGroundControlQmlGlobal::showMessageDialog(
 {
     emit showMessageDialogRequested(owner, title, text, buttons, acceptFunction, closeFunction);
 }
+#endif
 
 void QGroundControlQmlGlobal::testAudioOutput()
 {
