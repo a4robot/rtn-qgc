@@ -20,7 +20,7 @@ class QQuickItem;
 class Vehicle;
 class VideoReceiver;
 class VideoSink;
-class FactValueGrid;
+class FactValueGridModel;
 typedef struct __mavlink_message mavlink_message_t;
 
 /// \brief Extension mechanism for generic, non-firmware-specific customization of QGC.
@@ -91,7 +91,7 @@ public:
     /// Allows a plugin to override the specified color name from the palette
     virtual void paletteOverride(const QString &colorName, QGCPalette::PaletteColorInfo_t &colorInfo) { Q_UNUSED(colorName); Q_UNUSED(colorInfo); };
 
-    virtual void factValueGridCreateDefaultSettings(FactValueGrid* factValueGrid);
+    virtual void factValueGridCreateDefaultSettings(FactValueGridModel* factValueGrid);
 
 #ifdef QGC_ENABLE_QML
     /// Allows the plugin to override or get access to the QmlApplicationEngine to do things like add import

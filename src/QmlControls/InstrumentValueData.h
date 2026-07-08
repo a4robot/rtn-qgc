@@ -7,7 +7,7 @@
 #include <QtQmlIntegration/QtQmlIntegration>
 
 class Fact;
-class FactValueGrid;
+class FactValueGridModel;
 class QmlObjectListModel;
 class Vehicle;
 
@@ -17,7 +17,7 @@ class InstrumentValueData : public QObject
     QML_ELEMENT
     QML_UNCREATABLE("")
     Q_MOC_INCLUDE("Fact.h")
-    Q_MOC_INCLUDE("FactValueGrid.h")
+    Q_MOC_INCLUDE("FactValueGridModel.h")
 public:
     enum RangeType {
         NoRangeInfo = 0,
@@ -27,9 +27,9 @@ public:
     };
     Q_ENUM(RangeType)
 
-    explicit InstrumentValueData(FactValueGrid* factValueGrid, QObject* parent);
+    explicit InstrumentValueData(FactValueGridModel* factValueGrid, QObject* parent);
 
-    Q_PROPERTY(FactValueGrid*       factValueGrid       MEMBER _factValueGrid                               CONSTANT)
+    Q_PROPERTY(FactValueGridModel*  factValueGrid       MEMBER _factValueGrid                               CONSTANT)
     Q_PROPERTY(QStringList          factGroupNames      READ    factGroupNames                              NOTIFY factGroupNamesChanged)
     Q_PROPERTY(QStringList          factValueNames      READ    factValueNames                              NOTIFY factValueNamesChanged)
     Q_PROPERTY(QString              factGroupName       READ    factGroupName                               NOTIFY factGroupNameChanged)
@@ -109,7 +109,7 @@ private:
     void _updateOpacity         (void);
     void _setFactWorker         (void);
 
-    FactValueGrid*          _factValueGrid =        nullptr;
+    FactValueGridModel*     _factValueGrid =        nullptr;
     Vehicle*                _vehicle =              nullptr;
     QmlObjectListModel*     _rowModel =             nullptr;
     Fact*                   _fact =                 nullptr;

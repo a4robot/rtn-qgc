@@ -14,11 +14,11 @@ class HorizontalFactValueGrid : public FactValueGrid
 public:
     explicit HorizontalFactValueGrid(QQuickItem *parent = nullptr);
 
+    // telemetryBarSettingsGroup/vehicleCardSettingsGroup are inherited from
+    // FactValueGridModel (they live there so headless callers can reference them
+    // without pulling in this QQuickItem-based view class).
     Q_PROPERTY(QString telemetryBarSettingsGroup    MEMBER telemetryBarSettingsGroup    CONSTANT)
     Q_PROPERTY(QString vehicleCardSettingsGroup     MEMBER vehicleCardSettingsGroup     CONSTANT)
-
-    static const QString telemetryBarSettingsGroup;
-    static const QString vehicleCardSettingsGroup;
 
 private:
     Q_DISABLE_COPY(HorizontalFactValueGrid)

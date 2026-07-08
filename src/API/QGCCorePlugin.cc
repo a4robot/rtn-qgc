@@ -6,7 +6,7 @@
 #ifdef QGC_GST_STREAMING
 #include "GStreamer.h"
 #endif
-#include "HorizontalFactValueGrid.h"
+#include "FactValueGridModel.h"
 #include "InstrumentValueData.h"
 #ifdef QGC_ENABLE_QML
 #include "JoystickManager.h"
@@ -165,12 +165,12 @@ QString QGCCorePlugin::showAdvancedUIMessage() const
               "Are you sure you want to enable Advanced Mode?");
 }
 
-void QGCCorePlugin::factValueGridCreateDefaultSettings(FactValueGrid* factValueGrid)
+void QGCCorePlugin::factValueGridCreateDefaultSettings(FactValueGridModel* factValueGrid)
 {
 #if defined(Q_OS_ANDROID) || defined(Q_OS_IOS)
-    FactValueGrid::FontSize defaultFontSize = FactValueGrid::DefaultFontSize;
+    FactValueGridModel::FontSize defaultFontSize = FactValueGridModel::DefaultFontSize;
 #else
-    FactValueGrid::FontSize defaultFontSize = FactValueGrid::MediumFontSize;
+    FactValueGridModel::FontSize defaultFontSize = FactValueGridModel::MediumFontSize;
 #endif
 
     if (factValueGrid->specificVehicleForCard()) {

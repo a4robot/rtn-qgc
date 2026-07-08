@@ -36,6 +36,12 @@ if(QGC_ENABLE_GST_VIDEOSTREAMING)
         PRIVATE
             GStreamer::GStreamer
             Qt6::Multimedia
+            # NOT gate-able on QGC_ENABLE_QML yet: this target also provides
+            # the include path for qquickvideooutput_p.h, which VideoManager.cc/
+            # VideoManager2.cc/QtMultimediaReceiver.cc/UVCReceiver.cc include
+            # unconditionally (QQuickVideoOutput in core video plumbing).
+            # Cutting libQt6MultimediaQuick from the QML-OFF ghost needs those
+            # usages split first — see the wave-9 link audit.
             Qt6::MultimediaQuickPrivate  # found by root CMakeLists.txt find_package
     )
 

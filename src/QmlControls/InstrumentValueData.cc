@@ -1,5 +1,5 @@
 #include "InstrumentValueData.h"
-#include "FactValueGrid.h"
+#include "FactValueGridModel.h"
 #include "QGCMath.h"
 #include "QmlObjectListModel.h"
 #include "MultiVehicleManager.h"
@@ -8,7 +8,7 @@
 
 #include <QtCore/QCoreApplication>
 
-InstrumentValueData::InstrumentValueData(FactValueGrid* factValueGrid, QObject* parent)
+InstrumentValueData::InstrumentValueData(FactValueGridModel* factValueGrid, QObject* parent)
     : QObject       (parent)
     , _factValueGrid(factValueGrid)
     , _vehicle      (factValueGrid->currentVehicle())

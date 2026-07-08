@@ -7,12 +7,10 @@ target_sources(${CMAKE_PROJECT_NAME}
     PRIVATE
         ColoredSvgImageProvider.cc
         ColoredSvgImageProvider.h
-        FactValueGrid.cc
-        FactValueGrid.h
+        FactValueGridModel.cc
+        FactValueGridModel.h
         FlightPathSegment.cc
         FlightPathSegment.h
-        HorizontalFactValueGrid.cc
-        HorizontalFactValueGrid.h
         InstrumentValueData.cc
         InstrumentValueData.h
         MavlinkAction.cc
@@ -75,9 +73,20 @@ target_sources(${CMAKE_PROJECT_NAME}
 # headless caller (MissionController::recalcTerrainProfile is just a signal
 # name; it doesn't reference this class). It's also the only non-AnalyzeView
 # user of QtGraphs, so gating it lets Qt6::Graphs itself be gated below.
+#
+# FactValueGrid/HorizontalFactValueGrid are the QQuickItem view classes for
+# FactValueGridModel (unconditional, above): FactValueGrid just adds QML type
+# registration on top of the model, and HorizontalFactValueGrid is the
+# QML-only horizontal layout view used by HorizontalFactValueGrid.qml.
+# Headless callers (SubtitleWriter, QGCCorePlugin) use FactValueGridModel
+# directly so they don't need either of these.
 if(QGC_ENABLE_QML)
     target_sources(${CMAKE_PROJECT_NAME}
         PRIVATE
+            FactValueGrid.cc
+            FactValueGrid.h
+            HorizontalFactValueGrid.cc
+            HorizontalFactValueGrid.h
             TerrainProfile.cc
             TerrainProfile.h
     )
@@ -221,8 +230,8 @@ qt_add_resources(${CMAKE_PROJECT_NAME} json_controls
 
 # Remaining resources are embedded into QGroundControlControlsModule itself
 # (QML icons/images for the widget library above), so they only exist when
-# that module does. Note: FactValueGrid (core, unconditional) enumerates the
-# :/InstrumentValueIcons/ prefix at runtime to build its icon picker — in a
+# that module does. Note: FactValueGridModel (core, unconditional) enumerates
+# the :/InstrumentValueIcons/ prefix at runtime to build its icon picker — in a
 # headless (QGC_ENABLE_QML=OFF) build that enumeration is simply empty, which
 # is fine since there is no QML icon-picker UI to populate.
 if(QGC_ENABLE_QML)
@@ -252,8 +261,8 @@ qt_add_resources(QGroundControlControlsModule qmlcontrols_qmlimages
         "${CMAKE_SOURCE_DIR}/resources/CogWheels.png"
 )
 
-# Globbed because FactValueGrid enumerates :/InstrumentValueIcons/ at runtime
-# to build the icon picker — every SVG in the directory must be embedded.
+# Globbed because FactValueGridModel enumerates :/InstrumentValueIcons/ at
+# runtime to build the icon picker — every SVG in the directory must be embedded.
 file(GLOB INSTRUMENT_VALUE_ICONS CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/resources/InstrumentValueIcons/*.svg"
 )

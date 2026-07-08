@@ -1,8 +1,7 @@
 #include "SubtitleWriter.h"
 
 #include "Fact.h"
-#include "FactValueGrid.h"
-#include "HorizontalFactValueGrid.h"
+#include "FactValueGridModel.h"
 #include "InstrumentValueData.h"
 #include "MultiVehicleManager.h"
 #include "QGCLoggingCategory.h"
@@ -33,8 +32,8 @@ void SubtitleWriter::startCapturingTelemetry(const QString &videoFile, QSize siz
     _facts.clear();
 
     // Gather the facts currently displayed into _facts
-    FactValueGrid *grid = new FactValueGrid();
-    (void) grid->setProperty("settingsGroup", HorizontalFactValueGrid::telemetryBarSettingsGroup);
+    FactValueGridModel *grid = new FactValueGridModel();
+    (void) grid->setProperty("settingsGroup", FactValueGridModel::telemetryBarSettingsGroup);
     grid->componentComplete();
     for (int colIndex = 0; colIndex < grid->columns()->count(); colIndex++) {
         const QmlObjectListModel *list = grid->columns()->value<const QmlObjectListModel*>(colIndex);
