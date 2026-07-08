@@ -23,11 +23,13 @@ class QMetaMethod;
 struct QMetaObject;
 class CommandChannel;
 class FactChannel;
+class MissionChannel;
 class TelemetryChannel;
 class WebBridge;
 class WebBridgeServer;
 #ifdef QGC_GST_STREAMING
 class VideoStreamServer;
+class GhostVideoSource;
 #endif
 
 #if defined(qApp)
@@ -151,8 +153,10 @@ private:
     TelemetryChannel *_telemetryChannel = nullptr;  ///< Vehicle state → bridge telemetry stream
     FactChannel *_factChannel = nullptr;            ///< Parameter channel
     CommandChannel *_commandChannel = nullptr;      ///< §5 guided-action channel
+    MissionChannel *_missionChannel = nullptr;      ///< §7 mission channel
 #ifdef QGC_GST_STREAMING
     VideoStreamServer *_videoStreamServer = nullptr; ///< GStreamer tee tap → bridge `video` channel (§9)
+    GhostVideoSource *_ghostVideoSource = nullptr;   ///< Feeds _videoStreamServer's tap from VideoSettings' configured source
 #endif
     bool _fakeMobile = false;    ///< true: Fake ui into displaying mobile interface
     bool _logOutput = false;    ///< true: Log Qt debug output to file

@@ -9,8 +9,12 @@ qt_add_library(WebBridgeModule STATIC
     CommandChannel.h
     FactChannel.cc
     FactChannel.h
+    GhostVideoSource.cc
+    GhostVideoSource.h
     GuidedActionGate.cc
     GuidedActionGate.h
+    MissionChannel.cc
+    MissionChannel.h
     TelemetryChannel.cc
     TelemetryChannel.h
     WebBridge.cc

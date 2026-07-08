@@ -101,6 +101,13 @@ signals:
     /// connects to this and answers via sendToClient().
     void commandReceived(quint64 clientToken, const QJsonObject &request);
 
+    /// Emitted for every authenticated client's `missionUpload`/`missionDownload`/`missionClear`
+    /// message once the §7.2 envelope has been validated (id/vehicleId present -- BAD_MESSAGE is
+    /// sent directly and this signal is not emitted otherwise). @p clientToken identifies the
+    /// requester for sendToClient(); @p request is the parsed request object verbatim.
+    /// MissionChannel connects to this and answers via sendToClient().
+    void missionMessageReceived(quint64 clientToken, const QJsonObject &request);
+
 public slots:
     /// Sends a point-to-point response to a specific client.
     void reply(QWebSocket *client, const QJsonObject &message);
@@ -144,6 +151,12 @@ private:
     /// for CommandChannel (B7b) to execute. This class does not itself know how to run guided
     /// actions -- validation here is limited to envelope shape, not action semantics/params.
     void _handleCommand(QWebSocket *client, const QJsonObject &obj);
+
+    /// Handles `missionUpload`/`missionDownload`/`missionClear` messages (PROTOCOL.md §7.2):
+    /// validates that `id` and `vehicleId` are present, replying `BAD_MESSAGE` (§10) if not, then
+    /// emits missionMessageReceived() for MissionChannel to execute. This class does not itself
+    /// know mission item schema/semantics -- validation here is limited to envelope shape.
+    void _handleMission(QWebSocket *client, const QJsonObject &obj);
 
     /// Serializes @p obj as compact JSON and sends it as a single text frame (PROTOCOL.md §1:
     /// "server never fragments a JSON message across frames").

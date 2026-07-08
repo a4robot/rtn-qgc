@@ -241,6 +241,8 @@ void WebBridgeServer::_onTextMessageReceived(const QString &message)
         emit factMessageReceived(client, obj);
     } else if (type == QStringLiteral("command")) {
         _handleCommand(client, obj);
+    } else if (type == QStringLiteral("missionUpload") || type == QStringLiteral("missionDownload") || type == QStringLiteral("missionClear")) {
+        _handleMission(client, obj);
     } else {
         _sendError(client, QStringLiteral("UNKNOWN_TYPE"), QStringLiteral("Unrecognized type: %1").arg(type), false, id);
     }
@@ -365,6 +367,22 @@ void WebBridgeServer::_handleCommand(QWebSocket *client, const QJsonObject &obj)
 
     const quint64 clientToken = _clients.value(client).token;
     emit commandReceived(clientToken, obj);
+}
+
+void WebBridgeServer::_handleMission(QWebSocket *client, const QJsonObject &obj)
+{
+    const QString id = obj.value(QStringLiteral("id")).toString();
+
+    // PROTOCOL.md §7.2 request envelopes: { type: "missionUpload"|"missionDownload"|
+    // "missionClear", id, vehicleId, ... }. MissionChannel owns item-schema/op semantics; this
+    // only guards envelope shape (matches _handleCommand()'s division of responsibility).
+    if (id.isEmpty() || !obj.contains(QStringLiteral("vehicleId"))) {
+        _sendError(client, QStringLiteral("BAD_MESSAGE"), QStringLiteral("mission messages require id and vehicleId"), false, id);
+        return;
+    }
+
+    const quint64 clientToken = _clients.value(client).token;
+    emit missionMessageReceived(clientToken, obj);
 }
 
 void WebBridgeServer::_sendJson(QWebSocket *client, const QJsonObject &obj)

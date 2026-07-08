@@ -44,6 +44,7 @@
 #include "AppSettings.h"
 #include "CommandChannel.h"
 #include "FactChannel.h"
+#include "MissionChannel.h"
 #include "TelemetryChannel.h"
 
 #include "UDPLink.h"
@@ -55,6 +56,7 @@
 #include "WebBridgeServer.h"
 
 #ifdef QGC_GST_STREAMING
+#include "GhostVideoSource.h"
 #include "VideoStreamServer.h"
 #endif
 
@@ -419,9 +421,14 @@ void QGCApplication::_initForHeadlessBoot()
         _telemetryChannel = new TelemetryChannel(_webBridge, this);
         _factChannel = new FactChannel(this);
         _commandChannel = new CommandChannel(_webBridge, this);
+        _missionChannel = new MissionChannel(_webBridge, this);
         connect(_webBridgeServer, &WebBridgeServer::snapshotRequested, _telemetryChannel, &TelemetryChannel::sendSnapshot);
         connect(_webBridgeServer, &WebBridgeServer::commandReceived, _commandChannel, &CommandChannel::handleCommand);
         connect(_commandChannel, &CommandChannel::responseReady, _webBridgeServer, &WebBridgeServer::sendToClient);
+        connect(_webBridgeServer, &WebBridgeServer::snapshotRequested, _missionChannel, &MissionChannel::sendSnapshot);
+        connect(_webBridgeServer, &WebBridgeServer::missionMessageReceived, _missionChannel, &MissionChannel::handleMissionMessage);
+        connect(_missionChannel, &MissionChannel::missionStateReady, _webBridgeServer, &WebBridgeServer::broadcast);
+        connect(_missionChannel, &MissionChannel::responseReady, _webBridgeServer, &WebBridgeServer::sendToClient);
         connect(_telemetryChannel, &TelemetryChannel::telemetryReady, _webBridgeServer, &WebBridgeServer::broadcast);
         connect(_webBridgeServer, &WebBridgeServer::factMessageReceived, _factChannel, &FactChannel::handleMessage);
         connect(_factChannel, &FactChannel::responseReady, _webBridgeServer, &WebBridgeServer::reply);
@@ -438,20 +445,12 @@ void QGCApplication::_initForHeadlessBoot()
                 });
         connect(_videoStreamServer, &VideoStreamServer::configReady, _webBridgeServer, &WebBridgeServer::cacheVideoConfig);
 
-        // NOTE: attach()ing _videoStreamServer to a live pipeline needs the running
-        // GstVideoReceiver's pipeline/tee (see its pipelineHandle()/teeHandle(), valid once its
-        // streamingChanged(true) fires -- _onNewSourcePad() links _source into _tee right before
-        // that signal, so pipelineHandle()/teeHandle() are already good by the time it's
-        // observed). VideoManager owns the only GstVideoReceiver instances, but exposes neither a
-        // receiver accessor nor a per-receiver streaming signal publicly, and headless boot never
-        // even creates one: VideoManager::init(QQuickWindow*) refuses a null window (see
-        // _initForHeadlessBoot() above), so _createVideoReceivers() never runs and VideoManager's
-        // receiver list stays empty for the life of a headless process. So today there is no
-        // reachable GstVideoReceiver to attach() to: _videoStreamServer above stays permanently
-        // detached, which is inert by construction -- attach() is simply never called, and
-        // frameReady()/configReady() above never fire. Wiring the actual attach() call needs a
-        // follow-up job to add either a public VideoManager receiver accessor or a headless-safe
-        // receiver-creation path.
+        // Feeds _videoStreamServer's tap: owns its own GstVideoReceiver (independent of
+        // VideoManager, which headless boot never initializes with a window -- see _initVideo()
+        // above), started from whatever VideoSettings currently has configured. Inert (logs once,
+        // no retry) when no source URI is configured or GStreamer support isn't compiled in.
+        _ghostVideoSource = new GhostVideoSource(_videoStreamServer, this);
+        _ghostVideoSource->start();
 #endif
 
         _webBridge->start();
@@ -834,9 +833,15 @@ void QGCApplication::shutdown()
             _webBridgeServer->stop();
             _webBridge->stop();
 #ifdef QGC_GST_STREAMING
+            if (_ghostVideoSource) {
+                // Detaches the tap and stops the GstVideoReceiver that feeds it, in that order,
+                // before either object is destroyed below.
+                _ghostVideoSource->stop();
+            }
             if (_videoStreamServer) {
-                // Detaches the tap from the pipeline (if it was ever attached) before the
-                // GstVideoReceiver that owns that pipeline is torn down below.
+                // Idempotent: _ghostVideoSource->stop() above already detached the tap in the
+                // normal case. Kept as a defensive no-op for a _videoStreamServer that somehow
+                // got attached by something other than _ghostVideoSource.
                 _videoStreamServer->stop();
             }
 #endif
