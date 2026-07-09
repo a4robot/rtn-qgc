@@ -331,10 +331,10 @@ void WebBridgeServer::_handleSubscription(quint64 clientId, const QJsonObject &o
     const bool hasStreamId = obj.contains(QStringLiteral("streamId"));
 
     // PROTOCOL.md §3's envelope table: `vehicleId` is required "for vehicle-scoped messages".
-    // `telemetry`/`mission` are vehicle-scoped (unlike `video`, scoped by `streamId`, and `adsb`,
-    // not scoped at all) -- omitting it entirely is a malformed request, not "unknown vehicle"
-    // (§10: "missing required field" -> BAD_MESSAGE).
-    static const QSet<QString> kVehicleScopedChannels = { QStringLiteral("telemetry"), QStringLiteral("mission") };
+    // `telemetry`/`mission`/`image` are vehicle-scoped (unlike `video`, scoped by `streamId`, and
+    // `adsb`, not scoped at all) -- omitting it entirely is a malformed request, not "unknown
+    // vehicle" (§10: "missing required field" -> BAD_MESSAGE).
+    static const QSet<QString> kVehicleScopedChannels = { QStringLiteral("telemetry"), QStringLiteral("mission"), QStringLiteral("image") };
     if (!hasVehicleId && kVehicleScopedChannels.contains(channel)) {
         _sendError(clientId, QStringLiteral("BAD_MESSAGE"), QStringLiteral("%1 requires vehicleId").arg(channel), false, id);
         return;
@@ -451,6 +451,7 @@ bool WebBridgeServer::_isKnownChannel(const QString &channel)
         QStringLiteral("mission"),
         QStringLiteral("video"),
         QStringLiteral("adsb"),
+        QStringLiteral("image"),
     };
     return kKnownChannels.contains(channel);
 }

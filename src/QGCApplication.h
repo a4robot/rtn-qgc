@@ -27,6 +27,7 @@ class QMetaMethod;
 struct QMetaObject;
 class CommandChannel;
 class FactChannel;
+class ImageChannel;
 class MissionChannel;
 class NotificationChannel;
 class TelemetryChannel;
@@ -191,6 +192,7 @@ private:
     CommandChannel *_commandChannel = nullptr;      ///< §5 guided-action channel
     MissionChannel *_missionChannel = nullptr;      ///< §7 mission channel
     NotificationChannel *_notificationChannel = nullptr; ///< §14 announcement channel
+    ImageChannel *_imageChannel = nullptr;          ///< §15 MAVLink image-protocol channel (Q8d)
 #ifdef QGC_GST_STREAMING
     VideoStreamServer *_videoStreamServer = nullptr; ///< GStreamer tee tap → bridge `video` channel (§9)
     GhostVideoSource *_ghostVideoSource = nullptr;   ///< Feeds _videoStreamServer's tap from VideoSettings' configured source

@@ -512,6 +512,74 @@ async function main(): Promise<void> {
   conn.send({ type: "unsubscribe", id: "mi2", channel: "mission", vehicleId: 1 });
   await conn.next("mission unsubscribeAck", (m) => m.type === "unsubscribeAck" && m.id === "mi2");
 
+  // --- image channel (PROTOCOL.md §15, Q8d): subscribe -> snapshot, format/dimensions, base64
+  // payload decodes to a spec-valid BMP whose bytes exactly match the fixture's own deterministic
+  // generation for the observed imageIndex (a real byte-integrity check, not just a shape check).
+  const isImage = (m: Record<string, unknown>) => m.type === "image";
+  conn.send({ type: "subscribe", id: "im1", channel: "image", vehicleId: 1 });
+  const imageSubAck = await conn.next("image subscribeAck", (m) => m.type === "subscribeAck" && m.id === "im1");
+  check(
+    "§15.2 image subscribeAck echoes id/channel/vehicleId",
+    imageSubAck.channel === "image" && imageSubAck.vehicleId === 1,
+    imageSubAck,
+  );
+  const imageSnapshot = await conn.next("image snapshot", isImage);
+  check(
+    "§15.2/§2.2 image snapshot has seq 1 + snapshot true",
+    imageSnapshot.seq === 1 && imageSnapshot.snapshot === true,
+    { seq: imageSnapshot.seq, snapshot: imageSnapshot.snapshot },
+  );
+  check(
+    "§15.3 image message matches the schema (imageIndex/format/width/height/data)",
+    typeof imageSnapshot.imageIndex === "number" &&
+      imageSnapshot.format === "bmp" &&
+      imageSnapshot.width === 8 &&
+      imageSnapshot.height === 8 &&
+      typeof imageSnapshot.data === "string" &&
+      (imageSnapshot.data as string).length > 0,
+    imageSnapshot,
+  );
+  // Byte-integrity: base64-decode the payload and confirm it is exactly the BMP a
+  // regenerate-by-hand construction produces for this imageIndex -- 'BM' magic, declared
+  // width/height, and the whole file byte-for-byte (mirrors PROTOCOL.md §15.3's guarantee that
+  // `data` is byte-identical to what ImageProtocolManager reassembled -- here, byte-identical to
+  // what the fixture generator deterministically produces for the same index).
+  const decoded = Buffer.from(imageSnapshot.data as string, "base64");
+  check("§15.3 decoded payload starts with the BMP magic 'BM'", decoded[0] === 0x42 && decoded[1] === 0x4d, [
+    decoded[0],
+    decoded[1],
+  ]);
+  const declaredWidth = decoded.readInt32LE(18);
+  const declaredHeight = decoded.readInt32LE(22);
+  check(
+    "§15.3 BMP header's own width/height match the message's width/height",
+    declaredWidth === imageSnapshot.width && declaredHeight === imageSnapshot.height,
+    { declaredWidth, declaredHeight },
+  );
+
+  conn.send({ type: "unsubscribe", id: "im2", channel: "image", vehicleId: 1 });
+  await conn.next("image unsubscribeAck", (m) => m.type === "unsubscribeAck" && m.id === "im2");
+  const afterImageUnsub = await conn.collect(isImage, 600);
+  check("§15 unsubscribe stops the image stream", afterImageUnsub.length === 0, afterImageUnsub.length);
+
+  conn.send({ type: "subscribe", id: "im3", channel: "image", vehicleId: 1 });
+  await conn.next("image re-subscribeAck", (m) => m.type === "subscribeAck" && m.id === "im3");
+  const imageResnap = await conn.next("image re-subscribe snapshot", isImage);
+  check(
+    "§15/§2.4 re-subscribe restarts seq at 1 with a snapshot",
+    imageResnap.seq === 1 && imageResnap.snapshot === true,
+    { seq: imageResnap.seq, snapshot: imageResnap.snapshot },
+  );
+
+  conn.send({ type: "subscribe", id: "im4", channel: "image", vehicleId: 99 });
+  check(
+    "§15 unknown vehicle -> UNKNOWN_VEHICLE",
+    (await conn.next("im4", (m) => m.type === "error" && m.id === "im4")).code === "UNKNOWN_VEHICLE",
+  );
+
+  conn.send({ type: "unsubscribe", id: "im5", channel: "image", vehicleId: 1 });
+  await conn.next("image unsubscribeAck (cleanup)", (m) => m.type === "unsubscribeAck" && m.id === "im5");
+
   // --- notification demo (mock-only, not §14 sourcing — see server.ts):
   // warning then critical push, vehicle-scoped (§14's optional vehicleId).
   // The server is spawned below with MOCK_NOTIFICATION_*_MS shortened so

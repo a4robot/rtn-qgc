@@ -295,6 +295,55 @@ test("keyed error: a §10 error carrying an id is translated into a rejected com
   client.disconnect();
 });
 
+test("image channel: routed via the generic channel/seq dispatch, like telemetry/mission", () => {
+  // PROTOCOL.md §15 (Q8d) — `image` carries the standard channel/seq envelope (§3), so it needs
+  // no BridgeClient code of its own: subscribe("image", ...) uses the same dispatch path as
+  // subscribe("telemetry"/"mission", ...) in handleRawMessage(). This test pins that generic
+  // routing actually reaches an "image" subscriber and ignores unrelated channels.
+  const client = new BridgeClient();
+  client.connect("ws://fake");
+  const socket = latestSocket();
+  socket.simulateOpen();
+
+  const seen: unknown[] = [];
+  client.subscribe("image", (message) => seen.push(message));
+
+  socket.simulateMessage(
+    JSON.stringify({
+      type: "image",
+      channel: "image",
+      vehicleId: 1,
+      seq: 1,
+      snapshot: true,
+      timeUs: 1_000_000,
+      imageIndex: 3,
+      format: "jpeg",
+      width: 8,
+      height: 8,
+      data: "ZGF0YQ==",
+    }),
+  );
+  socket.simulateMessage(telemetry(1)); // unrelated channel — must not reach the image subscriber
+
+  expect(seen).toEqual([
+    {
+      type: "image",
+      channel: "image",
+      vehicleId: 1,
+      seq: 1,
+      snapshot: true,
+      timeUs: 1_000_000,
+      imageIndex: 3,
+      format: "jpeg",
+      width: 8,
+      height: 8,
+      data: "ZGF0YQ==",
+    },
+  ]);
+
+  client.disconnect();
+});
+
 test("keyed error: an unsolicited error (no id) is NOT translated into any ack", () => {
   const client = new BridgeClient();
   client.connect("ws://fake");

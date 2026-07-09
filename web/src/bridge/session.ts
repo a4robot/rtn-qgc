@@ -121,6 +121,26 @@ export function startBridgeSession(
     });
   }
 
+  // Image (§15) is vehicle-scoped like telemetry/mission (§2.4's late-binding subscribe applies
+  // the same way): same subscribe lifecycle.
+  function subscribeImage(vehicleId: number): void {
+    client.send({
+      type: "subscribe",
+      id: nextId("sub-image"),
+      channel: "image",
+      vehicleId,
+    });
+  }
+
+  function unsubscribeImage(vehicleId: number): void {
+    client.send({
+      type: "unsubscribe",
+      id: nextId("unsub-image"),
+      channel: "image",
+      vehicleId,
+    });
+  }
+
   function subscribeVideo(streamId: number): void {
     client.send({
       type: "subscribe",
@@ -142,6 +162,7 @@ export function startBridgeSession(
     });
     subscribeTelemetry(activeVehicleId);
     subscribeMission(activeVehicleId);
+    subscribeImage(activeVehicleId);
     for (const streamId of options.videoStreamIds ?? []) {
       subscribeVideo(streamId);
     }
@@ -157,6 +178,10 @@ export function startBridgeSession(
     }
     if (channel === "mission") {
       subscribeMission(activeVehicleId);
+      return;
+    }
+    if (channel === "image") {
+      subscribeImage(activeVehicleId);
       return;
     }
     if (channel === "video") {
@@ -183,8 +208,10 @@ export function startBridgeSession(
       if (resubscribeNow) {
         unsubscribeTelemetry(previousVehicleId);
         unsubscribeMission(previousVehicleId);
+        unsubscribeImage(previousVehicleId);
         subscribeTelemetry(id);
         subscribeMission(id);
+        subscribeImage(id);
       }
       // else: not connected — the next connect handshake subscribes `id`.
     },

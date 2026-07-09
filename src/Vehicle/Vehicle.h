@@ -1256,6 +1256,12 @@ public:
 signals:
     void flowImageIndexChanged();
 
+    /// Forwarded verbatim from ImageProtocolManager::imageBytesReady() (Q8d, PROTOCOL.md §15) --
+    /// raw, still-encoded MAVLink image-transmission-protocol bytes, no QImage/QtGui dependency.
+    /// WebBridge's ImageChannel (src/WebBridge/ImageChannel.h) connects to this per tracked
+    /// vehicle to publish the `image` channel.
+    void imageBytesReady(const QByteArray &bytes, quint32 width, quint32 height, const QString &format, quint32 imageIndex);
+
 private:
     void _createImageProtocolManager();
     void _createSigningController();

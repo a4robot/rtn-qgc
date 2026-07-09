@@ -99,10 +99,16 @@ void ImageProtocolManager::mavlinkMessageReceived(const mavlink_message_t &messa
         // We use the packets field to track completion
         _imageHandshake.packets--;
         if (_imageHandshake.packets == 0) {
-            // We have all the packets
-            emit imageReady(_getImage());
-
+            // We have all the packets. Increment first so imageBytesReady()/imageReady() and
+            // flowImageIndexChanged() all carry the same (post-increment) index for this image.
             _flowImageIndex++;
+
+            // Q8d: raw-bytes path, unconditional -- see the class doc comment in the header.
+            emit imageBytesReady(_imageBytes, _imageHandshake.width, _imageHandshake.height,
+                                  _formatString(_imageHandshake.type), _flowImageIndex);
+#ifdef QGC_ENABLE_QML
+            emit imageReady(_getImage());
+#endif
             emit flowImageIndexChanged(_flowImageIndex);
         }
         break;
@@ -112,6 +118,27 @@ void ImageProtocolManager::mavlinkMessageReceived(const mavlink_message_t &messa
     }
 }
 
+QString ImageProtocolManager::_formatString(uint8_t type)
+{
+    switch (type) {
+    case MAVLINK_DATA_STREAM_IMG_JPEG:
+        return QStringLiteral("jpeg");
+    case MAVLINK_DATA_STREAM_IMG_PNG:
+        return QStringLiteral("png");
+    case MAVLINK_DATA_STREAM_IMG_BMP:
+        return QStringLiteral("bmp");
+    case MAVLINK_DATA_STREAM_IMG_PGM:
+        return QStringLiteral("pgm");
+    case MAVLINK_DATA_STREAM_IMG_RAW8U:
+        return QStringLiteral("raw8u");
+    case MAVLINK_DATA_STREAM_IMG_RAW32U:
+        return QStringLiteral("raw32u");
+    default:
+        return QStringLiteral("unknown");
+    }
+}
+
+#ifdef QGC_ENABLE_QML
 QImage ImageProtocolManager::_getImage()
 {
     QImage image;
@@ -157,3 +184,4 @@ QImage ImageProtocolManager::_getImage()
 
     return image;
 }
+#endif // QGC_ENABLE_QML

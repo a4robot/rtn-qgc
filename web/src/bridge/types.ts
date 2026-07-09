@@ -9,7 +9,7 @@
  */
 
 /** Channels the bridge publishes on. */
-export type Channel = "telemetry" | "tick" | "command" | "video" | "mission";
+export type Channel = "telemetry" | "tick" | "command" | "video" | "mission" | "image";
 
 /** Fields common to every message on any channel. */
 export interface ChannelMessage {
@@ -262,6 +262,38 @@ export interface MissionItems {
 export type MissionResponse = MissionAck | MissionItems;
 
 /**
+ * Wire `format` values for {@link ImageState}, PROTOCOL.md §15 — mapped
+ * server-side from the MAVLink DATA_TRANSMISSION_HANDSHAKE's
+ * `MAVLINK_DATA_STREAM_IMG_*` type. `jpeg`/`png`/`bmp` are directly
+ * renderable via a `data:` URI; `pgm`/`raw8u`/`raw32u` have no browser-native
+ * container and need manual decode (see {@link ImageState}'s doc comment).
+ */
+export type ImageFormat = "jpeg" | "png" | "bmp" | "pgm" | "raw8u" | "raw32u" | "unknown";
+
+/**
+ * MAVLink image-transmission-protocol state for one vehicle, PROTOCOL.md
+ * §15 (Q8d) — the raw-bytes-before-decode twin of the `video` channel's
+ * "server forwards encoded bytes, client decodes" philosophy (§9), but
+ * base64-in-JSON rather than a second binary-frame path (see §15.1's
+ * rationale: this protocol is ~1 Hz max, so the size/complexity tradeoff
+ * that justifies video's binary framing doesn't apply here). Vehicle-scoped
+ * and subscribed like {@link Telemetry}/{@link MissionState} — the vehicle's
+ * most recently completed image is state, snapshotted on (re)subscribe if
+ * one exists yet (§15.2).
+ */
+export interface ImageState extends VehicleMessage {
+  channel: "image";
+  /** Monotonic per vehicle (ImageProtocolManager::flowImageIndex()) — independent of `seq`, which resets on every re-subscribe. */
+  imageIndex: number;
+  format: ImageFormat;
+  /** Declared by the source; may be 0 if unknown. */
+  width: number;
+  height: number;
+  /** Base64 of the exact bytes reassembled from ENCAPSULATED_DATA — decode per `format` (§15.3). */
+  data: string;
+}
+
+/**
  * Periodic bridge heartbeat, PROTOCOL.md §11.1 — sent 1 Hz after helloAck,
  * outside the channel/seq envelope (no subscription, no ordering).
  */
@@ -275,7 +307,7 @@ export interface Tick {
 }
 
 /** Any message the bridge can push to the client. */
-export type BridgeMessage = Telemetry | Tick | ParamValue | MissionState;
+export type BridgeMessage = Telemetry | Tick | ParamValue | MissionState | ImageState;
 
 /** Session handshake, PROTOCOL.md §1.1 — must be the first client message. */
 export interface Hello {

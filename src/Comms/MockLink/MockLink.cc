@@ -214,6 +214,7 @@ void MockLink::run1HzTasks()
 
     if (_enableCamera) {
         _mockLinkCamera->sendCameraHeartbeats();
+        _sendMockOpticalFlowImage();
     }
 
     if (!QGC::runningUnitTests()) {
@@ -630,6 +631,60 @@ void MockLink::_sendVibration()
         3        // clipping_0
     );
     respondWithMavlinkMessage(msg);
+}
+
+namespace {
+// Q8d mock optical-flow image parameters (PROTOCOL.md §15). RAW8U (one grayscale byte/pixel, no
+// container header) is used rather than a real JPEG so the pixel pattern is trivially
+// reconstructible by a test without a JPEG encoder/decoder -- see
+// tools/ghost/conformance/groups/image.ts, which independently recomputes this exact pattern for
+// a byte-integrity comparison.
+constexpr uint16_t kMockImageWidth = 8;
+constexpr uint16_t kMockImageHeight = 8;
+constexpr uint8_t kMockImagePayload = 32;                                            // bytes/packet
+constexpr uint32_t kMockImageSize = static_cast<uint32_t>(kMockImageWidth) * kMockImageHeight; // 64 bytes total
+constexpr uint16_t kMockImagePackets = kMockImageSize / kMockImagePayload;           // 2 packets
+// ~1 image every 3 run1HzTasks() calls (~3s wall clock) -- comfortably under PROTOCOL.md §15's
+// "~1 Hz max" framing for this protocol.
+constexpr uint32_t kMockImageIntervalTicks = 3;
+} // namespace
+
+void MockLink::_sendMockOpticalFlowImage()
+{
+    _mockImageTickCount++;
+    if ((_mockImageTickCount % kMockImageIntervalTicks) != 0) {
+        return;
+    }
+
+    const uint32_t seed = _mockImageTickCount;
+
+    mavlink_message_t handshakeMsg{};
+    const mavlink_data_transmission_handshake_t handshake{
+        /*size*/        kMockImageSize,
+        /*width*/       kMockImageWidth,
+        /*height*/      kMockImageHeight,
+        /*packets*/     kMockImagePackets,
+        /*type*/        MAVLINK_DATA_STREAM_IMG_RAW8U,
+        /*payload*/     kMockImagePayload,
+        /*jpg_quality*/ 0,
+    };
+    (void) mavlink_msg_data_transmission_handshake_encode_chan(_vehicleSystemId, _vehicleComponentId, _getMavlinkVehicleChannel(), &handshakeMsg, &handshake);
+    respondWithMavlinkMessage(handshakeMsg);
+
+    for (uint16_t pkt = 0; pkt < kMockImagePackets; ++pkt) {
+        mavlink_encapsulated_data_t data{};
+        data.seqnr = pkt;
+        for (uint8_t i = 0; i < kMockImagePayload; ++i) {
+            // Deterministic function of (seed, packet, byte offset) -- see the namespace comment
+            // above for why this must be independently reproducible by a test.
+            data.data[i] = static_cast<uint8_t>((seed * 17u + pkt * kMockImagePayload + i) & 0xFFu);
+        }
+        mavlink_message_t dataMsg{};
+        (void) mavlink_msg_encapsulated_data_encode_chan(_vehicleSystemId, _vehicleComponentId, _getMavlinkVehicleChannel(), &dataMsg, &data);
+        respondWithMavlinkMessage(dataMsg);
+    }
+
+    qCDebug(MockLinkLog) << "Sent mock optical-flow image (RAW8U" << kMockImageWidth << "x" << kMockImageHeight << ") seed" << seed;
 }
 
 void MockLink::respondWithMavlinkMessage(const mavlink_message_t &msg)

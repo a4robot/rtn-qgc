@@ -221,7 +221,7 @@ private:
     /// non-empty; omitted otherwise (unsolicited errors omit `id`).
     void _sendError(quint64 clientId, const QString &code, const QString &message, bool retryable, const QString &id = QString());
 
-    /// Subscribable channels per PROTOCOL.md §2.2: telemetry, mission, video, adsb.
+    /// Subscribable channels per PROTOCOL.md §2.2/§15: telemetry, mission, video, adsb, image.
     static bool _isKnownChannel(const QString &channel);
 
     static constexpr const char *kProtocolVersion = "0.1";           ///< PROTOCOL.md §1.1 helloAck/hello

@@ -53,6 +53,7 @@ import { results, section } from "./lib.ts";
 import { runAuthGroup } from "./groups/auth.ts";
 import { runCommandGroup } from "./groups/command.ts";
 import { runConnectionGroup } from "./groups/connection.ts";
+import { runImageGroup } from "./groups/image.ts";
 import { runMissionGroup } from "./groups/mission.ts";
 import { runMultiClientGroup } from "./groups/multiclient.ts";
 import { runSubscribeGroup } from "./groups/subscribe.ts";
@@ -91,6 +92,7 @@ async function main(): Promise<void> {
     { name: "§4 telemetry shape/rate/nullable discipline", run: () => runTelemetryGroup(PROBE_URL, VEHICLE_ID) },
     { name: "§5 command request/ack correlation", run: () => runCommandGroup(PROBE_URL, VEHICLE_ID) },
     { name: "§7 mission upload/download/clear round-trip", run: () => runMissionGroup(PROBE_URL, VEHICLE_ID) },
+    { name: "§15 image channel + byte-integrity (Q8d, requires --mock-link enableCamera)", run: () => runImageGroup(PROBE_URL, VEHICLE_ID) },
     { name: "§11.1 tick cadence + vehicleIds", run: () => runTickGroup(PROBE_URL, VEHICLE_ID) },
     { name: "multi-client isolation (§14.3 welcome, §11.1 broadcast, §3 scoping)", run: () => runMultiClientGroup(PROBE_URL, VEHICLE_ID) },
     { name: "teardown: server survives abrupt client close", run: () => runTeardownGroup(PROBE_URL, VEHICLE_ID) },

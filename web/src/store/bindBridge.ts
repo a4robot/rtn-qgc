@@ -7,6 +7,7 @@
  *  - "tick"                    → connectionStore.applyTick + vehicleStore.syncVehicleIds
  *  - "telemetry"               → vehicleStore.applyTelemetry
  *  - "mission"                  → missionStore.applyMissionState
+ *  - "image"                    → imageStore.applyImage
  *  - notification               → notificationStore.addNotification
  *  - seq gaps                  → connectionStore.recordSeqGap
  */
@@ -16,6 +17,7 @@ import { useConnectionStore } from "./connectionStore.ts";
 import { useVehicleStore } from "./vehicleStore.ts";
 import { useParamStore } from "./paramStore.ts";
 import { useMissionStore } from "./missionStore.ts";
+import { useImageStore } from "./imageStore.ts";
 import { useNotificationStore } from "./notificationStore.ts";
 
 /**
@@ -27,6 +29,7 @@ export function bindBridgeToStores(client: BridgeClient): () => void {
   const vehicles = useVehicleStore.getState();
   const params = useParamStore.getState();
   const missions = useMissionStore.getState();
+  const images = useImageStore.getState();
   const notifications = useNotificationStore.getState();
 
   // Reflect the client's current state immediately; onStateChange only
@@ -67,6 +70,19 @@ export function bindBridgeToStores(client: BridgeClient): () => void {
         return;
       }
       missions.applyMissionState(message);
+    }),
+
+    client.subscribe("image", (message) => {
+      if (!("channel" in message) || message.channel !== "image") {
+        return;
+      }
+      // Only messages carrying `data` (the payload every real §15 `image`
+      // message has) belong in the store — mirrors the mission subscriber's
+      // `items` guard above.
+      if (!("data" in message) || typeof message.data !== "string") {
+        return;
+      }
+      images.applyImage(message);
     }),
 
     client.onParamValue((message) => {

@@ -47,6 +47,7 @@
 #include "AppSettings.h"
 #include "CommandChannel.h"
 #include "FactChannel.h"
+#include "ImageChannel.h"
 #include "MissionChannel.h"
 #include "NotificationChannel.h"
 #include "TelemetryChannel.h"
@@ -445,6 +446,7 @@ void QGCApplication::_initForHeadlessBoot()
         _commandChannel = new CommandChannel(_webBridge, this);
         _missionChannel = new MissionChannel(_webBridge, this);
         _notificationChannel = new NotificationChannel(_webBridge, this);
+        _imageChannel = new ImageChannel(_webBridge, this);
         connect(_webBridgeServer, &WebBridgeServer::snapshotRequested, _telemetryChannel, &TelemetryChannel::sendSnapshot);
         connect(_webBridgeServer, &WebBridgeServer::commandReceived, _commandChannel, &CommandChannel::handleCommand);
         connect(_commandChannel, &CommandChannel::responseReady, _webBridgeServer, &WebBridgeServer::sendToClient);
@@ -453,6 +455,9 @@ void QGCApplication::_initForHeadlessBoot()
         connect(_missionChannel, &MissionChannel::missionStateReady, _webBridgeServer, &WebBridgeServer::broadcast);
         connect(_missionChannel, &MissionChannel::responseReady, _webBridgeServer, &WebBridgeServer::sendToClient);
         connect(_telemetryChannel, &TelemetryChannel::telemetryReady, _webBridgeServer, &WebBridgeServer::broadcast);
+        // §15 image channel (Q8d): same snapshot/broadcast wiring as telemetry/mission above.
+        connect(_webBridgeServer, &WebBridgeServer::snapshotRequested, _imageChannel, &ImageChannel::sendSnapshot);
+        connect(_imageChannel, &ImageChannel::imageReady, _webBridgeServer, &WebBridgeServer::broadcast);
         connect(_webBridgeServer, &WebBridgeServer::factMessageReceived, _factChannel, &FactChannel::handleMessage);
         connect(_factChannel, &FactChannel::responseReady, _webBridgeServer, &WebBridgeServer::reply);
         connect(_factChannel, &FactChannel::errorReady, _webBridgeServer, &WebBridgeServer::replyError);
@@ -502,7 +507,13 @@ void QGCApplication::_initForHeadlessBoot()
     // Simulated PX4 vehicle for ghost/bridge development: only when explicitly requested via --mock-link.
     if (_mockLink) {
 #ifdef QGC_ENABLE_MOCKLINK
-        (void) MockLink::startPX4MockLink(false /* sendStatusText */, false /* enableCamera */, false /* enableGimbal */);
+        // enableCamera=true (Q8d): MockLink's periodic optical-flow image emission
+        // (DATA_TRANSMISSION_HANDSHAKE + ENCAPSULATED_DATA -- see
+        // MockLink::_sendMockOpticalFlowImage()) rides along on this same flag as the Camera
+        // Protocol v2 simulation it already gates, so the ghost's `--mock-link` e2e now
+        // exercises the `image` channel (PROTOCOL.md §15) end to end too, same as it already
+        // does for telemetry/mission/command.
+        (void) MockLink::startPX4MockLink(false /* sendStatusText */, true /* enableCamera */, false /* enableGimbal */);
 #else
         qCWarning(QGCApplicationLog) << "--mock-link requested but this build was not compiled with QGC_ENABLE_MOCKLINK";
 #endif

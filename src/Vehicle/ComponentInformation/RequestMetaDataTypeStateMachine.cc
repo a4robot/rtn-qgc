@@ -145,7 +145,7 @@ void RequestMetaDataTypeStateMachine::_wireTransitions()
     _stateComplete->addTransition(_stateComplete, &QGCState::advance, _stateFinal);
 
     // Emit requestComplete when machine finishes (reaches final state and stops)
-    connect(this, &QStateMachine::finished, this, &RequestMetaDataTypeStateMachine::requestComplete);
+    connect(this, &QGCStateMachine::finished, this, &RequestMetaDataTypeStateMachine::requestComplete); // Q8b: works in both QGC_ENABLE_QT_STATEMACHINE configs
 }
 
 void RequestMetaDataTypeStateMachine::_wireTimeoutHandling()

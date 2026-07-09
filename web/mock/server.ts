@@ -9,6 +9,13 @@
  * warning ~15s in, critical ~40s in — see "notification demo" below) so the
  * web UI's toast/bell can be developed against a fake ghost too.
  *
+ * `image` (PROTOCOL.md §15, Q8d) is a synthetic, deterministic-per-elapsed-time BMP test pattern
+ * (see "image fixture" below) — not a real JPEG fixture, since a hand-rolled/embedded JPEG risks
+ * being subtly invalid with no way to self-verify; a programmatically-constructed BMP is trivial
+ * to build correctly and lets selftest.ts independently recompute the exact expected bytes for a
+ * true byte-integrity check, which is the point of this channel (PROTOCOL.md §15: bytes forwarded
+ * verbatim, no server-side re-encoding).
+ *
  * Telemetry is played back from fixtures/telemetry.json (a scripted flight,
  * one sample per second) on a global loop clock shared by all clients; the
  * server interpolates between fixture samples to produce a smooth 10 Hz
@@ -47,7 +54,7 @@ const TELEMETRY_INTERVAL_MS = 100; // 10 Hz
 
 /** The mock simulates exactly one connected vehicle. */
 const VEHICLE_ID = 1;
-const SUBSCRIBABLE_CHANNELS = new Set(["telemetry", "mission", "video", "adsb"]);
+const SUBSCRIBABLE_CHANNELS = new Set(["telemetry", "mission", "video", "adsb", "image"]);
 const COMMAND_ACTIONS = new Set([
   "arm",
   "disarm",
@@ -454,6 +461,81 @@ function buildVideoFrame(streamId: number, keyframe: boolean, timestampUs: numbe
   return frame;
 }
 
+// --- image fixture (PROTOCOL.md §15, Q8d) -----------------------------------
+//
+// Deterministic BMP test pattern: `imageIndex` is derived purely from elapsed server time (no
+// mutable state to track), and the pixel bytes are a pure function of `imageIndex` -- so a test
+// can independently recompute the exact expected bytes for a given index/time without needing to
+// observe the server's internals, i.e. a real byte-integrity check (see server.ts's header
+// comment for why BMP rather than an embedded JPEG fixture).
+
+const IMAGE_WIDTH = 8;
+const IMAGE_HEIGHT = 8;
+/** How often the served image "advances" (PROTOCOL.md §15: "~1 Hz max" -- this is sub-1Hz). */
+const IMAGE_INTERVAL_MS = 2000;
+/** How often a subscribed connection polls for an index change and pushes an update. */
+const IMAGE_POLL_INTERVAL_MS = 500;
+
+/** Cycles through a small solid-color palette keyed by imageIndex -- easy to eyeball in a viewer. */
+const IMAGE_PALETTE: ReadonlyArray<readonly [number, number, number]> = [
+  [220, 40, 40], // red
+  [40, 180, 90], // green
+  [40, 100, 220], // blue
+];
+
+/** The image "index" for the current wall-clock time -- pure function of elapsed time, no state. */
+function currentImageIndex(): number {
+  return Math.floor((Date.now() - serverStartMs) / IMAGE_INTERVAL_MS) + 1;
+}
+
+/**
+ * Builds a minimal, spec-valid 24bpp BGR BMP (BITMAPFILEHEADER + BITMAPINFOHEADER, no color
+ * table, no compression) filled with a single solid color chosen from `IMAGE_PALETTE` by
+ * `imageIndex`. Pure function of `imageIndex` -- same input always produces byte-identical output.
+ */
+function buildBmpFrame(imageIndex: number): Uint8Array {
+  const [r, g, b] = IMAGE_PALETTE[imageIndex % IMAGE_PALETTE.length]!;
+  const rowSize = Math.ceil((IMAGE_WIDTH * 3) / 4) * 4; // BMP rows are padded to a 4-byte boundary
+  const pixelDataSize = rowSize * IMAGE_HEIGHT;
+  const fileSize = 54 + pixelDataSize;
+
+  const buf = new Uint8Array(fileSize);
+  const dv = new DataView(buf.buffer);
+
+  // BITMAPFILEHEADER (14 bytes)
+  buf[0] = 0x42; // 'B'
+  buf[1] = 0x4d; // 'M'
+  dv.setUint32(2, fileSize, true);
+  dv.setUint32(6, 0, true); // reserved1/reserved2
+  dv.setUint32(10, 54, true); // pixel data offset
+
+  // BITMAPINFOHEADER (40 bytes)
+  dv.setUint32(14, 40, true); // header size
+  dv.setInt32(18, IMAGE_WIDTH, true);
+  dv.setInt32(22, IMAGE_HEIGHT, true); // positive height = bottom-up row order
+  dv.setUint16(26, 1, true); // color planes
+  dv.setUint16(28, 24, true); // bits per pixel
+  dv.setUint32(30, 0, true); // BI_RGB, no compression
+  dv.setUint32(34, pixelDataSize, true);
+  dv.setUint32(38, 0, true); // x pixels/meter
+  dv.setUint32(42, 0, true); // y pixels/meter
+  dv.setUint32(46, 0, true); // colors used
+  dv.setUint32(50, 0, true); // important colors
+
+  // Pixel data: bottom-up rows, 3 bytes/pixel in BGR order, each row padded to `rowSize`.
+  let offset = 54;
+  for (let row = 0; row < IMAGE_HEIGHT; row++) {
+    for (let col = 0; col < IMAGE_WIDTH; col++) {
+      buf[offset + col * 3 + 0] = b;
+      buf[offset + col * 3 + 1] = g;
+      buf[offset + col * 3 + 2] = r;
+    }
+    offset += rowSize;
+  }
+
+  return buf;
+}
+
 // --- per-connection session ------------------------------------------------
 
 interface Stream {
@@ -474,6 +556,13 @@ interface MissionStream {
   lastCurrentSeq: number;
 }
 
+/** Poll-and-diff against `currentImageIndex()` (see "image fixture" above). */
+interface ImageStream {
+  seq: number;
+  timer: ReturnType<typeof setInterval>;
+  lastImageIndex: number;
+}
+
 interface Session {
   authed: boolean;
   closed: boolean;
@@ -484,6 +573,8 @@ interface Session {
   videoStreams: Map<number, VideoStream>;
   /** Active mission subscriptions keyed by "mission/<vehicleId>". */
   missionStreams: Map<string, MissionStream>;
+  /** Active image subscriptions keyed by "image/<vehicleId>". */
+  imageStreams: Map<string, ImageStream>;
   /** Pending commandProgress timers, cleared on disconnect. */
   commandTimers: Set<ReturnType<typeof setTimeout>>;
   /** Pending demo `notification` timers (see "notification demo" below), cleared on disconnect. */
@@ -587,6 +678,13 @@ function stopMissionStreams(session: Session): void {
     clearInterval(stream.timer);
   }
   session.missionStreams.clear();
+}
+
+function stopImageStreams(session: Session): void {
+  for (const stream of session.imageStreams.values()) {
+    clearInterval(stream.timer);
+  }
+  session.imageStreams.clear();
 }
 
 // --- message handlers ------------------------------------------------------
@@ -828,6 +926,71 @@ function handleMissionUnsubscribe(ws: Socket, msg: Record<string, unknown>, base
   });
 }
 
+/** PROTOCOL.md §15: builds and sends one `image` message for the current (or last-pushed) index. */
+function sendImage(ws: Socket, stream: ImageStream, snapshot: boolean): void {
+  const imageIndex = currentImageIndex();
+  const frame = buildBmpFrame(imageIndex);
+  send(ws, {
+    type: "image",
+    channel: "image",
+    vehicleId: VEHICLE_ID,
+    seq: stream.seq,
+    snapshot,
+    timeUs: nowUs(),
+    imageIndex,
+    format: "bmp",
+    width: IMAGE_WIDTH,
+    height: IMAGE_HEIGHT,
+    data: Buffer.from(frame).toString("base64"),
+  });
+  stream.seq += 1;
+  stream.lastImageIndex = imageIndex;
+}
+
+function handleImageSubscribe(ws: Socket, msg: Record<string, unknown>, base: { id: string }): void {
+  const req = checkVehicleEnvelope(ws, msg, base.id);
+  if (!req) {
+    return;
+  }
+  const key = `image/${req.vehicleId}`;
+
+  // Re-subscribing restarts the stream: seq back to 1 with a fresh snapshot.
+  const existing = ws.data.imageStreams.get(key);
+  if (existing) {
+    clearInterval(existing.timer);
+  }
+
+  send(ws, { type: "subscribeAck", id: req.id, channel: "image", vehicleId: req.vehicleId });
+
+  // Unlike the real bridge (which has nothing to snapshot until ImageProtocolManager completes
+  // its first transmission, §15.2), this mock always has a deterministic "current" image ready
+  // from the moment the server started, so it snapshots immediately -- simpler, and still a
+  // faithful §2 "state, not events" snapshot of whatever the current state actually is.
+  const stream: ImageStream = { seq: 1, timer: 0 as unknown as ReturnType<typeof setInterval>, lastImageIndex: -1 };
+  sendImage(ws, stream, true);
+  // State-not-events: only push when the index actually advanced, not every poll tick.
+  stream.timer = setInterval(() => {
+    if (currentImageIndex() !== stream.lastImageIndex) {
+      sendImage(ws, stream, false);
+    }
+  }, IMAGE_POLL_INTERVAL_MS);
+  ws.data.imageStreams.set(key, stream);
+}
+
+function handleImageUnsubscribe(ws: Socket, msg: Record<string, unknown>, base: { id: string }): void {
+  const req = checkVehicleEnvelope(ws, msg, base.id);
+  if (!req) {
+    return;
+  }
+  const key = `image/${req.vehicleId}`;
+  const stream = ws.data.imageStreams.get(key);
+  if (stream) {
+    clearInterval(stream.timer);
+    ws.data.imageStreams.delete(key);
+  }
+  send(ws, { type: "unsubscribeAck", id: req.id, channel: "image", vehicleId: req.vehicleId });
+}
+
 /** §9.1: the JSON codec-config message sent on subscribe (and on SPS/PPS change — never, for this fixture). */
 function sendVideoConfig(ws: Socket, streamId: number): void {
   send(ws, {
@@ -910,6 +1073,10 @@ function handleSubscribe(ws: Socket, msg: Record<string, unknown>): void {
     handleVideoSubscribe(ws, msg, base);
     return;
   }
+  if (base.channel === "image") {
+    handleImageSubscribe(ws, msg, base);
+    return;
+  }
   // Valid protocol channel (adsb), but out of scope for this mock (§12).
   sendError(ws, "UNKNOWN_CHANNEL", `channel ${base.channel} is not implemented by the M1 mock`, {
     id: base.id,
@@ -932,6 +1099,10 @@ function handleUnsubscribe(ws: Socket, msg: Record<string, unknown>): void {
   }
   if (base.channel === "video") {
     handleVideoUnsubscribe(ws, msg, base);
+    return;
+  }
+  if (base.channel === "image") {
+    handleImageUnsubscribe(ws, msg, base);
     return;
   }
   sendError(ws, "UNKNOWN_CHANNEL", `channel ${base.channel} is not implemented by the M1 mock`, {
@@ -1249,6 +1420,7 @@ const server = Bun.serve<Session, never>({
       streams: new Map(),
       videoStreams: new Map(),
       missionStreams: new Map(),
+      imageStreams: new Map(),
       commandTimers: new Set(),
       notificationTimers: new Set(),
     };
@@ -1270,6 +1442,7 @@ const server = Bun.serve<Session, never>({
       stopStreams(ws.data);
       stopVideoStreams(ws.data);
       stopMissionStreams(ws.data);
+      stopImageStreams(ws.data);
       for (const timer of ws.data.commandTimers) {
         clearTimeout(timer);
       }

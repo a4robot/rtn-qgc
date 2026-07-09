@@ -13,6 +13,8 @@ qt_add_library(WebBridgeModule STATIC
     GhostVideoSource.h
     GuidedActionGate.cc
     GuidedActionGate.h
+    ImageChannel.cc
+    ImageChannel.h
     MissionChannel.cc
     MissionChannel.h
     NotificationChannel.cc

@@ -244,6 +244,16 @@ private:
     void _sendGeneralMetaData();
     void _sendRemoteIDArmStatus();
     void _sendAvailableModesMonitor();
+    /// Q8d (STRANGLER_MILESTONES.md M8, PROTOCOL.md §15): periodically emits a synthetic
+    /// DATA_TRANSMISSION_HANDSHAKE + ENCAPSULATED_DATA burst -- the MAVLink image transmission
+    /// protocol ImageProtocolManager consumes (mainly used by optical flow cameras, which stream
+    /// unsolicited rather than answering a GCS request -- see ImageProtocolManager.h's class doc
+    /// and the fact that requestImage()/cancelRequest() have no caller in this codebase). Gated
+    /// on _enableCamera (same flag as _mockLinkCamera) rather than a dedicated flag/constructor
+    /// param, so every existing MockLink call site and test is unaffected unless it already opts
+    /// into camera simulation; QGCApplication.cc's `--mock-link` wiring passes enableCamera=true
+    /// specifically so the ghost e2e path exercises the `image` channel too.
+    void _sendMockOpticalFlowImage();
 
     void _paramRequestListWorker();
     void _logDownloadWorker();
@@ -330,6 +340,8 @@ private:
     ///   - Worker thread: _availableModesWorker() incrementing index every 2ms (500Hz)
     QMutex _availableModesWorkerMutex;
     uint8_t _availableModesMonitorSeqNumber = 0;        ///< Sequence number for the next available mode message to send
+
+    uint32_t _mockImageTickCount = 0;                   ///< 1Hz-tick counter driving _sendMockOpticalFlowImage()'s rate gate
 
     QString _logDownloadFilename;                       ///< Filename for log download which is in progress
     uint32_t _logDownloadCurrentOffset = 0;             ///< Current offset we are sending from

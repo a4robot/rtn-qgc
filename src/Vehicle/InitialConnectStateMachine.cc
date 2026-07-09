@@ -547,7 +547,7 @@ void InitialConnectStateMachine::_requestRallyPoints(SkippableAsyncState* state)
 void InitialConnectStateMachine::_signalComplete()
 {
     qCDebug(InitialConnectStateMachineLog) << "Signalling initialConnectComplete";
-    connect(this, &QStateMachine::finished, vehicle(), [this]() {
+    connect(this, &QGCStateMachine::finished, vehicle(), [this]() { // Q8b: works in both QGC_ENABLE_QT_STATEMACHINE configs
         emit vehicle()->initialConnectComplete();
     }, Qt::SingleShotConnection);
 }

@@ -32,6 +32,13 @@ export {
   type PlanStoreState,
 } from "./planStore.ts";
 export {
+  useImage,
+  useImages,
+  useImageStore,
+  type ImageRecord,
+  type ImageStoreState,
+} from "./imageStore.ts";
+export {
   useNotifications,
   useNotificationStore,
   useUnreadNotificationCount,

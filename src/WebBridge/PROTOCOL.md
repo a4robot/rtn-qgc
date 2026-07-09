@@ -85,7 +85,7 @@ If `protocolVersion` major version is unsupported, server replies with error `UN
 
 Ack: `{ "type": "subscribeAck", "id": "s1", "channel": "telemetry", "vehicleId": 1 }` followed immediately by the snapshot (if the vehicle is already known -- see below). Unknown channel → error `UNKNOWN_CHANNEL`; a vehicle-scoped channel (`telemetry`, `mission`) with `vehicleId` omitted entirely → error `BAD_MESSAGE` (§10: "missing required field" — §3's envelope table marks `vehicleId` required for vehicle-scoped messages).
 
-Subscribable channels: `telemetry`, `mission`, `video` (uses `streamId` instead of `vehicleId`, §9), `adsb`.
+Subscribable channels: `telemetry`, `mission`, `image` (§15), `video` (uses `streamId` instead of `vehicleId`, §9), `adsb`.
 
 > **Late-binding subscribes (v0.1 clarification).** A `subscribe` naming a `vehicleId` that is *not currently* in the tracked vehicle set (i.e. not in the most recent `tick.vehicleIds`, §11.1) is **not** an error: it is `subscribeAck`'d exactly like a known vehicle, and simply produces no snapshot yet — the client is now durably subscribed to that (channel, vehicleId) stream and starts receiving state transparently the moment the vehicle appears (no re-subscribe needed), same as if it had subscribed after the vehicle connected. This is deliberate, not a bug: the web client's own startup handshake (`web/src/bridge/session.ts`) subscribes `telemetry`/`mission` for its configured vehicle immediately after `hello`, routinely *before* a MockLink or real vehicle has finished attaching (autopilot boot/handshake can take ~1 s or more) — rejecting that subscribe with `UNKNOWN_VEHICLE` would break every cold start unless the client added its own "wait for tick, then subscribe" gate, which v0.1 does not require. A caveat of this: because delivery isn't gated by an explicit re-subscribe, the *first* message a late-bound client actually receives is not guaranteed to carry `snapshot: true` / `seq: 1` — it is instead whatever the channel's next periodic publish produces for that vehicle (still a **complete** current-state message per §2's "state, not events", just not flagged as the stream's first message). A client that cares about the seq/snapshot invariant for a vehicle it isn't sure exists yet should watch `tick.vehicleIds` and only subscribe (or re-subscribe, to force a fresh seq-1 snapshot) once the id appears there.
 >
@@ -460,3 +460,87 @@ delivery without depending on an organic vehicle event (arm, warning, link loss,
 occurring during its session. It is exempt from §14.2's dedup window (each new connection gets its
 own delivery, even if the previous connection's welcome text is technically "the same text" within
 the last second of a rapid reconnect).
+
+---
+
+## 15. Channel: `image`
+
+Server → client, vehicle-scoped, subscribed. Carries the MAVLink image transmission protocol
+(https://mavlink.io/en/services/image_transmission.html -- `DATA_TRANSMISSION_HANDSHAKE` +
+`ENCAPSULATED_DATA`, mainly used by optical flow cameras), added in Q8d
+(STRANGLER_MILESTONES.md M8) to restore image capability the QML-OFF ghost lost when Q8d's
+predecessor (Q7d) gated the QImage-only decode path out of headless builds to drop `libQt6Gui`.
+Same philosophy as `video` (§9): **the server forwards the already-reassembled, still-encoded
+bytes; the client decodes.** `src/MAVLink/ImageProtocolManager.{h,cc}` reassembles
+`ENCAPSULATED_DATA` packets exactly as before -- this channel taps that reassembly at the same
+point the (QML-only) `QImage` decode used to happen, before any decode occurs.
+
+### 15.1 Wire format: base64-in-JSON, not a binary frame (rationale)
+
+Unlike `video` (§9.2's 16-byte binary header + raw Annex-B payload, chosen because H.264 runs at
+15-30 fps and both the per-frame header overhead and a base64 size penalty would be wasteful at
+that rate), this channel reuses the plain JSON stream envelope (§3) with the image bytes as a
+base64 string field. The MAVLink image transmission protocol is inherently low-rate (**~1 Hz
+max** -- optical flow cameras and similar sources, not a video feed), so base64's ~33% size
+overhead is immaterial in absolute terms, and reusing §3's envelope avoids standing up a second
+binary-frame/per-client-keyframe-gate mechanism (§9.2's `WebBridgeServer::broadcastBinary()` +
+`ClientState::videoPendingKeyframe`) for a channel that has no GOP/keyframe concept to begin with
+-- every image is already a complete, independently-decodable unit, so there is nothing analogous
+to "wait for the next keyframe" to implement. video earns its binary-framing complexity at 30x
+this channel's rate; `image` does not need to pay for it.
+
+### 15.2 Subscription model
+
+Vehicle-scoped and subscribed exactly like `telemetry`/`mission` (§2/§3.1) -- **not** an
+unsubscribed broadcast like `notification` (§14). Rationale: an image originates from one
+vehicle's `ImageProtocolManager` and only makes sense addressed to that `vehicleId` (unlike
+`notification`, which is a text announcement stream with no inherent per-vehicle *state* to
+snapshot); and per principle §2.1 ("state, not events"), a vehicle's most-recently-received image
+**is** current state for that data source, the same way telemetry's most recent attitude is --
+so, like `telemetry`/`mission`, subscribing yields an immediate snapshot when one exists.
+
+```json
+{ "type": "subscribe", "id": "i-1", "channel": "image", "vehicleId": 1 }
+```
+
+Ack: `{ "type": "subscribeAck", "id": "i-1", "channel": "image", "vehicleId": 1 }`. If this
+vehicle has not yet completed an image transmission, **no snapshot follows** -- there is nothing
+to replay yet, the same "nothing cached" case §9.1 describes for `video`'s `videoConfig` before
+the first keyframe. The client simply receives the next `image` message whenever
+`ImageProtocolManager` completes one.
+
+### 15.3 Message
+
+```json
+{
+  "type": "image", "channel": "image", "vehicleId": 1,
+  "seq": 1, "snapshot": true, "timeUs": 1767690007000000,
+  "imageIndex": 3,
+  "format": "jpeg",
+  "width": 640, "height": 480,
+  "data": "<base64 of the exact bytes ImageProtocolManager reassembled from ENCAPSULATED_DATA>"
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `imageIndex` | u32 | `ImageProtocolManager::flowImageIndex()` after this image completed -- monotonic per vehicle, independent of `seq` (which resets to 1 on every re-subscribe per §2.4; `imageIndex` does not). |
+| `format` | string | One of `jpeg` \| `png` \| `bmp` \| `pgm` \| `raw8u` \| `raw32u` \| `unknown`, mapped from the preceding `DATA_TRANSMISSION_HANDSHAKE`'s `MAVLINK_DATA_STREAM_IMG_*` type. |
+| `width`, `height` | int | The handshake's declared dimensions. May be `0` if the source did not provide them. |
+| `data` | string | Base64 of the exact reassembled bytes -- byte-identical to what `QImage::loadFromData()` would have consumed on a QML build before Q8d (§15's raw-bytes-before-decode guarantee). |
+
+**Client decode guidance (informative, not normative):** `jpeg`/`png`/`bmp` are directly
+renderable via `<img src="data:image/{format};base64,...">` (browsers accept `image/bmp`).
+`pgm`/`raw8u`/`raw32u` carry no browser-native container format -- `raw8u` is one grayscale byte
+per pixel, row-major, `width*height` bytes total; a client wanting to display those must decode
+manually (e.g. onto a `<canvas>` via `ImageData`) using the `width`/`height` fields. This mirrors
+the desktop QML build's own `_getImage()`, which synthesizes a PGM header for `raw8u`/`raw32u`
+before handing bytes to `QImage::loadFromData()` -- the browser is simply doing that same
+construction itself instead of C++/Qt doing it.
+
+### 15.4 Not in the §12 M1 minimal mock scope
+
+Like `video`/`adsb`, `image` is out of scope for a minimal §12 M1 mock; a conforming M1 mock
+replies `error UNKNOWN_CHANNEL` to an `image` subscribe. `web/mock/server.ts` (beyond M1)
+implements it for local web development (a synthetic `bmp` test pattern, deterministic per
+`imageIndex` -- see its own header comment for why `bmp` rather than a real `jpeg` fixture).

@@ -15,6 +15,7 @@ import { NotificationToasts } from "./components/notifications/NotificationToast
 import { WaypointAdder } from "./components/plan/WaypointAdder.tsx";
 import { WaypointList } from "./components/plan/WaypointList.tsx";
 import { Attitude } from "./components/telemetry/Attitude.tsx";
+import { ImagePanel } from "./components/telemetry/ImagePanel.tsx";
 import { Status } from "./components/telemetry/Status.tsx";
 import { ParamTable } from "./components/params/ParamTable.tsx";
 import { SidePanel } from "./components/SidePanel.tsx";
@@ -105,6 +106,7 @@ export function App() {
             <Attitude vehicleId={activeVehicleId} />
             <Status vehicleId={activeVehicleId} />
           </div>
+          <ImagePanel vehicleId={activeVehicleId} />
         </section>
         <section className="gcs-panel gcs-actions" aria-label="Actions">
           <SidePanel

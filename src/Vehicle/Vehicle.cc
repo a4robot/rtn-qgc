@@ -3490,6 +3490,9 @@ void Vehicle::_createImageProtocolManager()
 {
     _imageProtocolManager = new ImageProtocolManager(this);
     (void) connect(_imageProtocolManager, &ImageProtocolManager::flowImageIndexChanged, this, &Vehicle::flowImageIndexChanged);
+    // Q8d: raw-bytes path, no QGC_ENABLE_QML gate -- WebBridge's ImageChannel consumes this
+    // directly (see Vehicle::imageBytesReady()'s doc comment).
+    (void) connect(_imageProtocolManager, &ImageProtocolManager::imageBytesReady, this, &Vehicle::imageBytesReady);
 #ifdef QGC_ENABLE_QML
     (void) connect(_imageProtocolManager, &ImageProtocolManager::imageReady, this, [this](const QImage &image) {
         if (QGCImageProvider *const provider = qgcApp()->qgcImageProvider()) {
