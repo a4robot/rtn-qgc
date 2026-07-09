@@ -132,7 +132,11 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         Qt6::HttpServer
         Qt6::Network
         Qt6::StateMachine
-        Qt6::Svg
+        # QtSvg's only headless-reachable use is QGCApplication's legacy-compat
+        # QSvgRenderer::setDefaultOptions() call and the QSvgPlugin import
+        # below; actual SVG decode/render only happens through QML (icons,
+        # ColoredSvgImageProvider — already QML-gated). QML-gate it too.
+        $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Svg>
         Qt6::Xml
 
         # Qt6 QML/Quick (Qt6::QmlIntegration stays unconditional — header-only QML_ELEMENT macros)
@@ -237,9 +241,15 @@ endif()
 target_precompile_headers(${CMAKE_PROJECT_NAME} PRIVATE pch.h)
 
 # Side-effect-free (no qt_add_qml_module / qt_add_resources / static-init registration) — link-interface pruning is safe.
-set_target_properties(QGCFileSystem QGCSensors QGCAudio
+# QGCSensors doesn't exist as a target when QGC_ENABLE_SENSORS is OFF.
+set(_qgc_optimize_dependencies_targets QGCFileSystem QGCAudio)
+if(QGC_ENABLE_SENSORS)
+    list(APPEND _qgc_optimize_dependencies_targets QGCSensors)
+endif()
+set_target_properties(${_qgc_optimize_dependencies_targets}
     PROPERTIES OPTIMIZE_DEPENDENCIES ON
 )
+unset(_qgc_optimize_dependencies_targets)
 
 # ============================================================================
 # Custom Build Configuration

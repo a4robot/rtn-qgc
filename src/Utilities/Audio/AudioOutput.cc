@@ -5,7 +5,9 @@
 
 #include <QtCore/QRegularExpression>
 #include <QtCore/QApplicationStatic>
+#ifdef QGC_ENABLE_TEXTTOSPEECH
 #include <QtTextToSpeech/QTextToSpeech>
+#endif
 
 #include <algorithm>
 
@@ -36,12 +38,20 @@ const QHash<QString, QString> AudioOutput::_textHash = {
 
 Q_APPLICATION_STATIC(AudioOutput, _audioOutput);
 
+#ifdef QGC_ENABLE_TEXTTOSPEECH
 AudioOutput::AudioOutput(QObject *parent)
     : QObject(parent)
     , _engine(new QTextToSpeech(QStringLiteral("none"), this))
 {
     // qCDebug(AudioOutputLog) << this;
 }
+#else
+AudioOutput::AudioOutput(QObject *parent)
+    : QObject(parent)
+{
+    // Built with QGC_ENABLE_TEXTTOSPEECH=OFF: no QTextToSpeech engine: init()/say()/testAudioOutput() are no-ops.
+}
+#endif
 
 AudioOutput::~AudioOutput()
 {
@@ -53,6 +63,16 @@ AudioOutput *AudioOutput::instance()
     return _audioOutput();
 }
 
+#ifndef QGC_ENABLE_TEXTTOSPEECH
+void AudioOutput::init(Fact* volumeFact, Fact* mutedFact)
+{
+    // Built with QGC_ENABLE_TEXTTOSPEECH=OFF: no engine to initialize.
+    // say()/testAudioOutput() stay no-ops; _initialized is intentionally
+    // left false so they don't warn about a missing init() call.
+    Q_UNUSED(volumeFact);
+    Q_UNUSED(mutedFact);
+}
+#else
 void AudioOutput::init(Fact* volumeFact, Fact* mutedFact)
 {
     Q_CHECK_PTR(volumeFact);
@@ -121,6 +141,7 @@ void AudioOutput::init(Fact* volumeFact, Fact* mutedFact)
 
     qCDebug(AudioOutputLog) << "AudioOutput initialized with volume:" << _volumeSetting() << "%";
 }
+#endif // QGC_ENABLE_TEXTTOSPEECH
 
 double AudioOutput::_volumeSetting() const
 {
@@ -132,6 +153,12 @@ bool AudioOutput::_mutedSetting() const
     return _mutedFact->rawValue().toBool();
 }
 
+#ifndef QGC_ENABLE_TEXTTOSPEECH
+void AudioOutput::_setVolume()
+{
+    // No engine to set volume on; see init().
+}
+#else
 void AudioOutput::_setVolume()
 {
     const bool muted = _mutedSetting();
@@ -154,7 +181,17 @@ void AudioOutput::_setVolume()
     (void) QMetaObject::invokeMethod(_engine, "setVolume", Qt::AutoConnection, normalizedVolume);
     qCDebug(AudioOutputLog) << "AudioOutput volume set to:" << volume << "%";
 }
+#endif // QGC_ENABLE_TEXTTOSPEECH
 
+#ifndef QGC_ENABLE_TEXTTOSPEECH
+void AudioOutput::say(const QString &text, TextMods textMods)
+{
+    // No engine to speak with; see init(). Deliberately silent (not a
+    // qCWarning) since this build was configured with TTS off on purpose.
+    Q_UNUSED(text);
+    Q_UNUSED(textMods);
+}
+#else
 void AudioOutput::say(const QString &text, TextMods textMods)
 {
     if (!_initialized) {
@@ -195,7 +232,14 @@ void AudioOutput::say(const QString &text, TextMods textMods)
         qCWarning(AudioOutputLog) << "Failed to invoke Enqueue method.";
     }
 }
+#endif // QGC_ENABLE_TEXTTOSPEECH
 
+#ifndef QGC_ENABLE_TEXTTOSPEECH
+void AudioOutput::testAudioOutput()
+{
+    // No engine to test; see init().
+}
+#else
 void AudioOutput::testAudioOutput()
 {
     if (!_initialized) {
@@ -209,6 +253,7 @@ void AudioOutput::testAudioOutput()
     const QString testText = tr("Audio test. Volume is %1 percent").arg(_volumeSetting(), 0, 'f', 1);
     say(testText);
 }
+#endif // QGC_ENABLE_TEXTTOSPEECH
 
 QString AudioOutput::_fixTextMessageForAudio(const QString &string)
 {

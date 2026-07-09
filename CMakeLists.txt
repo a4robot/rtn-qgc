@@ -262,6 +262,21 @@ if(QGC_ENABLE_QML)
     add_compile_definitions(QGC_ENABLE_QML)
 endif()
 
+# Wave-12 diet tier: capability flags default ON (preserve current behavior).
+# Negative macro for Bluetooth mirrors the existing QGC_NO_SERIAL_LINK idiom
+# in src/Comms (paired #ifndef guards in the same switch statements).
+if(NOT QGC_ENABLE_BLUETOOTH)
+    add_compile_definitions(QGC_NO_BLUETOOTH_LINK)
+endif()
+
+if(QGC_ENABLE_SENSORS)
+    add_compile_definitions(QGC_ENABLE_SENSORS)
+endif()
+
+if(QGC_ENABLE_TEXTTOSPEECH)
+    add_compile_definitions(QGC_ENABLE_TEXTTOSPEECH)
+endif()
+
 # ============================================================================
 # Custom Build Subdirectory
 # ============================================================================
@@ -384,10 +399,18 @@ qt_add_resources(${CMAKE_PROJECT_NAME} "qgcresources_cmake"
 # Qt Plugin Configuration
 # ----------------------------------------------------------------------------
 qt_import_plugins(${CMAKE_PROJECT_NAME}
-    INCLUDE Qt6::QSvgPlugin Qt6::QOffscreenIntegrationPlugin
+    INCLUDE Qt6::QOffscreenIntegrationPlugin
     EXCLUDE_BY_TYPE geoservices  # Use built-in location plugins
     INCLUDE_BY_TYPE sqldrivers Qt6::QSQLiteDriverPlugin
 )
+
+# SVG image format plugin: only needed for QML icon/image rendering
+# (QGCImageProvider/ColoredSvgImageProvider, both QML-gated).
+if(QGC_ENABLE_QML)
+    qt_import_plugins(${CMAKE_PROJECT_NAME}
+        INCLUDE Qt6::QSvgPlugin
+    )
+endif()
 
 # Linux-specific Qt platform plugins
 if(LINUX)

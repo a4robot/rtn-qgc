@@ -15,7 +15,9 @@
 #include "QGCCompression.h"
 #include "QGCLoggingCategory.h"
 
+#ifndef QGC_NO_BLUETOOTH_LINK
 #include <QtBluetooth/QBluetoothLocalDevice>
+#endif
 
 QGC_LOGGING_CATEGORY(QGCNetworkHelperLog, "Utilities.QGCNetworkHelper")
 
@@ -792,8 +794,12 @@ bool isNetworkEthernet()
 
 bool isBluetoothAvailable()
 {
+#ifdef QGC_NO_BLUETOOTH_LINK
+    return false;
+#else
     const QList<QBluetoothHostInfo> devices = QBluetoothLocalDevice::allDevices();
     return !devices.isEmpty();
+#endif
 }
 
 ConnectionType connectionType()

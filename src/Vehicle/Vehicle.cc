@@ -74,7 +74,9 @@
 #include "VehicleObjectAvoidance.h"
 #include "VideoManager.h"
 #include "VideoSettings.h"
+#ifdef QGC_ENABLE_SENSORS
 #include "QGCSensors.h"
+#endif
 #include "StatusTextHandler.h"
 #include "VehicleSigningController.h"
 #include "GimbalController.h"
@@ -129,8 +131,10 @@ Vehicle::Vehicle(LinkInterface*             link,
     connect(this, &Vehicle::armedChanged,               this, &Vehicle::_announceArmedChanged);
     connect(this, &Vehicle::flyingChanged, this, [this](bool flying){
         if (flying) {
+#ifdef QGC_ENABLE_SENSORS
             setInitialGCSPressure(QGCSensors::QGCPressure::instance()->pressure());
             setInitialGCSTemperature(QGCSensors::QGCPressure::instance()->temperature());
+#endif
         }
     });
 

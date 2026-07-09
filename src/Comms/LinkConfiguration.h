@@ -74,7 +74,9 @@ public:
 #endif
         TypeUdp,        ///< UDP Link
         TypeTcp,        ///< TCP Link
+#ifndef QGC_NO_BLUETOOTH_LINK
         TypeBluetooth,  ///< Bluetooth Link
+#endif
 #if defined(QT_DEBUG) || defined(QGC_ENABLE_MOCKLINK)
         TypeMock,       ///< Mock Link for Unitesting
 #endif

@@ -12,7 +12,9 @@
 #include "TCPLink.h"
 #include "UDPLink.h"
 
+#ifndef QGC_NO_BLUETOOTH_LINK
 #include "BluetoothLink.h"
+#endif
 
 #include "PositionManager.h"
 #include "UdpIODevice.h"
@@ -106,9 +108,11 @@ bool LinkManager::createConnectedLink(SharedLinkConfigurationPtr &config)
     case LinkConfiguration::TypeTcp:
         link = std::make_shared<TCPLink>(config);
         break;
+#ifndef QGC_NO_BLUETOOTH_LINK
     case LinkConfiguration::TypeBluetooth:
         link = std::make_shared<BluetoothLink>(config);
         break;
+#endif
     case LinkConfiguration::TypeLogReplay:
         link = std::make_shared<LogReplayLink>(config);
         break;
@@ -346,9 +350,11 @@ void LinkManager::loadLinkConfigurationList()
             case LinkConfiguration::TypeTcp:
                 link = new TCPConfiguration(name);
                 break;
+#ifndef QGC_NO_BLUETOOTH_LINK
             case LinkConfiguration::TypeBluetooth:
                 link = new BluetoothConfiguration(name);
                 break;
+#endif
             case LinkConfiguration::TypeLogReplay:
                 link = new LogReplayConfiguration(name);
                 break;
@@ -480,7 +486,9 @@ QStringList LinkManager::linkTypeStrings() const
 #endif
     list += tr("UDP");
     list += tr("TCP");
+#ifndef QGC_NO_BLUETOOTH_LINK
     list += tr("Bluetooth");
+#endif
 #if defined(QT_DEBUG) || defined(QGC_ENABLE_MOCKLINK)
     list += tr("Mock Link");
 #endif

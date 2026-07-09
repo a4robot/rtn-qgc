@@ -21,7 +21,9 @@
 #include "StatusTextHandler.h"
 #include "MAVLinkProtocol.h"
 #include "QGCLoggingCategory.h"
+#ifdef QGC_ENABLE_SENSORS
 #include "QGCSensors.h"
+#endif
 
 #include <QtNetwork/QTcpSocket>
 
@@ -1330,6 +1332,7 @@ qreal APMFirmwarePlugin::calcAltOffsetP(uint32_t atmospheric1, uint32_t atmosphe
 
 QPair<QMetaObject::Connection,QMetaObject::Connection> APMFirmwarePlugin::startCompensatingBaro(Vehicle *vehicle)
 {
+#ifdef QGC_ENABLE_SENSORS
     // TODO: Running Average?
     const QMetaObject::Connection baroPressureUpdater = QObject::connect(QGCSensors::QGCPressure::instance(), &QGCSensors::QGCPressure::pressureUpdated, vehicle, [vehicle](qreal pressure, qreal temperature){
         if (!vehicle || !vehicle->flying()) {
@@ -1370,6 +1373,10 @@ QPair<QMetaObject::Connection,QMetaObject::Connection> APMFirmwarePlugin::startC
     });
 
     return QPair<QMetaObject::Connection,QMetaObject::Connection>(baroPressureUpdater, baroTempUpdater);
+#else
+    Q_UNUSED(vehicle);
+    return QPair<QMetaObject::Connection,QMetaObject::Connection>();
+#endif
 }
 
 bool APMFirmwarePlugin::stopCompensatingBaro(const Vehicle *vehicle, QPair<QMetaObject::Connection,QMetaObject::Connection> updaters)

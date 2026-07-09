@@ -86,11 +86,36 @@ option(QGC_NO_SERIAL_LINK "Disable serial port communication" OFF)
 # real vehicle over the web bridge without external SITL.
 option(QGC_ENABLE_MOCKLINK "Build MockLink (simulated vehicle) into Release builds for ghost/bridge development" OFF)
 
+# Bluetooth is a real vehicle link TYPE (BluetoothLink/BluetoothConfiguration in
+# LinkManager/LinkConfiguration), reachable headless — disabling it removes GCS
+# Bluetooth connectivity capability, not just headless dead weight. Default ON
+# preserves current behavior; wave-12 diet builds opt out explicitly.
+option(QGC_ENABLE_BLUETOOTH "Enable Bluetooth communication links" ON)
+
 # ============================================================================
 # UI Options
 # ============================================================================
 
 option(QGC_ENABLE_QML "Enable the QML UI (OFF builds the headless ghost core only)" ON)
+
+# ============================================================================
+# Sensor / Audio Options
+# ============================================================================
+
+# Ambient temperature/pressure/compass readings from local GCS-host hardware
+# (QtSensors), used unconditionally in Vehicle/APMFirmwarePlugin baro
+# compensation. Real capability on a GCS host with sensor hardware (e.g. a
+# field laptop); dead weight on a headless server with none. Default ON
+# preserves current behavior.
+option(QGC_ENABLE_SENSORS "Enable local GCS-host sensor readings (ambient temp/pressure/compass) via QtSensors" ON)
+
+# Text-to-speech audio warnings (QtTextToSpeech), called unconditionally from
+# core Vehicle/VehicleLinkManager/QGCApplication boot code (both normal and
+# headless). In the web-cockpit architecture, comm-status announcements are
+# better surfaced by the browser UI than a speaker on the GCS-core host — but
+# that's a wave-13 routing change, not this cut. Default ON preserves current
+# behavior.
+option(QGC_ENABLE_TEXTTOSPEECH "Enable text-to-speech audio output (QtTextToSpeech)" ON)
 
 # ============================================================================
 # Video Streaming Options
