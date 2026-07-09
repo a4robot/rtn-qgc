@@ -132,9 +132,13 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         # build by gating this like the rest of the QML-only libs above. See
         # STRANGLER_MILESTONES.md Q7d for the audit this is proving/disproving.
         $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Gui>
-        Qt6::HttpServer
         Qt6::Network
-        Qt6::StateMachine
+        # Q8b: gated like the rest of the ghost-diet-only libs above. Qt6::StateMachine
+        # INTERFACE-links Qt6::Gui (+ Qt6::DBus) at the Qt package level regardless of symbol
+        # usage (wave-14 Q7d finding) -- src/Utilities/StateMachine/portable/ (selected by
+        # QGC_ENABLE_QT_STATEMACHINE=OFF) drops this dependency entirely. See
+        # src/Utilities/StateMachine/CMakeLists.txt and tools/ghost/statemachine-port/AUDIT.md.
+        $<$<BOOL:${QGC_ENABLE_QT_STATEMACHINE}>:Qt6::StateMachine>
         # QtSvg's only headless-reachable use is QGCApplication's legacy-compat
         # QSvgRenderer::setDefaultOptions() call and the QSvgPlugin import
         # below; actual SVG decode/render only happens through QML (icons,

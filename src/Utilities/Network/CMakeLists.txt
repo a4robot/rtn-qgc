@@ -17,7 +17,6 @@ target_link_libraries(QGCNetwork
         Qt6::Core
         Qt6::Network
     PRIVATE
-        Qt6::HttpServer
         QGCCompression
         QGCLogging
 )

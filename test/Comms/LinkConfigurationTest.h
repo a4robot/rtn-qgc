@@ -30,4 +30,16 @@ private slots:
     void _testUdpCopyConstruction();
     void _testUdpCopyFrom();
     void _testUdpSettingsRoundtrip();
+
+#ifndef QGC_NO_SERIAL_LINK
+    // SerialConfiguration (Wave 16 / Q8e prep). SerialLink itself cannot be
+    // round-tripped without hardware or a pty pair (no socat in the build/test
+    // containers), so the QSerialPort-facing surface is pinned at the
+    // configuration/API level: defaults, settings persistence, and copy
+    // semantics that a QSerialPort replacement must keep intact.
+    void _testSerialConstructionDefaults();
+    void _testSerialSettingsRoundtrip();
+    void _testSerialCopyConstruction();
+    void _testSerialSupportedBaudRates();
+#endif
 };

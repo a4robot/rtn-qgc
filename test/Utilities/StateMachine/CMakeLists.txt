@@ -2,6 +2,21 @@
 # State Machine Unit Tests
 # Tests for state machine states and transitions
 # ============================================================================
+#
+# Q8b (STRANGLER_MILESTONES.md M8): these tests exercise the Qt-based
+# QState/QStateMachine framework's classes directly (including ones
+# deliberately not ported to src/Utilities/StateMachine/portable/, e.g.
+# GuardedTransition, ParallelState, QGCHistoryState, TimeoutTransition, ...
+# -- see tools/ghost/statemachine-port/AUDIT.md's "what can be dropped"
+# list), so they only compile against the ON (QGC_ENABLE_QT_STATEMACHINE=ON,
+# default) framework. Gating this whole file keeps a QGC_BUILD_TESTING=ON +
+# QGC_ENABLE_QT_STATEMACHINE=OFF configuration buildable instead of failing
+# to compile on now-excluded classes. Porting this coverage to the portable
+# framework is out of Q8b's scope (a v1 drop-in per AUDIT.md's
+# recommendation, not a full test-suite migration) -- flagged as follow-up
+# work, not silently dropped.
+# ============================================================================
+if(QGC_ENABLE_QT_STATEMACHINE)
 
 # ----------------------------------------------------------------------------
 # Root-level tests
@@ -109,3 +124,5 @@ target_sources(${CMAKE_PROJECT_NAME}
 )
 
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/transitions)
+
+endif() # QGC_ENABLE_QT_STATEMACHINE

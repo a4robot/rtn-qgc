@@ -30,4 +30,8 @@ private slots:
     void _testMultipleImagesIncrementIndexIndependently();
 
     void _testUnrelatedMessageIdIgnored();
+
+    // Q8d: raw-bytes path (PROTOCOL.md §15) -- unconditional, no QGC_ENABLE_QML gate.
+    void _testImageBytesReadyCarriesExactReassembledBytes();
+    void _testImageBytesReadyFormatStringPerType();
 };

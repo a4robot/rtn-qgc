@@ -115,6 +115,8 @@ add_qgc_test(BluetoothLiveAdapterTest LABELS Integration Comms)
 add_qgc_test(BluetoothWorkerTest LABELS Unit Comms)
 add_qgc_test(LinkConfigurationTest LABELS Unit Comms RESOURCE_LOCK Settings TempFiles)
 add_qgc_test(QGCSerialPortInfoTest LABELS Unit Comms)
+add_qgc_test(TCPLinkTest LABELS Integration Comms)
+add_qgc_test(UDPLinkTest LABELS Integration Comms)
 
 # ----------------------------------------------------------------------------
 # FactSystem
@@ -235,6 +237,7 @@ add_qgc_test(QmlObjectTreeModelTest LABELS Unit)
 # ----------------------------------------------------------------------------
 add_subdirectory(Terrain)
 add_qgc_test(TerrainQueryTest LABELS Integration Network)
+add_qgc_test(TerrainTileFetcherNetworkTest LABELS Integration Terrain Slow TIMEOUT 60 RESOURCE_LOCK Settings)
 add_qgc_test(TerrainTileTest LABELS Unit)
 
 # ----------------------------------------------------------------------------

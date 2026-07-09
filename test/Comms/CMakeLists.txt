@@ -9,6 +9,10 @@ target_sources(${CMAKE_PROJECT_NAME}
         LinkConfigurationTest.h
         QGCSerialPortInfoTest.cc
         QGCSerialPortInfoTest.h
+        TCPLinkTest.cc
+        TCPLinkTest.h
+        UDPLinkTest.cc
+        UDPLinkTest.h
 )
 
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

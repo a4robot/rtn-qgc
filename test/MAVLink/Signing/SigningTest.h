@@ -34,4 +34,5 @@ private slots:
     void _testInitSigningWithPersistedTimestamp();
     void _testStripSignatureForRetransmitProducesValidCrc();
     void _testTryDetectKeyInstallsSecureCallback();
+    void _testPbkdf2DerivationVector();
 };

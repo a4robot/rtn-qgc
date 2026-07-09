@@ -203,7 +203,6 @@ find_package(Qt6
         Concurrent
         Core
         Gui
-        HttpServer
         LinguistTools
         Location
         LocationPrivate

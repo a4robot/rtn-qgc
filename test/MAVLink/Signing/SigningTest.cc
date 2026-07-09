@@ -691,4 +691,28 @@ void SigningTest::_testTryDetectKeyInstallsSecureCallback()
     signingKeys->removeAllKeys();
 }
 
+void SigningTest::_testPbkdf2DerivationVector()
+{
+    // Wave 16 (Q8f prep) characterization: pins the exact QPasswordDigestor
+    // PBKDF2-HMAC-SHA256 output so a QtNetwork replacement (QPasswordDigestor
+    // is QtNetwork's only remaining crypto entry point here) must reproduce it
+    // bit-for-bit. Key derivation is deliberately deterministic across
+    // installs (fixed app salt) - a silent change here would strand every GCS
+    // sharing a vehicle with passphrase-derived keys.
+    //
+    // Expected value computed independently with Python:
+    //   hashlib.pbkdf2_hmac('sha256', b'correct horse battery staple',
+    //                       b'QGroundControl-MAVLink-Signing-v1', 1, 32)
+    // (iterations = 1, matching setPbkdf2IterationsForTesting(1) from
+    // initTestCase; the production count only adds rounds, not algorithm.)
+    auto* signingKeys = MAVLinkSigningKeys::instance();
+    signingKeys->removeAllKeys();
+
+    QVERIFY(signingKeys->addKey(QStringLiteral("Pbkdf2Vector"), QStringLiteral("correct horse battery staple")));
+    QCOMPARE(signingKeys->keyHexByName(QStringLiteral("Pbkdf2Vector")),
+             QStringLiteral("ee5140ae43b320fb5e4af0ec44873deb8c5216b1e7dcc2121804dcfbcb80a403"));
+
+    signingKeys->removeAllKeys();
+}
+
 UT_REGISTER_TEST(SigningTest, TestLabel::Unit)

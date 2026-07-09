@@ -308,4 +308,68 @@ void UrlFactoryTest::_testGetMapProviderInvalid()
     QVERIFY(UrlFactory::getMapProviderFromProviderType(QStringLiteral("Nonexistent")) == nullptr);
 }
 
+// --- getTileNetworkRequest (Wave 16 / Q8f characterization) ---
+
+void UrlFactoryTest::_testGetTileNetworkRequestUrlMatchesGetTileURL()
+{
+    const int id = UrlFactory::getQtMapIdFromProviderType(kBingRoad);
+    QVERIFY(id > 0);
+
+    const QNetworkRequest request = UrlFactory::getTileNetworkRequest(id, 301, 385, 10);
+    const QUrl expectedUrl = UrlFactory::getTileURL(id, 301, 385, 10);
+
+    QVERIFY(request.url().isValid());
+    QCOMPARE(request.url(), expectedUrl);
+}
+
+void UrlFactoryTest::_testGetTileNetworkRequestHeaders()
+{
+    const int id = UrlFactory::getQtMapIdFromProviderType(kBingRoad);
+    QVERIFY(id > 0);
+
+    const QNetworkRequest request = UrlFactory::getTileNetworkRequest(id, 301, 385, 10);
+
+    QVERIFY(request.hasRawHeader(QByteArrayLiteral("Accept")));
+    QCOMPARE(request.rawHeader(QByteArrayLiteral("Accept")), QByteArrayLiteral("*/*"));
+
+    QVERIFY(!request.header(QNetworkRequest::UserAgentHeader).toString().isEmpty());
+
+    QVERIFY(request.hasRawHeader(QByteArrayLiteral("Connection")));
+    QCOMPARE(request.rawHeader(QByteArrayLiteral("Connection")), QByteArrayLiteral("keep-alive"));
+
+    // Referer/User-Token are only present when the provider supplies a
+    // non-empty referrer/token - CustomURL has neither, which pins that
+    // getTileNetworkRequest doesn't unconditionally inject them.
+    const int customId = UrlFactory::getQtMapIdFromProviderType(QStringLiteral("CustomURL Custom"));
+    QVERIFY(customId > 0);
+    const QNetworkRequest customRequest = UrlFactory::getTileNetworkRequest(customId, 0, 0, 1);
+    QVERIFY(!customRequest.hasRawHeader(QByteArrayLiteral("Referer")));
+    QVERIFY(!customRequest.hasRawHeader(QByteArrayLiteral("User-Token")));
+}
+
+void UrlFactoryTest::_testGetTileNetworkRequestAttributes()
+{
+    const int id = UrlFactory::getQtMapIdFromProviderType(kBingRoad);
+    QVERIFY(id > 0);
+
+    const QNetworkRequest request = UrlFactory::getTileNetworkRequest(id, 301, 385, 10);
+
+    QCOMPARE(request.priority(), QNetworkRequest::NormalPriority);
+    QCOMPARE(request.transferTimeout(), 10000);
+    QCOMPARE(request.attribute(QNetworkRequest::CacheLoadControlAttribute).toInt(),
+             static_cast<int>(QNetworkRequest::PreferCache));
+    QVERIFY(request.attribute(QNetworkRequest::BackgroundRequestAttribute).toBool());
+    QVERIFY(request.attribute(QNetworkRequest::CacheSaveControlAttribute).toBool());
+    QCOMPARE(request.attribute(QNetworkRequest::RedirectPolicyAttribute).toInt(),
+             static_cast<int>(QNetworkRequest::NoLessSafeRedirectPolicy));
+    QVERIFY(request.attribute(QNetworkRequest::Http2AllowedAttribute).toBool());
+    QVERIFY(!request.attribute(QNetworkRequest::DoNotBufferUploadDataAttribute).toBool());
+}
+
+void UrlFactoryTest::_testGetTileNetworkRequestInvalidMapId()
+{
+    const QNetworkRequest request = UrlFactory::getTileNetworkRequest(-1, 0, 0, 1);
+    QVERIFY(request.url().isEmpty());
+}
+
 UT_REGISTER_TEST(UrlFactoryTest, TestLabel::Unit)

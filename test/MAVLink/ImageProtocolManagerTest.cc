@@ -317,4 +317,89 @@ void ImageProtocolManagerTest::_testUnrelatedMessageIdIgnored()
     QCOMPARE(manager.flowImageIndex(), 0u);
 }
 
+// ---------------------------------------------------------------------------
+// Q8d: raw-bytes path (PROTOCOL.md §15) -- unconditional, no QGC_ENABLE_QML.
+// ---------------------------------------------------------------------------
+
+void ImageProtocolManagerTest::_testImageBytesReadyCarriesExactReassembledBytes()
+{
+    ImageProtocolManager manager;
+
+    QSignalSpy bytesSpy(&manager, &ImageProtocolManager::imageBytesReady);
+    QSignalSpy indexSpy(&manager, &ImageProtocolManager::flowImageIndexChanged);
+
+    // JPEG here is just a type tag -- imageBytesReady() does no format validation/decode, it
+    // forwards exactly what was reassembled, so arbitrary bytes are fine (contrast _getImage(),
+    // which would actually try QImage::loadFromData on this and fail).
+    constexpr uint16_t kWidth   = 4;
+    constexpr uint16_t kHeight  = 4;
+    constexpr uint32_t kSize    = 10;
+    constexpr uint8_t  kPayload = 6;
+    constexpr uint16_t kPackets = 2; // ceil(10/6)
+
+    const mavlink_message_t hs = makeHandshake(MAVLINK_DATA_STREAM_IMG_JPEG,
+                                               kSize, kWidth, kHeight, kPackets, kPayload);
+    manager.mavlinkMessageReceived(hs);
+
+    const uint8_t first[kPayload] = { 0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02 };
+    const uint8_t second[4]       = { 0x03, 0x04, 0x05, 0x06 }; // remaining 4 of the 10-byte image
+
+    manager.mavlinkMessageReceived(makeEncapsulated(0, first, sizeof(first)));
+    QCOMPARE(bytesSpy.count(), 0); // not yet complete
+
+    manager.mavlinkMessageReceived(makeEncapsulated(1, second, sizeof(second)));
+    QCOMPARE(bytesSpy.count(), 1);
+    QCOMPARE(indexSpy.count(), 1);
+
+    const QList<QVariant> args = bytesSpy.takeFirst();
+    const QByteArray bytes      = args.at(0).toByteArray();
+    const quint32 width         = args.at(1).toUInt();
+    const quint32 height        = args.at(2).toUInt();
+    const QString format        = args.at(3).toString();
+    const quint32 imageIndex    = args.at(4).toUInt();
+
+    QByteArray expected;
+    expected.append(reinterpret_cast<const char*>(first), sizeof(first));
+    expected.append(reinterpret_cast<const char*>(second), sizeof(second));
+
+    QCOMPARE(bytes, expected);
+    QCOMPARE(width, static_cast<quint32>(kWidth));
+    QCOMPARE(height, static_cast<quint32>(kHeight));
+    QCOMPARE(format, QStringLiteral("jpeg"));
+    QCOMPARE(imageIndex, 1u);
+    QCOMPARE(imageIndex, manager.flowImageIndex());
+    QCOMPARE(indexSpy.takeFirst().at(0).toUInt(), imageIndex);
+}
+
+void ImageProtocolManagerTest::_testImageBytesReadyFormatStringPerType()
+{
+    struct Case { uint8_t type; const char *expected; };
+    const Case cases[] = {
+        { MAVLINK_DATA_STREAM_IMG_JPEG,   "jpeg" },
+        { MAVLINK_DATA_STREAM_IMG_PNG,    "png" },
+        { MAVLINK_DATA_STREAM_IMG_BMP,    "bmp" },
+        { MAVLINK_DATA_STREAM_IMG_PGM,    "pgm" },
+        { MAVLINK_DATA_STREAM_IMG_RAW8U,  "raw8u" },
+        { MAVLINK_DATA_STREAM_IMG_RAW32U, "raw32u" },
+    };
+
+    for (const Case &c : cases) {
+        ImageProtocolManager manager;
+        QSignalSpy bytesSpy(&manager, &ImageProtocolManager::imageBytesReady);
+
+        constexpr uint8_t  kPayload = 4;
+        constexpr uint16_t kPackets = 1;
+        constexpr uint32_t kSize    = kPayload;
+
+        const mavlink_message_t hs = makeHandshake(c.type, kSize, 2, 2, kPackets, kPayload);
+        manager.mavlinkMessageReceived(hs);
+
+        const uint8_t buf[kPayload] = { 1, 2, 3, 4 };
+        manager.mavlinkMessageReceived(makeEncapsulated(0, buf, sizeof(buf)));
+
+        QCOMPARE(bytesSpy.count(), 1);
+        QCOMPARE(bytesSpy.takeFirst().at(3).toString(), QString::fromLatin1(c.expected));
+    }
+}
+
 UT_REGISTER_TEST(ImageProtocolManagerTest, TestLabel::Unit)

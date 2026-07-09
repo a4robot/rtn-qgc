@@ -1,6 +1,9 @@
 #include "LinkConfigurationTest.h"
 
 #include "LinkConfiguration.h"
+#ifndef QGC_NO_SERIAL_LINK
+#include "SerialLink.h"
+#endif
 #include "TCPLink.h"
 #include "UDPLink.h"
 
@@ -327,5 +330,90 @@ void LinkConfigurationTest::_testUdpSettingsRoundtrip()
         QCOMPARE(config.targetHosts().size(), 2);
     }
 }
+
+#ifndef QGC_NO_SERIAL_LINK
+
+// ============================================================================
+// SerialConfiguration tests (Wave 16 / Q8e prep - see header for rationale)
+// ============================================================================
+
+void LinkConfigurationTest::_testSerialConstructionDefaults()
+{
+    SerialConfiguration config(QStringLiteral("TestSerial"));
+
+    QCOMPARE(config.name(), QStringLiteral("TestSerial"));
+    QCOMPARE(config.type(), LinkConfiguration::TypeSerial);
+    QCOMPARE(config.baud(), qint32(QSerialPort::Baud57600));
+    QCOMPARE(config.dataBits(), QSerialPort::Data8);
+    QCOMPARE(config.flowControl(), QSerialPort::NoFlowControl);
+    QCOMPARE(config.stopBits(), QSerialPort::OneStop);
+    QCOMPARE(config.parity(), QSerialPort::NoParity);
+    QVERIFY(config.portName().isEmpty());
+    QVERIFY(!config.usbDirect());
+    QVERIFY(!config.dtrForceLow());
+}
+
+void LinkConfigurationTest::_testSerialSettingsRoundtrip()
+{
+    // See _testTcpSettingsRoundtrip for rationale on the IniFormat isolation.
+    TestFixtures::TempDirFixture tmpDir;
+    QVERIFY(tmpDir.isValid());
+    const QString iniPath = tmpDir.path() + QStringLiteral("/settings.ini");
+
+    const QString root = QStringLiteral("LinkConfigTest_Serial");
+    QSettings settings(iniPath, QSettings::IniFormat);
+
+    {
+        SerialConfiguration config(QStringLiteral("SerialSave"));
+        config.setBaud(115200);
+        config.setDataBits(QSerialPort::Data7);
+        config.setFlowControl(QSerialPort::HardwareControl);
+        config.setStopBits(QSerialPort::TwoStop);
+        config.setParity(QSerialPort::EvenParity);
+        config.setPortName(QStringLiteral("/dev/ttyACM3"));
+        config.setPortDisplayName(QStringLiteral("Pixhawk"));
+        config.setdtrForceLow(true);
+        config.saveSettings(settings, root);
+    }
+
+    {
+        SerialConfiguration config(QStringLiteral("SerialLoad"));
+        config.loadSettings(settings, root);
+        QCOMPARE(config.baud(), qint32(115200));
+        QCOMPARE(config.dataBits(), QSerialPort::Data7);
+        QCOMPARE(config.flowControl(), QSerialPort::HardwareControl);
+        QCOMPARE(config.stopBits(), QSerialPort::TwoStop);
+        QCOMPARE(config.parity(), QSerialPort::EvenParity);
+        QCOMPARE(config.portName(), QStringLiteral("/dev/ttyACM3"));
+        QCOMPARE(config.portDisplayName(), QStringLiteral("Pixhawk"));
+        QVERIFY(config.dtrForceLow());
+    }
+}
+
+void LinkConfigurationTest::_testSerialCopyConstruction()
+{
+    SerialConfiguration original(QStringLiteral("SerialCopyOrig"));
+    original.setBaud(921600);
+    original.setPortName(QStringLiteral("/dev/ttyUSB0"));
+    original.setUsbDirect(true);
+
+    SerialConfiguration copy(&original);
+
+    QCOMPARE(copy.name(), QStringLiteral("SerialCopyOrig"));
+    QCOMPARE(copy.baud(), qint32(921600));
+    QCOMPARE(copy.portName(), QStringLiteral("/dev/ttyUSB0"));
+    QVERIFY(copy.usbDirect());
+}
+
+void LinkConfigurationTest::_testSerialSupportedBaudRates()
+{
+    const QStringList rates = SerialConfiguration::supportedBaudRates();
+    QVERIFY(!rates.isEmpty());
+    // The two rates QGC's autoconnect flow actually depends on.
+    QVERIFY(rates.contains(QStringLiteral("57600")));
+    QVERIFY(rates.contains(QStringLiteral("115200")));
+}
+
+#endif  // QGC_NO_SERIAL_LINK
 
 UT_REGISTER_TEST(LinkConfigurationTest, TestLabel::Unit, TestLabel::Comms)

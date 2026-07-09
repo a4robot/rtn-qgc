@@ -7,6 +7,8 @@ target_sources(${CMAKE_PROJECT_NAME}
     PRIVATE
         TerrainQueryTest.cc
         TerrainQueryTest.h
+        TerrainTileFetcherNetworkTest.cc
+        TerrainTileFetcherNetworkTest.h
         TerrainTileTest.cc
         TerrainTileTest.h
 )

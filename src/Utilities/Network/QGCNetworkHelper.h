@@ -6,8 +6,6 @@
 #include <QtCore/QString>
 #include <QtCore/QUrl>
 #include <QtCore/QVariant>
-#include <QtHttpServer/QHttpServerRequest>
-#include <QtHttpServer/QHttpServerResponder>
 #include <QtNetwork/QHttpPart>
 #include <QtNetwork/QNetworkReply>
 #include <QtNetwork/QNetworkRequest>
@@ -51,8 +49,82 @@ inline const QString kContentTypeTextPlain = QStringLiteral("text/plain");
 // HTTP Status Code Helpers
 // ============================================================================
 
-/// HTTP status codes - uses Qt's QHttpServerResponder::StatusCode enum
-using HttpStatusCode = QHttpServerResponder::StatusCode;
+/// HTTP status codes (values are the real IANA-registered HTTP status codes;
+/// this mirrors the set previously sourced from Qt's QHttpServerResponder::StatusCode
+/// enum, which is no longer linked here — see Wave 16 HttpServer cut)
+enum class HttpStatusCode
+{
+    // 1xx Informational
+    Continue = 100,
+    SwitchingProtocols = 101,
+    Processing = 102,
+
+    // 2xx Success
+    Ok = 200,
+    Created = 201,
+    Accepted = 202,
+    NonAuthoritativeInformation = 203,
+    NoContent = 204,
+    ResetContent = 205,
+    PartialContent = 206,
+    MultiStatus = 207,
+    AlreadyReported = 208,
+    IMUsed = 226,
+
+    // 3xx Redirection
+    MultipleChoices = 300,
+    MovedPermanently = 301,
+    Found = 302,
+    SeeOther = 303,
+    NotModified = 304,
+    UseProxy = 305,
+    TemporaryRedirect = 307,
+    PermanentRedirect = 308,
+
+    // 4xx Client Errors
+    BadRequest = 400,
+    Unauthorized = 401,
+    PaymentRequired = 402,
+    Forbidden = 403,
+    NotFound = 404,
+    MethodNotAllowed = 405,
+    NotAcceptable = 406,
+    ProxyAuthenticationRequired = 407,
+    RequestTimeout = 408,
+    Conflict = 409,
+    Gone = 410,
+    LengthRequired = 411,
+    PreconditionFailed = 412,
+    PayloadTooLarge = 413,
+    UriTooLong = 414,
+    UnsupportedMediaType = 415,
+    RequestRangeNotSatisfiable = 416,
+    ExpectationFailed = 417,
+    ImATeapot = 418,
+    MisdirectedRequest = 421,
+    UnprocessableEntity = 422,
+    Locked = 423,
+    FailedDependency = 424,
+    UpgradeRequired = 426,
+    PreconditionRequired = 428,
+    TooManyRequests = 429,
+    RequestHeaderFieldsTooLarge = 431,
+    UnavailableForLegalReasons = 451,
+
+    // 5xx Server Errors
+    InternalServerError = 500,
+    NotImplemented = 501,
+    BadGateway = 502,
+    ServiceUnavailable = 503,
+    GatewayTimeout = 504,
+    HttpVersionNotSupported = 505,
+    VariantAlsoNegotiates = 506,
+    InsufficientStorage = 507,
+    LoopDetected = 508,
+    NotExtended = 510,
+    NetworkAuthenticationRequired = 511,
+    NetworkConnectTimeoutError = 599,
+};
 
 /// HTTP status code ranges
 enum class HttpStatusClass
@@ -100,8 +172,23 @@ QString httpStatusText(HttpStatusCode statusCode);
 // HTTP Methods
 // ============================================================================
 
-/// HTTP request methods - uses Qt's QHttpServerRequest::Method enum
-using HttpMethod = QHttpServerRequest::Method;
+/// HTTP request methods (values mirror the bit-flag layout previously sourced
+/// from Qt's QHttpServerRequest::Method enum, which is no longer linked here —
+/// see Wave 16 HttpServer cut). Only equality comparisons are used in this
+/// codebase, but the bit layout is preserved for documentation purposes.
+enum class HttpMethod
+{
+    Unknown = 0x0000,
+    Get = 0x0001,
+    Put = 0x0002,
+    Delete = 0x0004,
+    Post = 0x0008,
+    Head = 0x0010,
+    Options = 0x0020,
+    Patch = 0x0040,
+    Connect = 0x0080,
+    Trace = 0x0100,
+};
 
 /// Get string name for an HTTP method (e.g., "GET", "POST")
 QString httpMethodName(HttpMethod method);
