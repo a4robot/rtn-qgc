@@ -25,8 +25,7 @@
 
 #include <algorithm>
 #include <QtCore/QSettings>
-#include <QtXml/QDomDocument>
-#include <QtXml/QDomNodeList>
+#include <QtCore/QXmlStreamReader>
 #include <QtNetwork/QNetworkReply>
 
 #include "QGCNetworkHelper.h"
@@ -54,56 +53,152 @@ QGCCameraOptionRange::QGCCameraOptionRange(QObject* parent, QString param_, QStr
 {
 }
 
-static bool read_attribute(QDomNode& node, const char* tagName, bool& target)
+bool VehicleCameraControl::_readAttribute(const XmlNode& node, const char* tagName, bool& target)
 {
-    QDomNamedNodeMap attrs = node.attributes();
-    if(!attrs.count()) {
+    if(!node.hasAttribute(tagName)) {
         return false;
     }
-    QDomNode subNode = attrs.namedItem(tagName);
-    if(subNode.isNull()) {
-        return false;
-    }
-    target = subNode.nodeValue() != "0";
+    target = node.attribute(tagName) != QStringLiteral("0");
     return true;
 }
 
-static bool read_attribute(QDomNode& node, const char* tagName, int& target)
+bool VehicleCameraControl::_readAttribute(const XmlNode& node, const char* tagName, int& target)
 {
-    QDomNamedNodeMap attrs = node.attributes();
-    if(!attrs.count()) {
+    if(!node.hasAttribute(tagName)) {
         return false;
     }
-    QDomNode subNode = attrs.namedItem(tagName);
-    if(subNode.isNull()) {
-        return false;
-    }
-    target = subNode.nodeValue().toInt();
+    target = node.attribute(tagName).toInt();
     return true;
 }
 
-static bool read_attribute(QDomNode& node, const char* tagName, QString& target)
+bool VehicleCameraControl::_readAttribute(const XmlNode& node, const char* tagName, QString& target)
 {
-    QDomNamedNodeMap attrs = node.attributes();
-    if(!attrs.count()) {
+    if(!node.hasAttribute(tagName)) {
         return false;
     }
-    QDomNode subNode = attrs.namedItem(tagName);
-    if(subNode.isNull()) {
-        return false;
-    }
-    target = subNode.nodeValue();
+    target = node.attribute(tagName);
     return true;
 }
 
-static bool read_value(QDomNode& element, const char* tagName, QString& target)
+bool VehicleCameraControl::_readValue(const XmlNode& element, const char* tagName, QString& target)
 {
-    QDomElement de = element.firstChildElement(tagName);
-    if(de.isNull()) {
+    const XmlNode* de = element.firstChildElement(tagName);
+    if(!de) {
         return false;
     }
-    target = de.text();
+    target = de->deepText();
     return true;
+}
+
+//-----------------------------------------------------------------------------
+// VehicleCameraControl::XmlNode - see VehicleCameraControl.h for rationale.
+
+const VehicleCameraControl::XmlNode* VehicleCameraControl::XmlNode::firstChildElement(const char* tag) const
+{
+    const QString t = QString::fromUtf8(tag);
+    for (const XmlNode& c : children) {
+        if (c.tagName == t) {
+            return &c;
+        }
+    }
+    return nullptr;
+}
+
+QList<const VehicleCameraControl::XmlNode*> VehicleCameraControl::XmlNode::elementsByTagName(const char* tag) const
+{
+    QList<const XmlNode*> out;
+    _collectByTagName(QString::fromUtf8(tag), out);
+    return out;
+}
+
+void VehicleCameraControl::XmlNode::_collectByTagName(const QString& tag, QList<const XmlNode*>& out) const
+{
+    for (const XmlNode& c : children) {
+        if (c.tagName == tag) {
+            out.append(&c);
+        }
+        c._collectByTagName(tag, out);
+    }
+}
+
+QString VehicleCameraControl::XmlNode::deepText() const
+{
+    QString result = text;
+    for (const XmlNode& c : children) {
+        result += c.deepText();
+    }
+    return result;
+}
+
+VehicleCameraControl::XmlNode VehicleCameraControl::_parseXmlElement(QXmlStreamReader& xml)
+{
+    XmlNode node;
+    node.tagName = xml.name().toString();
+    const QXmlStreamAttributes attrs = xml.attributes();
+    for (const QXmlStreamAttribute& attr : attrs) {
+        node.attributes.insert(attr.name().toString(), attr.value().toString());
+    }
+    while (!xml.atEnd()) {
+        switch (xml.readNext()) {
+        case QXmlStreamReader::StartElement:
+            node.children.append(_parseXmlElement(xml));
+            break;
+        case QXmlStreamReader::Characters:
+            // Covers CDATA sections too: QXmlStreamReader reports them as a
+            // Characters token (distinguishable via isCDATA()), not a separate
+            // token type.
+            node.text += xml.text().toString();
+            break;
+        case QXmlStreamReader::EndElement:
+            return node;
+        case QXmlStreamReader::Invalid:
+            // Let the caller's xml.hasError() check (in _parseXmlDocument())
+            // surface the failure; unwind without looping forever.
+            return node;
+        default:
+            // Comments, processing instructions, entity references, DTD bits: ignored,
+            // same as QDomDocument::setContent()'s default (non-namespace) parsing did.
+            break;
+        }
+    }
+    return node;
+}
+
+bool VehicleCameraControl::_parseXmlDocument(const QByteArray& bytes, XmlNode& rootOut, QString& errorString, qint64& errorLine)
+{
+    QXmlStreamReader xml(bytes);
+    if (!xml.readNextStartElement()) {
+        // Empty document / no root element - QDomDocument::setContent() also
+        // fails to parse this.
+        errorString = xml.hasError() ? xml.errorString() : QStringLiteral("no root element found");
+        errorLine = xml.lineNumber();
+        return false;
+    }
+    rootOut = _parseXmlElement(xml);
+    while (!xml.atEnd()) {
+        xml.readNext();
+    }
+    if (xml.hasError()) {
+        errorString = xml.errorString();
+        errorLine = xml.lineNumber();
+        return false;
+    }
+    return true;
+}
+
+QList<const VehicleCameraControl::XmlNode*> VehicleCameraControl::_documentElementsByTagName(const XmlNode& root, const char* tag)
+{
+    // QDomDocument::elementsByTagName() searches descendants of the *document*
+    // node, whose only element child is the document's root element - so a
+    // document-level search also matches the root element itself if its tag
+    // happens to equal `tag` (unlike XmlNode::elementsByTagName(), which only
+    // ever matches descendants of the node it's called on).
+    QList<const XmlNode*> out;
+    if (root.tagName == QString::fromUtf8(tag)) {
+        out.append(&root);
+    }
+    out.append(root.elementsByTagName(tag));
+    return out;
 }
 
 VehicleCameraControl::VehicleCameraControl(const mavlink_camera_information_t *info, Vehicle* vehicle, int compID, QObject* parent)
@@ -885,22 +980,23 @@ bool VehicleCameraControl::_loadCameraDefinitionFile(QByteArray& bytes)
         return false;
     }
 
-    QDomDocument doc;
-    const QDomDocument::ParseResult result = doc.setContent(bytes, QDomDocument::ParseOption::Default);
-    if (!result) {
-        qCCritical(VehicleCameraControlLog) << "Unable to parse camera definition file on line:" << result.errorLine;
-        qCCritical(VehicleCameraControlLog) << result.errorMessage;
+    XmlNode root;
+    QString errorString;
+    qint64 errorLine = 0;
+    if (!_parseXmlDocument(bytes, root, errorString, errorLine)) {
+        qCCritical(VehicleCameraControlLog) << "Unable to parse camera definition file on line:" << errorLine;
+        qCCritical(VehicleCameraControlLog) << errorString;
         return false;
     }
     //-- Load camera constants
-    QDomNodeList defElements = doc.elementsByTagName(kDefnition);
-    if(!defElements.size() || !_loadConstants(defElements)) {
+    const QList<const XmlNode*> defElements = _documentElementsByTagName(root, kDefnition);
+    if(defElements.isEmpty() || !_loadConstants(defElements)) {
         qCWarning(VehicleCameraControlLog) <<  "Unable to load camera constants from camera definition";
         return false;
     }
     //-- Load camera parameters
-    QDomNodeList paramElements = doc.elementsByTagName(kParameters);
-    if(!paramElements.size()) {
+    const QList<const XmlNode*> paramElements = _documentElementsByTagName(root, kParameters);
+    if(paramElements.isEmpty()) {
         qCDebug(VehicleCameraControlLog) <<  "No parameters to load from camera";
         return false;
     }
@@ -921,33 +1017,32 @@ bool VehicleCameraControl::_loadCameraDefinitionFile(QByteArray& bytes)
     return true;
 }
 
-bool VehicleCameraControl::_loadConstants(const QDomNodeList nodeList)
+bool VehicleCameraControl::_loadConstants(const QList<const XmlNode*>& nodeList)
 {
-    QDomNode node = nodeList.item(0);
-    if(!read_attribute(node, kVersion, _version)) {
+    const XmlNode& node = *nodeList.at(0);
+    if(!_readAttribute(node, kVersion, _version)) {
         return false;
     }
-    if(!read_value(node, kModel, _modelName)) {
+    if(!_readValue(node, kModel, _modelName)) {
         return false;
     }
-    if(!read_value(node, kVendor, _vendor)) {
+    if(!_readValue(node, kVendor, _vendor)) {
         return false;
     }
     return true;
 }
 
-bool VehicleCameraControl::_loadSettings(const QDomNodeList nodeList)
+bool VehicleCameraControl::_loadSettings(const QList<const XmlNode*>& nodeList)
 {
-    QDomNode node = nodeList.item(0);
-    QDomElement elem = node.toElement();
-    QDomNodeList parameters = elem.elementsByTagName(kParameter);
+    const XmlNode& node = *nodeList.at(0);
+    const QList<const XmlNode*> parameters = node.elementsByTagName(kParameter);
     //-- Pre-process settings (maintain order and skip non-controls)
     for(int i = 0; i < parameters.size(); i++) {
-        QDomNode parameterNode = parameters.item(i);
+        const XmlNode& parameterNode = *parameters.at(i);
         QString name;
-        if(read_attribute(parameterNode, kName, name)) {
+        if(_readAttribute(parameterNode, kName, name)) {
             bool control = true;
-            read_attribute(parameterNode, kControl, control);
+            _readAttribute(parameterNode, kControl, control);
             if(control) {
                 _settings << name;
             }
@@ -958,23 +1053,23 @@ bool VehicleCameraControl::_loadSettings(const QDomNodeList nodeList)
     }
     //-- Load parameters
     for(int i = 0; i < parameters.size(); i++) {
-        QDomNode parameterNode = parameters.item(i);
+        const XmlNode& parameterNode = *parameters.at(i);
         QString factName;
-        read_attribute(parameterNode, kName, factName);
+        _readAttribute(parameterNode, kName, factName);
         QString type;
-        if(!read_attribute(parameterNode, kType, type)) {
+        if(!_readAttribute(parameterNode, kType, type)) {
             qCritical() << QString("Parameter %1 missing parameter type").arg(factName);
             return false;
         }
         //-- Does it have a control?
         bool control = true;
-        read_attribute(parameterNode, kControl, control);
+        _readAttribute(parameterNode, kControl, control);
         //-- Is it read only?
         bool readOnly = false;
-        read_attribute(parameterNode, kReadOnly, readOnly);
+        _readAttribute(parameterNode, kReadOnly, readOnly);
         //-- Is it write only?
         bool writeOnly = false;
-        read_attribute(parameterNode, kWriteOnly, writeOnly);
+        _readAttribute(parameterNode, kWriteOnly, writeOnly);
         //-- It can't be both
         if(readOnly && writeOnly) {
             qCritical() << QString("Parameter %1 cannot be both read only and write only").arg(factName);
@@ -992,7 +1087,7 @@ bool VehicleCameraControl::_loadSettings(const QDomNodeList nodeList)
         }
         //-- Description
         QString description;
-        if(!read_value(parameterNode, kDescription, description)) {
+        if(!_readValue(parameterNode, kDescription, description)) {
             qCritical() << QString("Parameter %1 missing parameter description").arg(factName);
             return false;
         }
@@ -1011,15 +1106,13 @@ bool VehicleCameraControl::_loadSettings(const QDomNodeList nodeList)
         metaData->setReadOnly(readOnly);
         metaData->setWriteOnly(writeOnly);
         //-- Options (enums)
-        QDomElement optionElem = parameterNode.toElement();
-        QDomNodeList optionsRoot = optionElem.elementsByTagName(kOptions);
+        const QList<const XmlNode*> optionsRoot = parameterNode.elementsByTagName(kOptions);
         if(optionsRoot.size()) {
             //-- Iterate options
-            QDomNode optionsNode = optionsRoot.item(0);
-            QDomElement optionsElem = optionsNode.toElement();
-            QDomNodeList options = optionsElem.elementsByTagName(kOption);
+            const XmlNode& optionsElem = *optionsRoot.at(0);
+            const QList<const XmlNode*> options = optionsElem.elementsByTagName(kOption);
             for(int optionIndex = 0; optionIndex < options.size(); optionIndex++) {
-                QDomNode option = options.item(optionIndex);
+                const XmlNode& option = *options.at(optionIndex);
                 QString optName;
                 QString optValue;
                 QVariant optVariant;
@@ -1046,7 +1139,7 @@ bool VehicleCameraControl::_loadSettings(const QDomNodeList nodeList)
             }
         }
         QString defaultValue;
-        if(read_attribute(parameterNode, kDefault, defaultValue)) {
+        if(_readAttribute(parameterNode, kDefault, defaultValue)) {
             QVariant defaultVariant;
             QString  errorString;
             if (metaData->convertAndValidateRaw(defaultValue, false, defaultVariant, errorString)) {
@@ -1066,7 +1159,7 @@ bool VehicleCameraControl::_loadSettings(const QDomNodeList nodeList)
             {
                 //-- Check for Min Value
                 QString attr;
-                if(read_attribute(parameterNode, kMin, attr)) {
+                if(_readAttribute(parameterNode, kMin, attr)) {
                     QVariant typedValue;
                     QString  errorString;
                     if (metaData->convertAndValidateRaw(attr, true /* convertOnly */, typedValue, errorString)) {
@@ -1082,7 +1175,7 @@ bool VehicleCameraControl::_loadSettings(const QDomNodeList nodeList)
             {
                 //-- Check for Max Value
                 QString attr;
-                if(read_attribute(parameterNode, kMax, attr)) {
+                if(_readAttribute(parameterNode, kMax, attr)) {
                     QVariant typedValue;
                     QString  errorString;
                     if (metaData->convertAndValidateRaw(attr, true /* convertOnly */, typedValue, errorString)) {
@@ -1098,7 +1191,7 @@ bool VehicleCameraControl::_loadSettings(const QDomNodeList nodeList)
             {
                 //-- Check for Step Value
                 QString attr;
-                if(read_attribute(parameterNode, kStep, attr)) {
+                if(_readAttribute(parameterNode, kStep, attr)) {
                     QVariant typedValue;
                     QString  errorString;
                     if (metaData->convertAndValidateRaw(attr, true /* convertOnly */, typedValue, errorString)) {
@@ -1114,7 +1207,7 @@ bool VehicleCameraControl::_loadSettings(const QDomNodeList nodeList)
             {
                 //-- Check for Decimal Places
                 QString attr;
-                if(read_attribute(parameterNode, kDecimalPlaces, attr)) {
+                if(_readAttribute(parameterNode, kDecimalPlaces, attr)) {
                     QVariant typedValue;
                     QString  errorString;
                     if (metaData->convertAndValidateRaw(attr, true /* convertOnly */, typedValue, errorString)) {
@@ -1130,7 +1223,7 @@ bool VehicleCameraControl::_loadSettings(const QDomNodeList nodeList)
             {
                 //-- Check for Units
                 QString attr;
-                if(read_attribute(parameterNode, kUnit, attr)) {
+                if(_readAttribute(parameterNode, kUnit, attr)) {
                     metaData->setRawUnits(attr);
                 }
             }
@@ -1158,11 +1251,12 @@ bool VehicleCameraControl::_loadSettings(const QDomNodeList nodeList)
 
 bool VehicleCameraControl::_handleLocalization(QByteArray& bytes)
 {
-    QDomDocument doc;
-    const QDomDocument::ParseResult result = doc.setContent(bytes, QDomDocument::ParseOption::Default);
-    if (!result) {
-        qCritical() << "Unable to parse camera definition file on line:" << result.errorLine;
-        qCritical() << result.errorMessage;
+    XmlNode root;
+    QString errorString;
+    qint64 errorLine = 0;
+    if (!_parseXmlDocument(bytes, root, errorString, errorLine)) {
+        qCritical() << "Unable to parse camera definition file on line:" << errorLine;
+        qCritical() << errorString;
         return false;
     }
     //-- Find out where we are
@@ -1176,19 +1270,18 @@ bool VehicleCameraControl::_handleLocalization(QByteArray& bytes)
         // Nothing to do
         return true;
     }
-    QDomNodeList locRoot = doc.elementsByTagName(kLocalization);
-    if(!locRoot.size()) {
+    const QList<const XmlNode*> locRoot = _documentElementsByTagName(root, kLocalization);
+    if(locRoot.isEmpty()) {
         // Nothing to do
         return true;
     }
     //-- Iterate locales
-    QDomNode node = locRoot.item(0);
-    QDomElement elem = node.toElement();
-    QDomNodeList locales = elem.elementsByTagName(kLocale);
+    const XmlNode& elem = *locRoot.at(0);
+    const QList<const XmlNode*> locales = elem.elementsByTagName(kLocale);
     for(int i = 0; i < locales.size(); i++) {
-        QDomNode localeNode = locales.item(i);
+        const XmlNode& localeNode = *locales.at(i);
         QString name;
-        if(!read_attribute(localeNode, kName, name)) {
+        if(!_readAttribute(localeNode, kName, name)) {
             qWarning() << "Localization entry is missing its name attribute";
             continue;
         }
@@ -1200,9 +1293,9 @@ bool VehicleCameraControl::_handleLocalization(QByteArray& bytes)
     //-- No direct match. Pick first matching language (if any)
     localeName = localeName.left(3);
     for(int i = 0; i < locales.size(); i++) {
-        QDomNode localeNode = locales.item(i);
+        const XmlNode& localeNode = *locales.at(i);
         QString name;
-        read_attribute(localeNode, kName, name);
+        _readAttribute(localeNode, kName, name);
         if(name.toLower().startsWith(localeName)) {
             return _replaceLocaleStrings(localeNode, bytes);
         }
@@ -1213,16 +1306,15 @@ bool VehicleCameraControl::_handleLocalization(QByteArray& bytes)
     return true;
 }
 
-bool VehicleCameraControl::_replaceLocaleStrings(const QDomNode node, QByteArray& bytes)
+bool VehicleCameraControl::_replaceLocaleStrings(const XmlNode& node, QByteArray& bytes)
 {
-    QDomElement stringElem = node.toElement();
-    QDomNodeList strings = stringElem.elementsByTagName(kStrings);
+    const QList<const XmlNode*> strings = node.elementsByTagName(kStrings);
     for(int i = 0; i < strings.size(); i++) {
-        QDomNode stringNode = strings.item(i);
+        const XmlNode& stringNode = *strings.at(i);
         QString original;
         QString translated;
-        if(read_attribute(stringNode, kOriginal, original)) {
-            if(read_attribute(stringNode, kTranslated, translated)) {
+        if(_readAttribute(stringNode, kOriginal, original)) {
+            if(_readAttribute(stringNode, kTranslated, translated)) {
                 QString o; o = "\"" + original + "\"";
                 QString t; t = "\"" + translated + "\"";
                 bytes.replace(o.toUtf8(), t.toUtf8());
@@ -2036,18 +2128,16 @@ void VehicleCameraControl::_storageInfoTimeout()
 }
 
 QStringList
-VehicleCameraControl::_loadExclusions(QDomNode option)
+VehicleCameraControl::_loadExclusions(const XmlNode& option)
 {
     QStringList exclusionList;
-    QDomElement optionElem = option.toElement();
-    QDomNodeList excRoot = optionElem.elementsByTagName(kExclusions);
+    const QList<const XmlNode*> excRoot = option.elementsByTagName(kExclusions);
     if(excRoot.size()) {
         //-- Iterate exclusions
-        QDomNode node = excRoot.item(0);
-        QDomElement elem = node.toElement();
-        QDomNodeList exclusions = elem.elementsByTagName(kExclusion);
+        const XmlNode& elem = *excRoot.at(0);
+        const QList<const XmlNode*> exclusions = elem.elementsByTagName(kExclusion);
         for(int i = 0; i < exclusions.size(); i++) {
-            QString exclude = exclusions.item(i).toElement().text();
+            const QString exclude = exclusions.at(i)->deepText();
             if(!exclude.isEmpty()) {
                 exclusionList << exclude;
             }
@@ -2057,18 +2147,16 @@ VehicleCameraControl::_loadExclusions(QDomNode option)
 }
 
 QStringList
-VehicleCameraControl::_loadUpdates(QDomNode option)
+VehicleCameraControl::_loadUpdates(const XmlNode& option)
 {
     QStringList updateList;
-    QDomElement optionElem = option.toElement();
-    QDomNodeList updateRoot = optionElem.elementsByTagName(kUpdates);
+    const QList<const XmlNode*> updateRoot = option.elementsByTagName(kUpdates);
     if(updateRoot.size()) {
         //-- Iterate updates
-        QDomNode node = updateRoot.item(0);
-        QDomElement elem = node.toElement();
-        QDomNodeList updates = elem.elementsByTagName(kUpdate);
+        const XmlNode& elem = *updateRoot.at(0);
+        const QList<const XmlNode*> updates = elem.elementsByTagName(kUpdate);
         for(int i = 0; i < updates.size(); i++) {
-            QString update = updates.item(i).toElement().text();
+            const QString update = updates.at(i)->deepText();
             if(!update.isEmpty()) {
                 updateList << update;
             }
@@ -2077,38 +2165,35 @@ VehicleCameraControl::_loadUpdates(QDomNode option)
     return updateList;
 }
 
-bool VehicleCameraControl::_loadRanges(QDomNode option, const QString factName, QString paramValue)
+bool VehicleCameraControl::_loadRanges(const XmlNode& option, const QString factName, QString paramValue)
 {
-    QDomElement optionElem = option.toElement();
-    QDomNodeList rangeRoot = optionElem.elementsByTagName(kParameterranges);
+    const QList<const XmlNode*> rangeRoot = option.elementsByTagName(kParameterranges);
     if(rangeRoot.size()) {
-        QDomNode node = rangeRoot.item(0);
-        QDomElement elem = node.toElement();
-        QDomNodeList parameterRanges = elem.elementsByTagName(kParameterrange);
+        const XmlNode& elem = *rangeRoot.at(0);
+        const QList<const XmlNode*> parameterRanges = elem.elementsByTagName(kParameterrange);
         //-- Iterate parameter ranges
         for(int i = 0; i < parameterRanges.size(); i++) {
             QString param;
             QString condition;
-            QDomNode paramRange = parameterRanges.item(i);
-            if(!read_attribute(paramRange, kParameter, param)) {
+            const XmlNode& paramRange = *parameterRanges.at(i);
+            if(!_readAttribute(paramRange, kParameter, param)) {
                 qCritical() << QString("Malformed option range for parameter %1").arg(factName);
                 return false;
             }
-            read_attribute(paramRange, kCondition, condition);
-            QDomElement pelem = paramRange.toElement();
-            QDomNodeList rangeOptions = pelem.elementsByTagName(kRoption);
+            _readAttribute(paramRange, kCondition, condition);
+            const QList<const XmlNode*> rangeOptions = paramRange.elementsByTagName(kRoption);
             QStringList  optNames;
             QStringList  optValues;
             //-- Iterate options
             for(int rangeOptionIndex = 0; rangeOptionIndex < rangeOptions.size(); rangeOptionIndex++) {
                 QString optName;
                 QString optValue;
-                QDomNode roption = rangeOptions.item(rangeOptionIndex);
-                if(!read_attribute(roption, kName, optName)) {
+                const XmlNode& roption = *rangeOptions.at(rangeOptionIndex);
+                if(!_readAttribute(roption, kName, optName)) {
                     qCritical() << QString("Malformed roption for parameter %1").arg(factName);
                     return false;
                 }
-                if(!read_attribute(roption, kValue, optValue)) {
+                if(!_readAttribute(roption, kValue, optValue)) {
                     qCritical() << QString("Malformed rvalue for parameter %1").arg(factName);
                     return false;
                 }
@@ -2147,13 +2232,13 @@ void VehicleCameraControl::_processRanges()
     }
 }
 
-bool VehicleCameraControl::_loadNameValue(QDomNode option, const QString factName, FactMetaData* metaData, QString& optName, QString& optValue, QVariant& optVariant)
+bool VehicleCameraControl::_loadNameValue(const XmlNode& option, const QString factName, FactMetaData* metaData, QString& optName, QString& optValue, QVariant& optVariant)
 {
-    if(!read_attribute(option, kName, optName)) {
+    if(!_readAttribute(option, kName, optName)) {
         qCritical() << QString("Malformed option for parameter %1").arg(factName);
         return false;
     }
-    if(!read_attribute(option, kValue, optValue)) {
+    if(!_readAttribute(option, kValue, optValue)) {
         qCritical() << QString("Malformed value for parameter %1").arg(factName);
         return false;
     }
@@ -2202,13 +2287,15 @@ void VehicleCameraControl::_handleDefinitionFile(const QString &url)
         return;
     }
     QByteArray bytes = xmlFile.readAll();
-    QDomDocument doc;
-    const QDomDocument::ParseResult result = doc.setContent(bytes, QDomDocument::ParseOption::Default);
-    if (!result) {
+    XmlNode root;
+    QString errorString;
+    qint64 errorLine = 0;
+    if (!_parseXmlDocument(bytes, root, errorString, errorLine)) {
         qWarning() << "Could not parse cached camera definition file:" << _cacheFile;
         _httpRequest(url);
         return;
     }
+    Q_UNUSED(root);
     //-- We have it
     qCDebug(VehicleCameraControlLog) << "Using cached camera definition file:" << _cacheFile;
     _cached = true;

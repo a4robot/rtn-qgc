@@ -1,14 +1,25 @@
 #include "VehicleCameraControlTest.h"
 #include <QtTest/QSignalSpy>
 
-
+#include "AppSettings.h"
+#include "Fact.h"
+#include "FactMetaData.h"
 #include "LinkManager.h"
+#include "MAVLinkLib.h"
 #include "MavlinkCameraControlInterface.h"
 #include "MockConfiguration.h"
 #include "MockLink.h"
 #include "MultiVehicleManager.h"
 #include "QGCCameraManager.h"
+#include "SettingsManager.h"
 #include "Vehicle.h"
+#include "VehicleCameraControl.h"
+
+#include <QtCore/QDir>
+#include <QtCore/QFile>
+#include <QtCore/QScopedPointer>
+
+#include <cstring>
 
 void VehicleCameraControlTest::initTestCase()
 {
@@ -179,6 +190,146 @@ void VehicleCameraControlTest::_testCameraCapFlags()
 
     // hasFocus is always false since MockLinkCamera doesn't support CAMERA_CAP_FLAGS_HAS_BASIC_FOCUS
     QCOMPARE(camera->hasFocus(), false);
+}
+
+void VehicleCameraControlTest::_testCameraDefinitionParsing()
+{
+    // MockLink's simulated cameras never populate cam_definition_uri (see
+    // MockLinkCamera::_sendCameraInformation()), so they never exercise the
+    // camera-definition XML parser. We only need a live Vehicle* here (for
+    // FTPManager/SettingsManager access inside VehicleCameraControl) - the
+    // mock camera capability flags configured on it are irrelevant.
+    auto* mockConfig = new MockConfiguration(QStringLiteral("CameraDefinitionParsingTest"));
+    mockConfig->setFirmwareType(MAV_AUTOPILOT_PX4);
+    mockConfig->setVehicleType(MAV_TYPE_QUADROTOR);
+    mockConfig->setDynamic(true);
+
+    QSignalSpy spyVehicle(MultiVehicleManager::instance(), &MultiVehicleManager::activeVehicleChanged);
+    QVERIFY(spyVehicle.isValid());
+
+    SharedLinkConfigurationPtr linkConfig = LinkManager::instance()->addConfiguration(mockConfig);
+    QVERIFY(LinkManager::instance()->createConnectedLink(linkConfig));
+    QVERIFY2(UnitTest::waitForSignal(spyVehicle, TestTimeout::longMs(), QStringLiteral("activeVehicleChanged")),
+             "Timeout waiting for vehicle connection");
+
+    _vehicle = MultiVehicleManager::instance()->activeVehicle();
+    QVERIFY(_vehicle);
+    _mockLink = qobject_cast<MockLink*>(linkConfig->link());
+    QVERIFY(_mockLink);
+
+    if (!_vehicle->isInitialConnectComplete()) {
+        QSignalSpy spyConnect(_vehicle, &Vehicle::initialConnectComplete);
+        QVERIFY(spyConnect.isValid());
+        QVERIFY2(UnitTest::waitForSignal(spyConnect, TestTimeout::longMs(), QStringLiteral("initialConnectComplete")),
+                 "Timeout waiting for initial connect");
+    }
+
+    // Load the fixture that exercises: definition/vendor/model/version,
+    // uint32/float/bool parameter types, defaults, enum options (including
+    // negative and fractional values and an XML entity), exclusions,
+    // parameterranges/roption/condition, and a localization block.
+    QFile fixtureFile(QStringLiteral(CAMERA_DEFINITION_EXAMPLE_XML_PATH));
+    QVERIFY2(fixtureFile.open(QIODevice::ReadOnly), qPrintable(fixtureFile.errorString()));
+    const QByteArray fixtureBytes = fixtureFile.readAll();
+    QVERIFY(!fixtureBytes.isEmpty());
+
+    // Seed the on-disk definition cache with the fixture *before* constructing
+    // VehicleCameraControl so the constructor's "already cached" boot path
+    // (see VehicleCameraControl::_handleDefinitionFile()) fires synchronously:
+    // this drives the exact same single dataReady() -> _loadCameraDefinitionFile()
+    // sequence a real vehicle triggers after an HTTP/FTP download completes,
+    // without needing a live download in the test.
+    const QString vendor = QStringLiteral("Characterization Vendor");
+    const QString model  = QStringLiteral("XmlParseFixture");
+    const int version = 7;
+    const QString parameterSavePath = SettingsManager::instance()->appSettings()->parameterSavePath();
+    QVERIFY(!parameterSavePath.isEmpty());
+    QVERIFY(QDir().mkpath(parameterSavePath));
+    const QString cacheFile = QString::asprintf("%s/%s_%s_%03d.xml",
+                                                  parameterSavePath.toStdString().c_str(),
+                                                  vendor.toStdString().c_str(),
+                                                  model.toStdString().c_str(),
+                                                  version);
+    QFile::remove(cacheFile);
+    {
+        QFile cache(cacheFile);
+        QVERIFY2(cache.open(QIODevice::WriteOnly), qPrintable(cache.errorString()));
+        QCOMPARE(cache.write(fixtureBytes), static_cast<qint64>(fixtureBytes.size()));
+    }
+
+    mavlink_camera_information_t camInfo{};
+    const QByteArray vendorBa = vendor.toLocal8Bit();
+    const QByteArray modelBa  = model.toLocal8Bit();
+    memcpy(camInfo.vendor_name, vendorBa.constData(), std::min<size_t>(sizeof(camInfo.vendor_name), static_cast<size_t>(vendorBa.size())));
+    memcpy(camInfo.model_name, modelBa.constData(), std::min<size_t>(sizeof(camInfo.model_name), static_cast<size_t>(modelBa.size())));
+    camInfo.cam_definition_version = static_cast<uint16_t>(version);
+    // Non-empty so the constructor takes the _handleDefinitionFile() branch,
+    // but never actually fetched since the cache file above exists.
+    const QByteArray uriBa = QByteArrayLiteral("http://192.0.2.1/unused.xml");
+    memcpy(camInfo.cam_definition_uri, uriBa.constData(), std::min<size_t>(sizeof(camInfo.cam_definition_uri) - 1, static_cast<size_t>(uriBa.size())));
+
+    // Owned locally (not left parented-and-forgotten on the test object): its
+    // dtor stops all of VehicleCameraControl's internal QTimers, which
+    // otherwise could fire after cleanup() tears down _vehicle/_mockLink.
+    QScopedPointer<VehicleCameraControl> cameraGuard(new VehicleCameraControl(&camInfo, _vehicle, static_cast<int>(MAV_COMP_ID_CAMERA4)));
+    VehicleCameraControl* camera = cameraGuard.data();
+    QVERIFY(camera);
+    QVERIFY(!camera->isBasic());
+
+    // --- definition constants --------------------------------------------
+    QCOMPARE(camera->modelName(), QStringLiteral("SD II"));
+    QCOMPARE(camera->vendor(), QStringLiteral("Super Dupper Industries"));
+    QCOMPARE(camera->version(), 1);
+
+    // --- full parameter list, in document order ---------------------------
+    QCOMPARE(camera->activeSettings(), QStringList({
+        QStringLiteral("CAM_MODE"), QStringLiteral("CAM_WBMODE"), QStringLiteral("CAM_EXPMODE"),
+        QStringLiteral("CAM_APERTURE"), QStringLiteral("CAM_SHUTTERSPD"), QStringLiteral("CAM_ISO"),
+        QStringLiteral("CAM_EV"), QStringLiteral("CAM_VIDRES"), QStringLiteral("CAM_VIDFMT"),
+        QStringLiteral("CAM_AUDIOREC"), QStringLiteral("CAM_METERING"), QStringLiteral("CAM_COLORMODE"),
+        QStringLiteral("CAM_PHOTORES"), QStringLiteral("CAM_PHOTOFMT"), QStringLiteral("CAM_PHOTOQUAL")
+    }));
+
+    // --- plain enum parameter, default value ------------------------------
+    Fact* camMode = camera->getFact(QStringLiteral("CAM_MODE"));
+    QVERIFY(camMode);
+    QCOMPARE(camMode->rawValue().toInt(), 1); // default="1"
+    QCOMPARE(camMode->enumStrings(), QStringList({QStringLiteral("Photo"), QStringLiteral("Video")}));
+    const QVariantList camModeValues = camMode->enumValues();
+    QCOMPARE(camModeValues.size(), 2);
+    QCOMPARE(camModeValues.at(0).toInt(), 0);
+    QCOMPARE(camModeValues.at(1).toInt(), 1);
+
+    // --- float type + fractional/negative option values -------------------
+    Fact* shutterSpeed = camera->getFact(QStringLiteral("CAM_SHUTTERSPD"));
+    QVERIFY(shutterSpeed);
+    QCOMPARE(shutterSpeed->enumValues().size(), 13);
+    QVERIFY(qAbs(shutterSpeed->enumValues().last().toDouble() - 0.001) < 0.0001);
+
+    Fact* ev = camera->getFact(QStringLiteral("CAM_EV"));
+    QVERIFY(ev);
+    QVERIFY(qAbs(ev->enumValues().first().toDouble() - (-2.0)) < 0.0001);
+
+    // --- bool type, no options/no default text ----------------------------
+    Fact* audioRec = camera->getFact(QStringLiteral("CAM_AUDIOREC"));
+    QVERIFY(audioRec);
+    QCOMPARE(audioRec->rawValue().toBool(), false);
+    QVERIFY(audioRec->enumStrings().isEmpty());
+
+    // --- option text containing an XML entity ("&amp;") --------------------
+    Fact* colorMode = camera->getFact(QStringLiteral("CAM_COLORMODE"));
+    QVERIFY(colorMode);
+    QVERIFY(colorMode->enumStrings().contains(QStringLiteral("Black & White")));
+
+    // --- parameter absent from the definition ------------------------------
+    QVERIFY(!camera->getFact(QStringLiteral("NOT_A_REAL_PARAMETER")));
+
+    // exclusions (<exclusions>/<exclude>) and parameterranges
+    // (<parameterranges>/<parameterrange>/<roption>) have no public getters on
+    // VehicleCameraControl; a malformed block in either would make
+    // _loadSettings() return false, which would leave activeSettings()/
+    // getFact() empty above, so their parsing is exercised transitively by
+    // the assertions above succeeding at all.
 }
 
 UT_REGISTER_TEST(VehicleCameraControlTest, TestLabel::Integration, TestLabel::Vehicle)

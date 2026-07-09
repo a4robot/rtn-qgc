@@ -3,10 +3,12 @@
 #include "MavlinkCameraControlInterface.h"
 #include "QmlObjectListModel.h"
 
+#include <QtCore/QHash>
+#include <QtCore/QList>
+
 class QGCVideoStreamInfo;
 class QNetworkAccessManager;
-class QDomNode;
-class QDomNodeList;
+class QXmlStreamReader;
 
 //-----------------------------------------------------------------------------
 /// \brief Camera option exclusions
@@ -235,24 +237,72 @@ protected slots:
     void            _paramDone              () override;
 
 private:
+    /// Minimal in-memory XML element tree, built in a single forward pass over
+    /// a QXmlStreamReader (see _parseXmlDocument()/_parseXmlElement()). The
+    /// camera-definition parsers below were originally written against
+    /// QDomDocument/QDomElement/QDomNodeList, which let the code do random-order
+    /// lookups (elementsByTagName() anywhere in the document, firstChildElement()
+    /// on any node already visited or not). QXmlStreamReader is forward-only, so
+    /// rather than restructure every parse function's control flow into a
+    /// one-shot state machine, the document is materialized into this small tree
+    /// once and the existing QDom-shaped queries are replicated as methods on it -
+    /// this keeps the parse functions themselves (and their behavior) unchanged.
+    struct XmlNode
+    {
+        QString                 tagName;
+        QHash<QString, QString> attributes;
+        QList<XmlNode>          children;
+        QString                 text;   ///< character data directly under this element
+
+        bool hasAttribute(const char* name) const { return attributes.contains(QString::fromUtf8(name)); }
+        QString attribute(const char* name) const { return attributes.value(QString::fromUtf8(name)); }
+
+        /// QDomElement::firstChildElement() equivalent: first *direct* child with this tag.
+        const XmlNode* firstChildElement(const char* tag) const;
+
+        /// QDomElement::elementsByTagName() equivalent: every *descendant* (not
+        /// self) with this tag, in document order.
+        QList<const XmlNode*> elementsByTagName(const char* tag) const;
+
+        /// QDomNode::text() equivalent: concatenated character data of this
+        /// element and (recursively) all of its descendants.
+        QString deepText() const;
+
+    private:
+        void _collectByTagName(const QString& tag, QList<const XmlNode*>& out) const;
+    };
+
+    static XmlNode  _parseXmlElement        (QXmlStreamReader& xml);
+    static bool     _parseXmlDocument       (const QByteArray& bytes, XmlNode& rootOut, QString& errorString, qint64& errorLine);
+    /// QDomDocument::elementsByTagName() equivalent: unlike XmlNode::elementsByTagName(),
+    /// the search includes root itself, not just its descendants.
+    static QList<const XmlNode*> _documentElementsByTagName(const XmlNode& root, const char* tag);
+
+    /// QDomNamedNodeMap-attribute-lookup equivalents (QDomNode::attributes()/namedItem()).
+    static bool _readAttribute(const XmlNode& node, const char* tagName, bool& target);
+    static bool _readAttribute(const XmlNode& node, const char* tagName, int& target);
+    static bool _readAttribute(const XmlNode& node, const char* tagName, QString& target);
+    /// QDomElement::firstChildElement()+text() equivalent.
+    static bool _readValue    (const XmlNode& element, const char* tagName, QString& target);
+
     bool    _handleLocalization             (QByteArray& bytes);
-    bool    _replaceLocaleStrings           (const QDomNode node, QByteArray& bytes);
+    bool    _replaceLocaleStrings           (const XmlNode& node, QByteArray& bytes);
     bool    _loadCameraDefinitionFile       (QByteArray& bytes);
-    bool    _loadConstants                  (const QDomNodeList nodeList);
-    bool    _loadSettings                   (const QDomNodeList nodeList);
+    bool    _loadConstants                  (const QList<const XmlNode*>& nodeList);
+    bool    _loadSettings                   (const QList<const XmlNode*>& nodeList);
     void    _processRanges                  ();
     bool    _processCondition               (const QString condition);
     bool    _processConditionTest           (const QString conditionTest);
-    bool    _loadNameValue                  (QDomNode option, const QString factName, FactMetaData* metaData, QString& optName, QString& optValue, QVariant& optVariant);
-    bool    _loadRanges                     (QDomNode option, const QString factName, QString paramValue);
+    bool    _loadNameValue                  (const XmlNode& option, const QString factName, FactMetaData* metaData, QString& optName, QString& optValue, QVariant& optVariant);
+    bool    _loadRanges                     (const XmlNode& option, const QString factName, QString paramValue);
     void    _updateActiveList               ();
     void    _updateRanges                   (Fact* pFact);
     void    _httpRequest                    (const QString& url);
     void    _handleDefinitionFile           (const QString& url);
     void    _ftpDownloadComplete            (const QString& fileName, const QString& errorMsg);
 
-    QStringList     _loadExclusions         (QDomNode option);
-    QStringList     _loadUpdates            (QDomNode option);
+    QStringList     _loadExclusions         (const XmlNode& option);
+    QStringList     _loadUpdates            (const XmlNode& option);
     QString         _getParamName           (const char* param_id);
 
 protected:

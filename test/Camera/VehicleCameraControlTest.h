@@ -16,6 +16,13 @@ private slots:
 
     UT_PARAMETERIZED_TEST(_testCameraCapFlags);
 
+    /// Characterization test for the camera-definition XML parser (Wave 15 Q8c:
+    /// QDomDocument -> QXmlStreamReader rewrite in VehicleCameraControl.cc). Pins
+    /// the parsed Fact/enum/exclusion structure produced from
+    /// src/Camera/camera_definition_example.xml so the rewrite can be held to
+    /// identical output.
+    void _testCameraDefinitionParsing();
+
 private:
     MockLink* _mockLink = nullptr;
     Vehicle* _vehicle = nullptr;

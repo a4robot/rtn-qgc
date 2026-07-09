@@ -140,7 +140,12 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         # below; actual SVG decode/render only happens through QML (icons,
         # ColoredSvgImageProvider — already QML-gated). QML-gate it too.
         $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Svg>
-        Qt6::Xml
+        # Q8c: VehicleCameraControl.cc (the last headless-reachable QDom user)
+        # was rewritten onto QXmlStreamReader (QtCore), so this target no
+        # longer uses Qt6::Xml symbols directly. QGCGeoFormats still needs it
+        # for the QML-only KML import/export path and links it PUBLIC there
+        # (see src/Utilities/Geo/Formats/CMakeLists.txt), which is enough to
+        # pull it onto this target's link line whenever QGC_ENABLE_QML is ON.
 
         # Qt6 QML/Quick (Qt6::QmlIntegration stays unconditional — header-only QML_ELEMENT macros)
         $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Qml>

@@ -25,8 +25,9 @@ endif()
 # load dialog on QGCMapPolygon/QGCMapPolyline) — verified by call-graph audit,
 # wave 14 Q7c. Not part of the headless ghost's surface, so compile it out of
 # QGC_ENABLE_QML=OFF builds; ShapeFileHelper.cc guards its callers with the
-# same #ifdef. This does not drop Qt6::Xml this wave (VehicleCameraControl.cc
-# still needs it) — see Q8c for that.
+# same #ifdef. Wave 15 Q8c rewrote the other QDom user (VehicleCameraControl.cc)
+# onto QXmlStreamReader, so these KML sources are now the *only* QDom users
+# left in the tree — Qt6::Xml below is gated to match.
 if(QGC_ENABLE_QML)
     target_sources(QGCGeoFormats PRIVATE
         KMLDomDocument.cc
@@ -66,7 +67,7 @@ target_link_libraries(QGCGeoFormats
         Qt6::Positioning
         $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Qml>
         Qt6::QmlIntegration
-        Qt6::Xml
+        $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Xml>
     PRIVATE
         shp
         QGCGeoMath
