@@ -12,6 +12,11 @@
           "name": "binaries/ghost",
           "sidecar": true,
           "args": ["--headless", "--bridge-port", "8877"]
+        },
+        {
+          "name": "binaries/ghost",
+          "sidecar": true,
+          "args": ["--headless", "--bridge-port", "8877", "--mock-link"]
         }
       ]
     },

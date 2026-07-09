@@ -43,6 +43,10 @@
     "externalBin": [
       "binaries/ghost"
     ],
+    "resources": {
+      "binaries/ghost-resources/lib": "lib",
+      "binaries/ghost-resources/plugins": "plugins"
+    },
     "linux": {
       "appimage": {
         "bundleMediaFramework": false

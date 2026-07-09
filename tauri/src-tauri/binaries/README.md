@@ -98,3 +98,50 @@ None of this was built in Wave 12 — intentionally out of scope (no
 cargo/tauri builds, no bundle committed to git). This section only
 exists so Wave 13 doesn't have to re-discover the Qt-ABI-mismatch /
 GStreamer-version-match reasoning from scratch.
+
+### Wave 13: wired in
+
+The plan above is exactly what got built, with two additions worth
+recording:
+
+- **`resources` is a map, not a list**: `tauri.conf.json` declares
+  `bundle.resources: {"binaries/ghost-resources/lib": "lib",
+  "binaries/ghost-resources/plugins": "plugins"}`. The map form pins the
+  destination subpath (`lib`, `plugins`) regardless of source layout —
+  the list form's relative-path inference isn't worth relying on here.
+  `tauri/scripts/stage-ghost-bundle.sh` populates
+  `binaries/ghost-resources/{lib,plugins}` from the bundle (gitignored,
+  same as `ghost-*`).
+- **`plugins/multimedia/libffmpegmediaplugin.so` is dropped at staging
+  time.** It's already documented above as inert on this host (needs
+  `libQt6Quick`/`Qml`/OpenGL and Qt's private ffmpeg libs that aren't
+  bundled) and Qt's plugin loader fails its `dlopen` silently and
+  harmlessly at runtime. But AppImage bundling (`linuxdeploy`) *does*
+  statically resolve every shipped `.so`'s ELF dependencies and fails the
+  whole build on this one's unresolvable `libavformat.so.61` — so
+  `stage-ghost-bundle.sh` excludes it rather than shipping dead weight
+  that breaks packaging.
+- **`app.path().resource_dir()` needs `LD_LIBRARY_PATH` set at
+  `cargo tauri build` time too**, separately from what `lib.rs` sets on
+  the spawned sidecar at runtime. `linuxdeploy` scans the ghost sidecar's
+  own ELF dependencies while assembling the AppImage and can't resolve
+  `libQt6*.so` unless they're findable via `LD_LIBRARY_PATH` in *its*
+  environment — `tauri-build`'s build script already copies
+  `bundle.resources` into `target/release/lib` for exactly this kind of
+  local resolution, so `LD_LIBRARY_PATH="$PWD/target/release/lib" cargo
+  tauri build ...` is enough. This is unrelated to (and doesn't replace)
+  the runtime env wiring in `../src/lib.rs`.
+
+Verified this wave: `cargo build` green; a dev run (`target/debug`
+binary under `xvfb-run`, `RTN_GHOST_MOCK=1`) spawned the sidecar with the
+bundled Qt6 libs and passed the full `mockghostprobe.ts` e2e suite on
+port 8877; `cargo tauri build --bundles deb,appimage` produced both
+installers; the `.deb` installed cleanly on a bare `ubuntu:24.04`
+container (no prior Qt) and its installed `/usr/bin/ghost`, run with the
+same env `lib.rs` sets (pointed at `/usr/lib/RTN QGroundControl/{lib,plugins}`),
+passed the same e2e suite; the AppImage self-extracts
+(`--appimage-extract`) and its `usr/bin/ghost` does the same. Known gap
+carried forward: GStreamer plugin env (`GST_PLUGIN_PATH` etc.) is still
+host-provided/unset by `lib.rs` — video-specific bridge checks weren't
+part of this wave's env wiring, only the Qt6/`QT_QPA_PLATFORM` piece
+`../src/lib.rs` documents.
