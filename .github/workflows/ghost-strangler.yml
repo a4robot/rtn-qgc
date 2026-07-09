@@ -1,0 +1,195 @@
+name: Ghost Strangler Invariants
+
+# Guards the strangler-fig invariants introduced by the QGC_ENABLE_QML=OFF
+# "ghost" port: the QML-free build stays green, it links zero QML/Quick
+# libraries, the MockLink bridge e2e still passes, and the web app still
+# typechecks/tests/passes its mock protocol conformance check.
+
+on:
+  push:
+    branches:
+      - master
+      - 'strangler-wave*'
+    paths-ignore:
+      - 'docs/**'
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+permissions:
+  contents: read
+
+jobs:
+  ghost-off:
+    name: Ghost (QGC_ENABLE_QML=OFF) build + MockLink e2e
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - name: Checkout repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Build Setup
+        uses: ./.github/actions/build-setup
+        with:
+          qt-host: linux
+          qt-arch: linux_gcc_64
+          build-type: Release
+
+      - name: Install Dependencies
+        uses: ./.github/actions/install-dependencies
+
+      - name: Configure (QGC_ENABLE_QML=OFF, QGC_ENABLE_MOCKLINK=ON)
+        uses: ./.github/actions/cmake-configure
+        with:
+          build-dir: ${{ runner.temp }}/build
+          build-type: Release
+          extra-args: '-DQGC_ENABLE_QML=OFF -DQGC_ENABLE_MOCKLINK=ON'
+
+      - name: Build
+        uses: ./.github/actions/cmake-build
+        with:
+          build-dir: ${{ runner.temp }}/build
+          build-type: Release
+          output-file: ${{ runner.temp }}/ghost-off-build.log
+
+      # --- Invariant gate: the QML-OFF ghost must link ZERO libQt6Qml*/libQt6Quick*.
+      # objdump reads DT_NEEDED SONAMEs straight from the ELF, so it doesn't
+      # depend on the dynamic linker being able to resolve every Qt lib in
+      # this step's environment. ldd is run alongside purely to print the
+      # fully-resolved Qt lib list into the job log for human inspection.
+      - name: "Invariant gate: zero QML/Quick libs linked"
+        run: |
+          BIN="${{ runner.temp }}/build/Release/QGroundControl"
+
+          echo "== Full Qt shared-lib NEEDED list (objdump -p) =="
+          objdump -p "$BIN" | awk '/NEEDED/ && /Qt6/ {print $2}' | sort -u | tee /tmp/needed-qt-libs.txt
+
+          echo
+          echo "== ldd (resolved paths, informational) =="
+          ldd "$BIN" | grep -i qt6 || echo "(no Qt6 libs resolved by ldd)"
+
+          echo
+          if grep -qE 'libQt6(Qml|Quick)' /tmp/needed-qt-libs.txt; then
+            echo "::error::QGC_ENABLE_QML=OFF ghost links a libQt6Qml*/libQt6Quick* library — strangler invariant violated"
+            exit 1
+          fi
+          echo "OK: ghost binary links zero libQt6Qml*/libQt6Quick* libraries"
+
+      - name: Boot ghost (headless, MockLink)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          BIN="${{ runner.temp }}/build/Release/QGroundControl"
+          chmod +x "$BIN"
+          "$BIN" --headless --bridge-port 8899 --mock-link \
+            > "${{ runner.temp }}/ghost-boot.log" 2>&1 &
+          echo "GHOST_PID=$!" >> "$GITHUB_ENV"
+
+      - name: Wait for ghost bridge port
+        run: |
+          for _ in $(seq 1 60); do
+            if ! kill -0 "$GHOST_PID" 2>/dev/null; then
+              echo "::error::ghost process exited before the bridge port opened"
+              cat "${{ runner.temp }}/ghost-boot.log" || true
+              exit 1
+            fi
+            if (exec 3<>"/dev/tcp/127.0.0.1/8899") 2>/dev/null; then
+              exec 3<&- 3>&-
+              echo "bridge port 8899 is accepting connections"
+              exit 0
+            fi
+            sleep 0.5
+          done
+          echo "::error::timed out waiting for ghost bridge port 8899"
+          cat "${{ runner.temp }}/ghost-boot.log" || true
+          exit 1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Run MockLink ghost e2e probe
+        env:
+          PROBE_URL: ws://127.0.0.1:8899
+        run: bun tools/ghost/mockghostprobe.ts
+
+      - name: Stop ghost
+        if: always()
+        run: |
+          if [[ -n "${GHOST_PID:-}" ]]; then
+            kill "$GHOST_PID" 2>/dev/null || true
+            wait "$GHOST_PID" 2>/dev/null || true
+          fi
+
+      - name: Upload ghost boot log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ghost-boot-log
+          path: ${{ runner.temp }}/ghost-boot.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload compile log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ghost-off-compile-log
+          path: ${{ runner.temp }}/ghost-off-build.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  web:
+    name: Web (typecheck + test + mock selftest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: web
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - name: Checkout repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bunx tsc --noEmit
+
+      - name: Unit tests
+        run: bun test
+
+      - name: Mock protocol selftest (default fixture)
+        run: bun mock/selftest.ts
+
+      - name: Mock protocol selftest (MOCK_FIXTURE=1)
+        env:
+          MOCK_FIXTURE: '1'
+        run: bun mock/selftest.ts
