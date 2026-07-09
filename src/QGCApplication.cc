@@ -7,8 +7,10 @@
 #include <QtCore/QMetaMethod>
 #include <QtCore/QMetaObject>
 #include <QtCore/QRegularExpression>
+#ifdef QGC_ENABLE_QML
 #include <QtGui/QFontDatabase>
 #include <QtGui/QIcon>
+#endif
 #include <QtNetwork/QHostAddress>
 #include "QGCNetworkHelper.h"
 #ifdef QGC_ENABLE_QML
@@ -73,7 +75,7 @@
 QGC_LOGGING_CATEGORY(QGCApplicationLog, "API.QGCApplication")
 
 QGCApplication::QGCApplication(int &argc, char *argv[], const QGCCommandLineParser::CommandLineParseResult &cli)
-    : QGuiApplication(argc, argv)
+    : QGCApplicationBase(argc, argv)
     , _runningUnitTests(cli.runningUnitTests)
     , _simpleBootTest(cli.simpleBootTest)
     , _headless(cli.headless)
@@ -120,7 +122,11 @@ QGCApplication::QGCApplication(int &argc, char *argv[], const QGCCommandLinePars
 #endif
     }
     setApplicationName(applicationName);
+#ifdef QGC_ENABLE_QML
+    // QGuiApplication-only: associates the window with its .desktop file for window
+    // manager/taskbar integration. Meaningless without a window.
     setDesktopFileName(QGC_PACKAGE_NAME);
+#endif
     setOrganizationName(QGC_ORG_NAME);
     setOrganizationDomain(QGC_ORG_DOMAIN);
     setApplicationVersion(QString(QGC_APP_VERSION_STR));
@@ -203,6 +209,7 @@ void QGCApplication::setLanguage()
         _locale = QLocale(possibleLocale);
     }
     //-- We have specific fonts for Korean
+#ifdef QGC_ENABLE_QML
     if (_locale == QLocale::Korean) {
         qCDebug(QGCApplicationLog) << "Loading Korean fonts" << _locale.name();
         if(QFontDatabase::addApplicationFont(":/fonts/NanumGothic-Regular") < 0) {
@@ -212,6 +219,7 @@ void QGCApplication::setLanguage()
             qCWarning(QGCApplicationLog) << "Could not load /fonts/NanumGothic-Bold font";
         }
     }
+#endif
     qCDebug(QGCApplicationLog) << "Loading localizations for" << _locale.name();
     removeTranslator(JsonParsing::translator());
     removeTranslator(&_qgcTranslatorSourceCode);
@@ -260,6 +268,7 @@ void QGCApplication::init()
     LogManager::instance()->init();
 
     // Although this should really be in _initForNormalAppBoot putting it here allowws us to create unit tests which pop up more easily
+#ifdef QGC_ENABLE_QML
     if (QFontDatabase::addApplicationFont(":/fonts/opensans") < 0) {
         qCWarning(QGCApplicationLog) << "Could not load /fonts/opensans font";
     }
@@ -267,6 +276,7 @@ void QGCApplication::init()
     if (QFontDatabase::addApplicationFont(":/fonts/opensans-demibold") < 0) {
         qCWarning(QGCApplicationLog) << "Could not load /fonts/opensans-demibold font";
     }
+#endif
 
     if (_simpleBootTest) {
         // Since GStream builds are so problematic we initialize video during the simple boot test
@@ -787,12 +797,12 @@ QT_WARNING_DISABLE_DEPRECATED
 bool QGCApplication::compressEvent(QEvent *event, QObject *receiver, QPostEventList *postedEvents)
 {
     if (event->type() != QEvent::MetaCall) {
-        return QGuiApplication::compressEvent(event, receiver, postedEvents);
+        return QGCApplicationBase::compressEvent(event, receiver, postedEvents);
     }
 
     const QMetaCallEvent *mce = static_cast<QMetaCallEvent*>(event);
     if (!mce->sender() || !_compressedSignals.contains(mce->sender()->metaObject(), mce->signalId())) {
-        return QGuiApplication::compressEvent(event, receiver, postedEvents);
+        return QGCApplicationBase::compressEvent(event, receiver, postedEvents);
     }
 
     for (QPostEventList::iterator it = postedEvents->begin(); it != postedEvents->end(); ++it) {
@@ -829,7 +839,7 @@ bool QGCApplication::event(QEvent *e)
 #ifdef QGC_ENABLE_QML
     if (e->type() == QEvent::Quit) {
         if (!_mainRootWindow) {
-            return QGuiApplication::event(e);
+            return QGCApplicationBase::event(e);
         }
         // On OSX if the user selects Quit from the menu (or Command-Q) the ApplicationWindow does not signal closing. Instead you get a Quit event here only.
         // This in turn causes the standard QGC shutdown sequence to not run. So in this case we close the window ourselves such that the
@@ -848,7 +858,7 @@ bool QGCApplication::event(QEvent *e)
     }
 #endif
 
-    return QGuiApplication::event(e);
+    return QGCApplicationBase::event(e);
 }
 
 #ifdef QGC_ENABLE_QML

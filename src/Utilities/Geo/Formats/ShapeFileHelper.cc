@@ -1,5 +1,7 @@
 #include "ShapeFileHelper.h"
+#ifdef QGC_ENABLE_QML
 #include "KMLHelper.h"
+#endif
 #include "SHPFileHelper.h"
 #include "QGCLoggingCategory.h"
 
@@ -14,7 +16,14 @@ ShapeFileHelper::ShapeFileType ShapeFileHelper::_getShapeFileType(const QString 
     errorString.clear();
 
     if (file.endsWith(kmlFileExtension, Qt::CaseInsensitive)) {
+#ifdef QGC_ENABLE_QML
         return ShapeFileType::KML;
+#else
+        // KML plan-file support is QML-UI-only (wave 14 Q7c) — degrade to a
+        // clean "unsupported" error rather than linking KMLHelper headless.
+        errorString = tr(_errorPrefix).arg(tr("KML files are not supported in this build."));
+        return ShapeFileType::None;
+#endif
     } else if (file.endsWith(shpFileExtension, Qt::CaseInsensitive)) {
         return ShapeFileType::SHP;
     } else {
@@ -33,7 +42,11 @@ ShapeFileHelper::ShapeType ShapeFileHelper::determineShapeType(const QString &fi
 
     switch (_getShapeFileType(file, errorString)) {
     case ShapeFileType::KML:
+#ifdef QGC_ENABLE_QML
         return KMLHelper::determineShapeType(file, errorString);
+#else
+        return ShapeType::Error; // unreachable: _getShapeFileType never returns KML in this build
+#endif
     case ShapeFileType::SHP:
         return SHPFileHelper::determineShapeType(file, errorString);
     case ShapeFileType::None:
@@ -48,7 +61,11 @@ int ShapeFileHelper::getEntityCount(const QString &file, QString &errorString)
 
     switch (_getShapeFileType(file, errorString)) {
     case ShapeFileType::KML:
+#ifdef QGC_ENABLE_QML
         return KMLHelper::getEntityCount(file, errorString);
+#else
+        return 0; // unreachable: _getShapeFileType never returns KML in this build
+#endif
     case ShapeFileType::SHP:
         return SHPFileHelper::getEntityCount(file, errorString);
     case ShapeFileType::None:
@@ -64,7 +81,11 @@ bool ShapeFileHelper::loadPolygonsFromFile(const QString &file, QList<QList<QGeo
 
     switch (_getShapeFileType(file, errorString)) {
     case ShapeFileType::KML:
+#ifdef QGC_ENABLE_QML
         return KMLHelper::loadPolygonsFromFile(file, polygons, errorString, filterMeters);
+#else
+        return false; // unreachable: _getShapeFileType never returns KML in this build
+#endif
     case ShapeFileType::SHP:
         return SHPFileHelper::loadPolygonsFromFile(file, polygons, errorString, filterMeters);
     case ShapeFileType::None:
@@ -80,7 +101,11 @@ bool ShapeFileHelper::loadPolylinesFromFile(const QString &file, QList<QList<QGe
 
     switch (_getShapeFileType(file, errorString)) {
     case ShapeFileType::KML:
+#ifdef QGC_ENABLE_QML
         return KMLHelper::loadPolylinesFromFile(file, polylines, errorString, filterMeters);
+#else
+        return false; // unreachable: _getShapeFileType never returns KML in this build
+#endif
     case ShapeFileType::SHP:
         return SHPFileHelper::loadPolylinesFromFile(file, polylines, errorString, filterMeters);
     case ShapeFileType::None:
@@ -96,7 +121,11 @@ bool ShapeFileHelper::loadPointsFromFile(const QString &file, QList<QGeoCoordina
 
     switch (_getShapeFileType(file, errorString)) {
     case ShapeFileType::KML:
+#ifdef QGC_ENABLE_QML
         return KMLHelper::loadPointsFromFile(file, points, errorString);
+#else
+        return false; // unreachable: _getShapeFileType never returns KML in this build
+#endif
     case ShapeFileType::SHP:
         return SHPFileHelper::loadPointsFromFile(file, points, errorString);
     case ShapeFileType::None:

@@ -4,11 +4,15 @@
 #include <QtPositioning/QGeoCoordinate>
 #include <QtCore/QVariantList>
 #include <QtGui/QPolygonF>
+#ifdef QGC_ENABLE_QML
 #include <QtXml/QDomElement>
+#endif
 
 #include "QmlObjectListModel.h"
 
+#ifdef QGC_ENABLE_QML
 class KMLDomDocument;
+#endif
 
 /// \brief The QGCMapPolygon class provides a polygon which can be displayed on a map using a map visuals control.
 ///
@@ -98,7 +102,12 @@ public:
     /// Returns the area of the polygon in meters squared
     double area(void) const;
 
+    // KML export is a QML-UI-only surface (PlanView.qml Save-to-KML / survey-area
+    // visuals) — not reachable from the headless ghost. Gated with the KML dom
+    // classes themselves, see Utilities/Geo/Formats/CMakeLists.txt (wave 14 Q7c).
+#ifdef QGC_ENABLE_QML
     QDomElement kmlPolygonElement(KMLDomDocument& domDocument);
+#endif
 
     // Property methods
 

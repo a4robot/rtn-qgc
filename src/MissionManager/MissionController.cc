@@ -19,7 +19,9 @@
 #include "AppSettings.h"
 #include "MissionSettingsItem.h"
 #include "PlanMasterController.h"
+#ifdef QGC_ENABLE_QML
 #include "KMLPlanDomDocument.h"
+#endif
 #include "QGCCorePlugin.h"
 #include "TakeoffMissionItem.h"
 #include "PlanViewSettings.h"
@@ -231,6 +233,7 @@ bool MissionController::_convertToMissionItems(QmlObjectListModel* visualMission
     return endActionSet;
 }
 
+#ifdef QGC_ENABLE_QML
 void MissionController::addMissionToKML(KMLPlanDomDocument& planKML)
 {
     QObject*            deleteParent = new QObject();
@@ -240,6 +243,7 @@ void MissionController::addMissionToKML(KMLPlanDomDocument& planKML)
     planKML.addMission(_controllerVehicle, _visualItems, rgMissionItems);
     deleteParent->deleteLater();
 }
+#endif // QGC_ENABLE_QML
 
 void MissionController::sendItemsToVehicle(Vehicle* vehicle, QmlObjectListModel* visualMissionItems)
 {

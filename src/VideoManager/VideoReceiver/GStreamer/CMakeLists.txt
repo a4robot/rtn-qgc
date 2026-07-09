@@ -27,15 +27,31 @@ if(QGC_ENABLE_GST_VIDEOSTREAMING)
             GStreamerHelpers.h
             GStreamerLogging.cc
             GStreamerLogging.h
-            GstAppSinkAdapter.cc
-            GstAppSinkAdapter.h
             GstVideoReceiver.cc
             GstVideoReceiver.h
     )
+    # GstAppSinkAdapter converts GstBuffer -> QVideoFrame/QVideoFrameFormat to feed a
+    # QVideoSink for QML's QQuickVideoOutput render path only. The ghost's real video path
+    # (GstVideoReceiver -> WebBridge's VideoStreamServer H.264 tap, see
+    # src/WebBridge/GhostVideoSource.*) never touches it — its only callers,
+    # GStreamer::setupAppSinkAdapter/setAppSinkAdaptersActive, are themselves gated
+    # `#ifdef QGC_ENABLE_QML` in GStreamer.h/.cc. QML-gate its compilation too so a
+    # headless build needs neither Qt6::Multimedia nor its headers for this file.
+    if(QGC_ENABLE_QML)
+        target_sources(${CMAKE_PROJECT_NAME}
+            PRIVATE
+                GstAppSinkAdapter.cc
+                GstAppSinkAdapter.h
+        )
+    endif()
     target_link_libraries(${CMAKE_PROJECT_NAME}
         PRIVATE
             GStreamer::GStreamer
-            Qt6::Multimedia
+            # Only needed for GstAppSinkAdapter's QVideoFrame/QVideoSink bridge (QML render
+            # path) — see the QGC_ENABLE_QML target_sources gate above. The alternate
+            # QtMultimediaReceiver/UVCReceiver backend links its own Qt6::Multimedia
+            # dependency in src/CMakeLists.txt under QGC_ENABLE_QT_MULTIMEDIA_BACKEND.
+            $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Multimedia>
             # qquickvideooutput_p.h (QQuickVideoOutput) usages in VideoManager.cc/
             # VideoManager2.cc/QtMultimediaReceiver.cc/UVCReceiver.cc are now wrapped
             # in #ifdef QGC_ENABLE_QML (wave-10), so the private-header include path

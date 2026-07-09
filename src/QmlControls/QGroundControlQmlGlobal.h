@@ -155,8 +155,11 @@ public:
     // Test audio output
     Q_INVOKABLE void testAudioOutput();
 
-    /// Copy text to the system clipboard
+#ifdef QGC_ENABLE_QML
+    /// Copy text to the system clipboard. QML-only: there is no clipboard without a
+    /// windowing platform, and QGuiApplication::clipboard() needs libQt6Gui (Q7d).
     Q_INVOKABLE static void copyToClipboard(const QString& text);
+#endif
 
     // Property accessors
 

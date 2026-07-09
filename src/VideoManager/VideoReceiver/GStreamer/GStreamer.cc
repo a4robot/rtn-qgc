@@ -8,10 +8,12 @@
 #include "VideoSettings.h"
 #include "Fact.h"
 
+#ifdef QGC_ENABLE_QML
 #include "GstAppSinkAdapter.h"
 #if defined(QGC_HAS_GST_GLMEMORY_GPU_PATH)
 #  include "HwBuffers/GstGlContextBridge.h"
 #endif
+#endif // QGC_ENABLE_QML
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QScreen>
@@ -905,6 +907,7 @@ VideoReceiver *createVideoReceiver(QObject *parent)
     return new GstVideoReceiver(parent);
 }
 
+#ifdef QGC_ENABLE_QML
 bool setupAppSinkAdapter(void *sinkBin, QVideoSink *videoSink, QObject *adapterParent)
 {
     if (!sinkBin || !videoSink || !adapterParent) {
@@ -976,5 +979,6 @@ void setAppSinkAdaptersActive(QObject *adapterParent, bool active)
         a->setActive(active);
     }
 }
+#endif // QGC_ENABLE_QML
 
 } // namespace GStreamer

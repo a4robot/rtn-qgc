@@ -5,7 +5,11 @@
 #include <QtCore/QSet>
 #include <QtCore/QTimer>
 #include <QtCore/QTranslator>
+#ifdef QGC_ENABLE_QML
 #include <QtGui/QGuiApplication>
+#else
+#include <QtCore/QCoreApplication>
+#endif
 
 namespace QGCCommandLineParser {
     struct CommandLineParseResult;
@@ -33,21 +37,32 @@ class VideoStreamServer;
 class GhostVideoSource;
 #endif
 
+// QML-ON builds need a real QGuiApplication (QQuickWindow/QPA). QML-OFF (ghost) builds
+// have no windowing surface at all, so QCoreApplication is sufficient -- this is what
+// lets the OFF build drop libQt6Gui (and transitively libQt6DBus) entirely, see Q7d.
+#ifdef QGC_ENABLE_QML
+using QGCApplicationBase = QGuiApplication;
+#else
+using QGCApplicationBase = QCoreApplication;
+#endif
+
 #if defined(qApp)
 #undef qApp
 #endif
-#define qApp (static_cast<QGCApplication*>(QGuiApplication::instance()))
+#define qApp (static_cast<QGCApplication*>(QGCApplicationBase::instance()))
 
+#ifdef QGC_ENABLE_QML
 #if defined(qGuiApp)
 #undef qGuiApp
 #endif
-#define qGuiApp (static_cast<QGCApplication*>(QGuiApplication::instance()))
+#define qGuiApp (static_cast<QGCApplication*>(QGCApplicationBase::instance()))
+#endif
 
 #define qgcApp() qApp
 
 /// \brief The main application and management class.
 ///
-class QGCApplication : public QGuiApplication
+class QGCApplication : public QGCApplicationBase
 {
     Q_OBJECT
 

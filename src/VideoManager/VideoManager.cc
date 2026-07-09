@@ -14,8 +14,10 @@
 #include "VehicleLinkManager.h"
 #include "VideoReceiver.h"
 #include "VideoSettings.h"
+#ifdef QGC_QT_MULTIMEDIA_BACKEND
 #include "QtMultimediaReceiver.h"
 #include "UVCReceiver.h"
+#endif
 #include <QTcpSocket>
 #include <QRegularExpression>
 #ifdef QGC_GST_STREAMING
@@ -24,8 +26,8 @@
 #if defined(QGC_HAS_ANY_GPU_PATH)
 #include "VideoReceiver/GStreamer/HwBuffers/QGCRhiCapture.h"
 #endif
-#include <QtMultimedia/QVideoSink>
 #ifdef QGC_ENABLE_QML
+#include <QtMultimedia/QVideoSink>
 #include <QtMultimediaQuick/private/qquickvideooutput_p.h>
 #endif
 #endif
@@ -549,12 +551,20 @@ bool VideoManager::gstreamerEnabled()
 
 bool VideoManager::uvcEnabled()
 {
+#ifdef QGC_QT_MULTIMEDIA_BACKEND
     return UVCReceiver::enabled();
+#else
+    return false;
+#endif
 }
 
 bool VideoManager::qtmultimediaEnabled()
 {
+#ifdef QGC_QT_MULTIMEDIA_BACKEND
     return QtMultimediaReceiver::enabled();
+#else
+    return false;
+#endif
 }
 
 void VideoManager::setfullScreen(bool on)
@@ -630,6 +640,7 @@ bool VideoManager::_updateUVC(VideoReceiver * /*receiver*/)
 {
     bool result = false;
 
+#ifdef QGC_QT_MULTIMEDIA_BACKEND
     const QString oldUvcVideoSrcID = _uvcVideoSourceID;
 
     if (!uvcEnabled() || !hasVideo() || isStreamSource()) {
@@ -647,6 +658,7 @@ bool VideoManager::_updateUVC(VideoReceiver * /*receiver*/)
         emit uvcVideoSourceIDChanged();
         emit isUvcChanged();
     }
+#endif
 
     return result;
 }

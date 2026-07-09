@@ -7,7 +7,9 @@
 #include "QGCApplication.h"
 #include "QGCLoggingCategory.h"
 #include "ShapeFileHelper.h"
+#ifdef QGC_ENABLE_QML
 #include "KMLDomDocument.h"
+#endif
 
 #include <QtCore/QLineF>
 #include <QMetaMethod>
@@ -649,6 +651,7 @@ void QGCMapPolygon::endReset(void)
     _polygonModel.endResetModel();
 }
 
+#ifdef QGC_ENABLE_QML
 QDomElement QGCMapPolygon::kmlPolygonElement(KMLDomDocument& domDocument)
 {
 #if 0
@@ -691,6 +694,7 @@ QDomElement QGCMapPolygon::kmlPolygonElement(KMLDomDocument& domDocument)
 
     return polygonElement;
 }
+#endif // QGC_ENABLE_QML
 
 void QGCMapPolygon::setTraceMode(bool traceMode)
 {

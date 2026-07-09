@@ -52,8 +52,6 @@ target_sources(${CMAKE_PROJECT_NAME}
         RCChannelMonitorController.h
         RCToParamDialogController.cc
         RCToParamDialogController.h
-        ScreenToolsController.cc
-        ScreenToolsController.h
         TransformPositionController.cc
         TransformPositionController.h
         ServoOutputMonitorController.cc
@@ -78,6 +76,15 @@ target_sources(${CMAKE_PROJECT_NAME}
 # QGCApplication::_initForNormalAppBoot, itself QGC_ENABLE_QML-only). Their
 # one headless caller, Vehicle::_createImageProtocolManager, guards its use
 # of QGCApplication::qgcImageProvider() the same way.
+#
+# ScreenToolsController (Q7d): QML_SINGLETON registered with the QML engine only
+# (QGCApplication::_initForNormalAppBoot); its one headless-looking reference
+# (WebBridge/GuidedActionGate.cc) is a comment, not a call. It was previously
+# unconditional here by oversight -- that's real (not just cosmetic): it calls
+# qgcApp()->fakeMobile() via <QtGui/QCursor>'s transitive QGuiApplication
+# machinery, which only resolves against a real QGuiApplication instance, so it
+# fails to build once QGCApplication stops deriving from QGuiApplication in OFF
+# builds (see Q7d probe, QGCApplication.h QGCApplicationBase alias).
 if(QGC_ENABLE_QML)
     target_sources(${CMAKE_PROJECT_NAME}
         PRIVATE
@@ -89,6 +96,8 @@ if(QGC_ENABLE_QML)
             HorizontalFactValueGrid.h
             QGCImageProvider.cc
             QGCImageProvider.h
+            ScreenToolsController.cc
+            ScreenToolsController.h
             TerrainProfile.cc
             TerrainProfile.h
             ToolStripAction.cc

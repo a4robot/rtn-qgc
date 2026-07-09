@@ -92,7 +92,11 @@ public:
 
     Q_INVOKABLE bool saveToCurrent();
     Q_INVOKABLE bool saveToFile(const QString& filename);
+    // QML-UI-only-reachable (PlanView.qml Save-to-KML action) — gated headless,
+    // wave 14 Q7c (shrinks the KML/Qt6::Xml surface ahead of Q8c).
+#ifdef QGC_ENABLE_QML
     Q_INVOKABLE void saveToKml(const QString& filename);
+#endif
 
     Q_INVOKABLE bool saveWithCurrentName(); ///< Save using the (possibly renamed) currentPlanFileName
     Q_INVOKABLE bool resolvedPlanFileExists() const; ///< true if a file at the renamed path already exists on disk

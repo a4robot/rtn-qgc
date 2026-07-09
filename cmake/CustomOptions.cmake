@@ -124,6 +124,29 @@ option(QGC_ENABLE_TEXTTOSPEECH "Enable text-to-speech audio output (QtTextToSpee
 option(QGC_ENABLE_UVC "Enable UVC (USB Video Class) device support" ON)
 option(QGC_ENABLE_GST_VIDEOSTREAMING "Enable GStreamer video backend" ON)
 option(QGC_ENABLE_QT_VIDEOSTREAMING "Enable QtMultimedia video backend" OFF)
+# Gates whether QtMultimediaReceiver/UVCReceiver (VideoReceiver/QtMultimedia/) compile at
+# all, and therefore whether Qt6::Multimedia is required as an alternate-backend dependency.
+# This is a separate capability from QGC_ENABLE_QT_VIDEOSTREAMING (which only selects it as
+# the *active* backend) and QGC_ENABLE_UVC (which only toggles the UVC camera feature within
+# it) — both of those are no-ops when this is OFF. The ghost's real video path is 100% raw
+# GStreamer (GstVideoReceiver -> WebBridge's VideoStreamServer H.264 tap, see
+# src/WebBridge/GhostVideoSource.*), and QtMultimediaReceiver/UVCReceiver render exclusively
+# through QVideoSink/QQuickVideoOutput for the QML UI — dead weight on a headless build.
+# Default ON preserves current (QML) desktop behavior.
+option(QGC_ENABLE_QT_MULTIMEDIA_BACKEND "Enable the QtMultimedia video backend (QtMultimediaReceiver + UVCReceiver — alternate to GStreamer, QML-display only)" ON)
+
+# ============================================================================
+# Map/Terrain Tile Cache Options
+# ============================================================================
+
+# The sqlite-backed map/terrain tile cache (QGCTileCacheDatabase/QGCTileCacheWorker
+# in QtLocationPlugin/, QGCSqlHelper in Utilities/Database/) is the only Qt6::Sql
+# user in the tree. Disabling it degrades the cache-first tile/terrain fetch path
+# (QGCTileCacheFetcher, driven by TerrainTileFetcher and the map tile fetcher in
+# QGCMapEngine) to network-only: lookups always miss and cacheTile() is a no-op,
+# no sqlite databases are opened. Default ON preserves current behavior; wave-14
+# diet builds opt out explicitly.
+option(QGC_ENABLE_TILE_CACHE "Enable the sqlite-backed map/terrain tile cache (Qt6::Sql)" ON)
 
 # ============================================================================
 # MAVLink Configuration

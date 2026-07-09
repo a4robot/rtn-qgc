@@ -13,6 +13,11 @@
 struct QGCCacheTile;
 class QSqlDatabase;
 
+// QGC_ENABLE_TILE_CACHE=OFF (wave 14 Q7b): this class keeps its full public API
+// so QGCCacheWorker/QGCTileCacheFetcher/TerrainTileFetcher need no changes, but
+// the .cpp swaps in a stub implementation (always "valid but empty": lookups
+// miss, writes no-op, management ops fail cleanly) instead of the sqlite-backed
+// one, so Qt6::Sql is not required to link this build. See QGCTileCacheDatabase.cpp.
 class QGCTileCacheDatabase
 {
 public:
@@ -63,13 +68,16 @@ public:
     DatabaseResult importSetsMerge(const QString &path, ProgressCallback progressCb);
     DatabaseResult exportSets(const QList<TileSetRecord> &sets, const QString &path, ProgressCallback progressCb);
 
+#ifdef QGC_ENABLE_TILE_CACHE
     // Exposed for unit tests only
     QSqlDatabase database() const;
+#endif
 
     static constexpr const char *kBingNoTileDoneKey = "_deleteBingNoTileTilesDone";
 
 private:
     bool _ensureConnected() const;
+#ifdef QGC_ENABLE_TILE_CACHE
     QSqlDatabase _database() const;
     bool _checkSchemaVersion();
     bool _createDB(QSqlDatabase db, bool createDefault = true);
@@ -80,6 +88,7 @@ private:
                               quint64 &currentCount, quint64 tileCount,
                               int &lastProgress, ProgressCallback progressCb,
                               quint64 *tilesIteratedOut, bool useTransaction = true);
+#endif
 
     QString _databasePath;
     QString _connectionName;

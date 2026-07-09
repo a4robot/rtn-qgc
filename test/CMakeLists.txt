@@ -210,12 +210,16 @@ add_qgc_test(TransectStyleComplexItemTest LABELS Unit MissionManager RESOURCE_LO
 # ----------------------------------------------------------------------------
 add_subdirectory(QtLocationPlugin)
 add_qgc_test(MapProviderTest LABELS Unit)
-add_qgc_test(QGCCacheWorkerTest LABELS Unit)
 add_qgc_test(QGCCachedTileSetTest LABELS Unit)
-add_qgc_test(QGCMapEngineManagerArchiveTest LABELS Unit RESOURCE_LOCK TempFiles)
-add_qgc_test(QGCTileCacheDatabaseTest LABELS Unit)
 add_qgc_test(QGCTileSetTest LABELS Unit)
 add_qgc_test(UrlFactoryTest LABELS Unit)
+# sqlite-backed cache tests — sources gated with their subject in
+# test/QtLocationPlugin/CMakeLists.txt (wave 14 Q7b).
+if(QGC_ENABLE_TILE_CACHE)
+    add_qgc_test(QGCCacheWorkerTest LABELS Unit)
+    add_qgc_test(QGCMapEngineManagerArchiveTest LABELS Unit RESOURCE_LOCK TempFiles)
+    add_qgc_test(QGCTileCacheDatabaseTest LABELS Unit)
+endif()
 
 # ----------------------------------------------------------------------------
 # QmlControls

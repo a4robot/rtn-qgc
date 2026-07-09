@@ -6,20 +6,24 @@
 #include <QtCore/QFileInfo>
 #include <QtCore/QSettings>
 #include <QtCore/QUuid>
-#include <QtSql/QSqlDatabase>
-#include <QtSql/QSqlError>
-#include <QtSql/QSqlQuery>
 
 #include <atomic>
 
 #include "QGCCacheTile.h"
 #include "QGCLoggingCategory.h"
 #include "QGCMapUrlEngine.h"
-#include "QGCSqlHelper.h"
 #include "QGCTile.h"
 #include "QGCTileSet.h"
 
 QGC_LOGGING_CATEGORY(QGCTileCacheDatabaseLog, "QtLocationPlugin.QGCTileCacheDatabase")
+
+#ifdef QGC_ENABLE_TILE_CACHE
+
+#include <QtSql/QSqlDatabase>
+#include <QtSql/QSqlError>
+#include <QtSql/QSqlQuery>
+
+#include "QGCSqlHelper.h"
 
 static std::atomic<quint64> s_connectionCounter{0};
 
@@ -1474,3 +1478,155 @@ quint64 QGCTileCacheDatabase::_copyTilesForSet(QSqlDatabase srcDB, quint64 srcSe
     if (tilesIteratedOut) *tilesIteratedOut = tilesFound;
     return tilesLinked;
 }
+
+#else // !QGC_ENABLE_TILE_CACHE
+
+// Tile cache disabled at compile time (QGC_ENABLE_TILE_CACHE=OFF, wave 14 Q7b):
+// stub every operation so QGCCacheWorker/QGCTileCacheFetcher/TerrainTileFetcher's
+// cache-first flow keeps running unmodified, just always missing. init()/
+// connectDB() report success (isValid()==true) so the worker thread treats the
+// cache as reachable-but-empty rather than failed — that's what makes lookups
+// degrade to a clean per-tile miss (the same "not found" path already taken for
+// any tile that just isn't cached yet) instead of an init-failure that would
+// discard in-flight fetch tasks. Writes are silent no-ops. Management
+// operations (tile sets, import/export, prune) are QML Offline Map UI surface
+// only; they report empty/failure results rather than crashing. Nothing here
+// touches QtSql, so Qt6::Sql is not required to link this build.
+
+QGCTileCacheDatabase::QGCTileCacheDatabase(const QString &databasePath)
+    : _databasePath(databasePath)
+{
+}
+
+QGCTileCacheDatabase::~QGCTileCacheDatabase()
+{
+    disconnectDB();
+}
+
+bool QGCTileCacheDatabase::_ensureConnected() const
+{
+    return _connected && _valid;
+}
+
+bool QGCTileCacheDatabase::init()
+{
+    _failed = false;
+    _valid = true;
+    return true;
+}
+
+bool QGCTileCacheDatabase::connectDB()
+{
+    _connected = true;
+    return true;
+}
+
+void QGCTileCacheDatabase::disconnectDB()
+{
+    _connected = false;
+}
+
+bool QGCTileCacheDatabase::saveTile(const QString &/*hash*/, const QString &/*format*/, const QByteArray &/*img*/, const QString &/*type*/, quint64 /*tileSet*/)
+{
+    return true; // silent no-op persist
+}
+
+std::unique_ptr<QGCCacheTile> QGCTileCacheDatabase::getTile(const QString &/*hash*/)
+{
+    return nullptr; // always a cache miss
+}
+
+std::optional<quint64> QGCTileCacheDatabase::findTile(const QString &/*hash*/)
+{
+    return std::nullopt;
+}
+
+QList<TileSetRecord> QGCTileCacheDatabase::getTileSets()
+{
+    return {};
+}
+
+std::optional<quint64> QGCTileCacheDatabase::createTileSet(const QString &/*name*/, const QString &/*mapTypeStr*/,
+                                                            double /*topleftLat*/, double /*topleftLon*/,
+                                                            double /*bottomRightLat*/, double /*bottomRightLon*/,
+                                                            int /*minZoom*/, int /*maxZoom*/, const QString &/*type*/, quint32 /*numTiles*/)
+{
+    return std::nullopt;
+}
+
+bool QGCTileCacheDatabase::deleteTileSet(quint64 /*id*/)
+{
+    return false;
+}
+
+bool QGCTileCacheDatabase::renameTileSet(quint64 /*setID*/, const QString &/*newName*/)
+{
+    return false;
+}
+
+std::optional<quint64> QGCTileCacheDatabase::findTileSetID(const QString &/*name*/)
+{
+    return std::nullopt;
+}
+
+bool QGCTileCacheDatabase::resetDatabase()
+{
+    return true; // nothing to reset
+}
+
+QList<QGCTile> QGCTileCacheDatabase::getTileDownloadList(quint64 /*setID*/, int /*count*/)
+{
+    return {};
+}
+
+bool QGCTileCacheDatabase::updateTileDownloadState(quint64 /*setID*/, int /*state*/, const QString &/*hash*/)
+{
+    return false;
+}
+
+bool QGCTileCacheDatabase::updateAllTileDownloadStates(quint64 /*setID*/, int /*state*/)
+{
+    return false;
+}
+
+bool QGCTileCacheDatabase::pruneCache(quint64 /*amount*/)
+{
+    return true; // nothing to prune
+}
+
+void QGCTileCacheDatabase::deleteBingNoTileTiles()
+{
+}
+
+TotalsResult QGCTileCacheDatabase::computeTotals()
+{
+    return {};
+}
+
+SetTotalsResult QGCTileCacheDatabase::computeSetTotals(quint64 /*setID*/, bool /*isDefault*/, quint32 /*totalTileCount*/, const QString &/*type*/)
+{
+    return {};
+}
+
+DatabaseResult QGCTileCacheDatabase::importSetsReplace(const QString &/*path*/, ProgressCallback /*progressCb*/)
+{
+    DatabaseResult result;
+    result.errorString = QStringLiteral("Tile cache is disabled in this build");
+    return result;
+}
+
+DatabaseResult QGCTileCacheDatabase::importSetsMerge(const QString &/*path*/, ProgressCallback /*progressCb*/)
+{
+    DatabaseResult result;
+    result.errorString = QStringLiteral("Tile cache is disabled in this build");
+    return result;
+}
+
+DatabaseResult QGCTileCacheDatabase::exportSets(const QList<TileSetRecord> &/*sets*/, const QString &/*path*/, ProgressCallback /*progressCb*/)
+{
+    DatabaseResult result;
+    result.errorString = QStringLiteral("Tile cache is disabled in this build");
+    return result;
+}
+
+#endif // QGC_ENABLE_TILE_CACHE

@@ -244,8 +244,11 @@ public:
     bool containsItems              (void) const final;
     bool showPlanFromManagerVehicle (void) final;
 
-    // Create KML file
+    // Create KML file. QML-UI-only-reachable (PlanMasterController::saveToKml,
+    // invoked from PlanView.qml) — gated headless, wave 14 Q7c.
+#ifdef QGC_ENABLE_QML
     void addMissionToKML(KMLPlanDomDocument& planKML);
+#endif
 
     // Property accessors
 

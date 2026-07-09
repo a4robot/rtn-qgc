@@ -25,8 +25,6 @@ target_sources(${CMAKE_PROJECT_NAME}
         GeoFenceController.h
         GeoFenceManager.cc
         GeoFenceManager.h
-        KMLPlanDomDocument.cc
-        KMLPlanDomDocument.h
         LandingComplexItem.cc
         LandingComplexItem.h
         MissionCommandList.cc
@@ -82,6 +80,19 @@ target_sources(${CMAKE_PROJECT_NAME}
         VTOLLandingComplexItem.cc
         VTOLLandingComplexItem.h
 )
+
+# KMLPlanDomDocument (Plan -> KML conversion) is only reachable from
+# PlanMasterController::saveToKml, a Q_INVOKABLE called exclusively from
+# PlanView.qml — QML-UI-only surface, not part of the headless ghost. Gate it
+# out of QGC_ENABLE_QML=OFF builds along with Utilities/Geo/Formats' KML* dom
+# classes (wave 14 Q7c; does not drop Qt6::Xml this wave, see Q8c).
+if(QGC_ENABLE_QML)
+    target_sources(${CMAKE_PROJECT_NAME}
+        PRIVATE
+            KMLPlanDomDocument.cc
+            KMLPlanDomDocument.h
+    )
+endif()
 
 # ----------------------------------------------------------------------------
 # Mission Definition JSON Resources

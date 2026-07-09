@@ -128,7 +128,10 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         Qt6::Concurrent
         Qt6::Core
         Qt6::CorePrivate
-        Qt6::Gui
+        # Q7d probe: try dropping libQt6Gui (and transitively libQt6DBus) from the OFF
+        # build by gating this like the rest of the QML-only libs above. See
+        # STRANGLER_MILESTONES.md Q7d for the audit this is proving/disproving.
+        $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Gui>
         Qt6::HttpServer
         Qt6::Network
         Qt6::StateMachine
@@ -157,10 +160,19 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::LocationPrivate>
         Qt6::Positioning
         Qt6::PositioningPrivate
-        Qt6::Sql
 
-        # Qt6 Multimedia
-        Qt6::Multimedia
+        # sqlite-backed map/terrain tile cache (QGCTileCacheDatabase); OFF
+        # compiles in a Sql-free stub instead (wave 14 Q7b).
+        $<$<BOOL:${QGC_ENABLE_TILE_CACHE}>:Qt6::Sql>
+
+        # Qt6 Multimedia — the alternate QtMultimediaReceiver/UVCReceiver backend
+        # (VideoManager/VideoReceiver/QtMultimedia/); the ghost's real video path is
+        # 100% raw GStreamer (see src/WebBridge/GhostVideoSource.*), so this is only
+        # needed when that alternate backend is compiled in. Qt6::MultimediaQuickPrivate
+        # is a second, independent consumer: GstAppSinkAdapter's QVideoSink bridge for
+        # QML's QQuickVideoOutput, linked separately under QGC_ENABLE_QML in
+        # VideoReceiver/GStreamer/CMakeLists.txt.
+        $<$<BOOL:${QGC_ENABLE_QT_MULTIMEDIA_BACKEND}>:Qt6::Multimedia>
         $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::MultimediaQuickPrivate>
 
         # QGC Modules

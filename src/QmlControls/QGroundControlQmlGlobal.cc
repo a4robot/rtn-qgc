@@ -28,8 +28,10 @@
 
 #include <QtCore/QLineF>
 #include <QtCore/QSettings>
+#ifdef QGC_ENABLE_QML
 #include <QtGui/QClipboard>
 #include <QtGui/QGuiApplication>
+#endif
 
 #include "QGCLoggingCategory.h"
 
@@ -327,10 +329,12 @@ void QGroundControlQmlGlobal::testAudioOutput()
     AudioOutput::instance()->testAudioOutput();
 }
 
+#ifdef QGC_ENABLE_QML
 void QGroundControlQmlGlobal::copyToClipboard(const QString& text)
 {
     QGuiApplication::clipboard()->setText(text);
 }
+#endif
 
 QString QGroundControlQmlGlobal::elevationProviderName()
 {

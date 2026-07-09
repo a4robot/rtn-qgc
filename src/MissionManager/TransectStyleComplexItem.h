@@ -64,7 +64,11 @@ public:
     int     lastSequenceNumber  (void) const final;
     QString mapVisualQML        (void) const override = 0;
     bool    load                (const QJsonObject& complexObject, int sequenceNumber, QString& errorString) override = 0;
+    // KML export is QML-UI-only-reachable (PlanView.qml Save-to-KML); without
+    // this override the ComplexMissionItem base's no-op stub is used headless.
+#ifdef QGC_ENABLE_QML
     void    addKMLVisuals       (KMLPlanDomDocument& domDocument) final;
+#endif
     double  complexDistance     (void) const final { return _complexDistance; }
     double  greatestDistanceTo  (const QGeoCoordinate &other) const final;
 

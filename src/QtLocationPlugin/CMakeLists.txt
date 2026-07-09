@@ -58,7 +58,10 @@ target_link_libraries(QGCLocationCore
     PRIVATE
         Qt6::Positioning
         QGCCompression
-        QGCDatabase
+        # QGCDatabase (Qt6::Sql) backs the real sqlite tile-cache implementation
+        # in QGCTileCacheDatabase.cpp; QGC_ENABLE_TILE_CACHE=OFF compiles in a
+        # Sql-free stub instead (wave 14 Q7b), so don't link it in that config.
+        $<$<BOOL:${QGC_ENABLE_TILE_CACHE}>:QGCDatabase>
         QGCFileSystem
         QGCFormat
         QGCLogging

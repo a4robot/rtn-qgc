@@ -277,6 +277,10 @@ if(QGC_ENABLE_TEXTTOSPEECH)
     add_compile_definitions(QGC_ENABLE_TEXTTOSPEECH)
 endif()
 
+if(QGC_ENABLE_TILE_CACHE)
+    add_compile_definitions(QGC_ENABLE_TILE_CACHE)
+endif()
+
 # ============================================================================
 # Custom Build Subdirectory
 # ============================================================================

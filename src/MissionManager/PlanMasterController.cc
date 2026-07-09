@@ -8,7 +8,9 @@
 #include "AppSettings.h"
 #include "JsonParsing.h"
 #include "MissionManager.h"
+#ifdef QGC_ENABLE_QML
 #include "KMLPlanDomDocument.h"
+#endif
 #include "PlanCreator.h"
 #include "QmlObjectListModel.h"
 #include "GeoFenceManager.h"
@@ -510,6 +512,7 @@ bool PlanMasterController::saveToFile(const QString& filename)
     return true;
 }
 
+#ifdef QGC_ENABLE_QML
 void PlanMasterController::saveToKml(const QString& filename)
 {
     if (filename.isEmpty()) {
@@ -533,6 +536,7 @@ void PlanMasterController::saveToKml(const QString& filename)
         file.close();
     }
 }
+#endif // QGC_ENABLE_QML
 
 void PlanMasterController::removeAll(void)
 {
