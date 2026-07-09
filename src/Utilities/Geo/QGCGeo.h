@@ -22,11 +22,33 @@
 ///
 /// All conversions use the WGS84 ellipsoid model for accuracy.
 
-#include <QtGui/QVector3D>
 #include <QtPositioning/QGeoCoordinate>
 
 namespace QGCGeo
 {
+
+/// Gui-free 3-component vector used by the ENU/ECEF conversions below.
+/// Replaces QVector3D (STRANGLER_MILESTONES.md Q8g, wave 17) so this
+/// headless-reachable math no longer pulls libQt6Gui (and transitively
+/// libQt6DBus) into the QML-OFF ghost build. Stores double precision
+/// (the GeographicLib calls that produce these values already compute in
+/// double; QVector3D silently truncated to float, so this is a strict
+/// precision improvement, not a regression).
+class Vec3
+{
+public:
+    constexpr Vec3() = default;
+    constexpr Vec3(double x, double y, double z) : _x(x), _y(y), _z(z) { }
+
+    constexpr double x() const { return _x; }
+    constexpr double y() const { return _y; }
+    constexpr double z() const { return _z; }
+
+private:
+    double _x = 0.;
+    double _y = 0.;
+    double _z = 0.;
+};
 
 // ============================================================================
 // NED (North-East-Down) Local Tangent Plane
@@ -57,14 +79,14 @@ void convertNedToGeo(double x, double y, double z, const QGeoCoordinate &origin,
 /// @param coord Geodetic coordinate to convert.
 /// @param ref Reference point for local tangent plane.
 /// @return ENU vector in meters (x=East, y=North, z=Up).
-/// @note Uses float precision (QVector3D). For high precision, use NED functions.
-QVector3D convertGpsToEnu(const QGeoCoordinate &coord, const QGeoCoordinate &ref);
+/// @note Uses Vec3 (double precision). For maximum precision, use NED functions.
+Vec3 convertGpsToEnu(const QGeoCoordinate &coord, const QGeoCoordinate &ref);
 
 /// Convert ENU (East-North-Up) coordinate to geodetic.
 /// @param enu ENU vector in meters (x=East, y=North, z=Up).
 /// @param ref Reference point for local tangent plane.
 /// @return Geodetic coordinate.
-QGeoCoordinate convertEnuToGps(const QVector3D &enu, const QGeoCoordinate &ref);
+QGeoCoordinate convertEnuToGps(const Vec3 &enu, const QGeoCoordinate &ref);
 
 // ============================================================================
 // ECEF (Earth-Centered Earth-Fixed)
@@ -73,25 +95,25 @@ QGeoCoordinate convertEnuToGps(const QVector3D &enu, const QGeoCoordinate &ref);
 /// Convert geodetic coordinate to ECEF (Earth-Centered Earth-Fixed).
 /// @param coord Geodetic coordinate (lat/lon/alt).
 /// @return ECEF vector in meters.
-/// @note Uses float precision (QVector3D). Large coordinates may lose precision.
-QVector3D convertGeodeticToEcef(const QGeoCoordinate &coord);
+/// @note Uses Vec3 (double precision).
+Vec3 convertGeodeticToEcef(const QGeoCoordinate &coord);
 
 /// Convert ECEF (Earth-Centered Earth-Fixed) to geodetic coordinate.
 /// @param ecef ECEF vector in meters.
 /// @return Geodetic coordinate (lat/lon/alt).
-QGeoCoordinate convertEcefToGeodetic(const QVector3D &ecef);
+QGeoCoordinate convertEcefToGeodetic(const Vec3 &ecef);
 
 /// Convert ECEF to ENU relative to a reference point.
 /// @param ecef ECEF vector in meters.
 /// @param ref Reference point for local tangent plane.
 /// @return ENU vector in meters.
-QVector3D convertEcefToEnu(const QVector3D &ecef, const QGeoCoordinate &ref);
+Vec3 convertEcefToEnu(const Vec3 &ecef, const QGeoCoordinate &ref);
 
 /// Convert ENU to ECEF relative to a reference point.
 /// @param enu ENU vector in meters.
 /// @param ref Reference point for local tangent plane.
 /// @return ECEF vector in meters.
-QVector3D convertEnuToEcef(const QVector3D &enu, const QGeoCoordinate &ref);
+Vec3 convertEnuToEcef(const Vec3 &enu, const QGeoCoordinate &ref);
 
 // ============================================================================
 // UTM (Universal Transverse Mercator)

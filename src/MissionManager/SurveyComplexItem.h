@@ -91,7 +91,7 @@ private:
 
     QPointF _rotatePoint(const QPointF& point, const QPointF& origin, double angle);
     void _intersectLinesWithRect(const QList<QLineF>& lineList, const QRectF& boundRect, QList<QLineF>& resultLines);
-    void _intersectLinesWithPolygon(const QList<QLineF>& lineList, const QPolygonF& polygon, QList<QLineF>& resultLines);
+    void _intersectLinesWithPolygon(const QList<QLineF>& lineList, const QList<QPointF>& polygon, QList<QLineF>& resultLines);
     void _adjustLineDirection(const QList<QLineF>& lineList, QList<QLineF>& resultLines);
     bool _nextTransectCoord(const QList<QGeoCoordinate>& transectPoints, int pointIndex, QGeoCoordinate& coord);
     bool _appendMissionItemsWorker(QList<MissionItem*>& items, QObject* missionItemParent, int& seqNum, bool hasRefly, bool buildRefly);
@@ -115,7 +115,7 @@ private:
     void _rebuildTransectsPhase1Worker(bool refly);
     void _rebuildTransectsPhase1WorkerSinglePolygon(bool refly);
     /// Adds to the _transects array from one polygon
-    void _rebuildTransectsFromPolygon(bool refly, const QPolygonF& polygon, const QGeoCoordinate& tangentOrigin, const QPointF* const transitionPoint);
+    void _rebuildTransectsFromPolygon(bool refly, const QList<QPointF>& polygon, const QGeoCoordinate& tangentOrigin, const QPointF* const transitionPoint);
 
 #if 0
     // Splitting polygons is not supported since this code would get stuck in a infinite loop
@@ -124,10 +124,10 @@ private:
     void _rebuildTransectsPhase1WorkerSplitPolygons(bool refly);
 
     // Decompose polygon into list of convex sub polygons
-    void _PolygonDecomposeConvex(const QPolygonF& polygon, QList<QPolygonF>& decomposedPolygons);
+    void _PolygonDecomposeConvex(const QList<QPointF>& polygon, QList<QList<QPointF>>& decomposedPolygons);
     // return true if vertex a can see vertex b
-    bool _VertexCanSeeOther(const QPolygonF& polygon, const QPointF* vertexA, const QPointF* vertexB);
-    bool _VertexIsReflex(const QPolygonF& polygon, QList<QPointF>::const_iterator& vertexIter);
+    bool _VertexCanSeeOther(const QList<QPointF>& polygon, const QPointF* vertexA, const QPointF* vertexB);
+    bool _VertexIsReflex(const QList<QPointF>& polygon, QList<QPointF>::const_iterator& vertexIter);
 #endif
 
     QMap<QString, FactMetaData*> _metaDataMap;

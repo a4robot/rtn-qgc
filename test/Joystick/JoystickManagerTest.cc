@@ -314,10 +314,10 @@ void JoystickManagerTest::_sensorUpdateRoutesToCorrectSignalsTest()
     QCOMPARE(accelSpy.count(), 1);
     QCOMPARE(gyroSpy.count(), 1);
 
-    const QVector3D accelData = accelSpy.takeFirst().at(0).value<QVector3D>();
-    const QVector3D gyroData = gyroSpy.takeFirst().at(0).value<QVector3D>();
-    QCOMPARE(accelData, QVector3D(1.0f, 2.0f, 3.0f));
-    QCOMPARE(gyroData, QVector3D(4.0f, 5.0f, 6.0f));
+    const QGCVector3D accelData = accelSpy.takeFirst().at(0).value<QGCVector3D>();
+    const QGCVector3D gyroData = gyroSpy.takeFirst().at(0).value<QGCVector3D>();
+    QCOMPARE(accelData, QGCVector3D(1.0f, 2.0f, 3.0f));
+    QCOMPARE(gyroData, QGCVector3D(4.0f, 5.0f, 6.0f));
 }
 
 //-----------------------------------------------------------------------------

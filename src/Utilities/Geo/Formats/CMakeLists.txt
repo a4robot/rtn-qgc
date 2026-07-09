@@ -63,8 +63,11 @@ endif()
 target_link_libraries(QGCGeoFormats
     PUBLIC
         Qt6::Core
-        Qt6::Gui
         Qt6::Positioning
+        # Gui is only needed by KMLDomDocument.cc/h's QColor usage, which is
+        # itself QGC_ENABLE_QML-gated above (wave 14 Q7c KML call-graph
+        # audit) — gate the link the same way (wave 17 Q8g).
+        $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Gui>
         $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Qml>
         Qt6::QmlIntegration
         $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Xml>

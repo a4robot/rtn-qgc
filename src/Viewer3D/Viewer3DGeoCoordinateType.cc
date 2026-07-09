@@ -7,10 +7,11 @@ QGC_LOGGING_CATEGORY(Viewer3DGeoCoordinateTypeLog, "Viewer3d.Viewer3DGeoCoordina
 
 void Viewer3DGeoCoordinateType::_gpsToLocal()
 {
-    const QVector3D localPose = QGCGeo::convertGpsToEnu(_coordinate, _gpsRef);
+    const QGCGeo::Vec3 localPose = QGCGeo::convertGpsToEnu(_coordinate, _gpsRef);
+    const QVector3D newLocalCoordinate(localPose.x(), localPose.y(), localPose.z());
 
-    if (_localCoordinate != localPose) {
-        _localCoordinate = localPose;
+    if (_localCoordinate != newLocalCoordinate) {
+        _localCoordinate = newLocalCoordinate;
         _localCoordinate.setZ(_coordinate.altitude());
         emit localCoordinateChanged();
     }

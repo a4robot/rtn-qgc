@@ -1,7 +1,5 @@
 #include "GeoTest.h"
 
-#include <QtGui/QVector3D>
-
 #include "Benchmarking.h"
 #include "PropertyTesting.h"
 #include "QGCGeo.h"
@@ -117,7 +115,7 @@ void GeoTest::_convertMGRSToGeo_test()
 void GeoTest::_convertGeodeticToEcef_test()
 {
     const QGeoCoordinate coord(m_origin.latitude(), m_origin.longitude(), 100.0);
-    const QVector3D ecef = QGCGeo::convertGeodeticToEcef(coord);
+    const QGCGeo::Vec3 ecef = QGCGeo::convertGeodeticToEcef(coord);
     // ECEF coordinates for ETH campus at 100m altitude
     QVERIFY(compareDoubles(ecef.x(), 4278990.18, 1.0));
     QVERIFY(compareDoubles(ecef.y(), 643172.29, 1.0));
@@ -126,7 +124,7 @@ void GeoTest::_convertGeodeticToEcef_test()
 
 void GeoTest::_convertEcefToGeodetic_test()
 {
-    const QVector3D ecef(4278990.18f, 643172.29f, 4670276.60f);
+    const QGCGeo::Vec3 ecef(4278990.18, 643172.29, 4670276.60);
     const QGeoCoordinate coord = QGCGeo::convertEcefToGeodetic(ecef);
     QVERIFY(coord.isValid());
     QVERIFY(compareDoubles(coord.latitude(), m_origin.latitude(), 0.0001));
@@ -137,7 +135,7 @@ void GeoTest::_convertEcefToGeodetic_test()
 void GeoTest::_convertGpsToEnu_test()
 {
     const QGeoCoordinate coord(47.364869, 8.594398, 50.0);
-    const QVector3D enu = QGCGeo::convertGpsToEnu(coord, m_origin);
+    const QGCGeo::Vec3 enu = QGCGeo::convertGpsToEnu(coord, m_origin);
     // ENU: East, North, Up (WGS84 ellipsoidal)
     QVERIFY(compareDoubles(enu.x(), 3497.22, 1.0));   // East
     QVERIFY(compareDoubles(enu.y(), -1280.96, 1.0));  // North
@@ -146,7 +144,7 @@ void GeoTest::_convertGpsToEnu_test()
 
 void GeoTest::_convertEnuToGps_test()
 {
-    const QVector3D enu(3497.22f, -1280.96f, 48.91f);
+    const QGCGeo::Vec3 enu(3497.22, -1280.96, 48.91);
     const QGeoCoordinate coord = QGCGeo::convertEnuToGps(enu, m_origin);
     QVERIFY(coord.isValid());
     QVERIFY(compareDoubles(coord.latitude(), 47.364869, 0.0001));
@@ -158,10 +156,10 @@ void GeoTest::_convertEcefToEnu_test()
 {
     // Convert a known geodetic point to ECEF first
     const QGeoCoordinate coord(47.364869, 8.594398, 50.0);
-    const QVector3D ecef = QGCGeo::convertGeodeticToEcef(coord);
+    const QGCGeo::Vec3 ecef = QGCGeo::convertGeodeticToEcef(coord);
     // Then convert ECEF to ENU relative to origin
-    const QVector3D enu = QGCGeo::convertEcefToEnu(ecef, m_origin);
-    // Note: QVector3D uses float, so ECEF round-trips have reduced precision
+    const QGCGeo::Vec3 enu = QGCGeo::convertEcefToEnu(ecef, m_origin);
+    // Note: even in double precision, ECEF round-trips accumulate some numerical error
     QVERIFY(compareDoubles(enu.x(), 3497.22, 2.0));   // East
     QVERIFY(compareDoubles(enu.y(), -1280.96, 2.0));  // North
     QVERIFY(compareDoubles(enu.z(), 48.91, 1.0));     // Up
@@ -169,10 +167,10 @@ void GeoTest::_convertEcefToEnu_test()
 
 void GeoTest::_convertEnuToEcef_test()
 {
-    const QVector3D enu(3497.22f, -1280.96f, 48.91f);
-    const QVector3D ecef = QGCGeo::convertEnuToEcef(enu, m_origin);
+    const QGCGeo::Vec3 enu(3497.22, -1280.96, 48.91);
+    const QGCGeo::Vec3 ecef = QGCGeo::convertEnuToEcef(enu, m_origin);
     // Convert back to geodetic to verify
-    // Note: QVector3D uses float, so ECEF round-trips have reduced precision
+    // Note: even in double precision, ECEF round-trips accumulate some numerical error
     const QGeoCoordinate coord = QGCGeo::convertEcefToGeodetic(ecef);
     QVERIFY(coord.isValid());
     QVERIFY(compareDoubles(coord.latitude(), 47.364869, 0.001));

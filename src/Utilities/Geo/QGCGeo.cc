@@ -77,16 +77,16 @@ void convertNedToGeo(double x, double y, double z, const QGeoCoordinate &origin,
 // ENU (East-North-Up) Local Tangent Plane
 // ============================================================================
 
-QVector3D convertGpsToEnu(const QGeoCoordinate &coord, const QGeoCoordinate &ref)
+Vec3 convertGpsToEnu(const QGeoCoordinate &coord, const QGeoCoordinate &ref)
 {
     double x, y, z;
     GeographicLib::LocalCartesian ltp(ref.latitude(), ref.longitude(), ref.altitude(),
                                       GeographicLib::Geocentric::WGS84());
     ltp.Forward(coord.latitude(), coord.longitude(), coord.altitude(), x, y, z);
-    return QVector3D(x, y, z);
+    return Vec3(x, y, z);
 }
 
-QGeoCoordinate convertEnuToGps(const QVector3D &enu, const QGeoCoordinate &ref)
+QGeoCoordinate convertEnuToGps(const Vec3 &enu, const QGeoCoordinate &ref)
 {
     double lat, lon, alt;
     GeographicLib::LocalCartesian ltp(ref.latitude(), ref.longitude(), ref.altitude(),
@@ -99,21 +99,21 @@ QGeoCoordinate convertEnuToGps(const QVector3D &enu, const QGeoCoordinate &ref)
 // ECEF (Earth-Centered Earth-Fixed)
 // ============================================================================
 
-QVector3D convertGeodeticToEcef(const QGeoCoordinate &coord)
+Vec3 convertGeodeticToEcef(const QGeoCoordinate &coord)
 {
     double x, y, z;
     GeographicLib::Geocentric::WGS84().Forward(coord.latitude(), coord.longitude(), coord.altitude(), x, y, z);
-    return QVector3D(x, y, z);
+    return Vec3(x, y, z);
 }
 
-QGeoCoordinate convertEcefToGeodetic(const QVector3D &ecef)
+QGeoCoordinate convertEcefToGeodetic(const Vec3 &ecef)
 {
     double lat, lon, alt;
     GeographicLib::Geocentric::WGS84().Reverse(ecef.x(), ecef.y(), ecef.z(), lat, lon, alt);
     return QGeoCoordinate(lat, lon, alt);
 }
 
-QVector3D convertEcefToEnu(const QVector3D &ecef, const QGeoCoordinate &ref)
+Vec3 convertEcefToEnu(const Vec3 &ecef, const QGeoCoordinate &ref)
 {
     // ECEF -> Geodetic
     double lat, lon, h;
@@ -124,10 +124,10 @@ QVector3D convertEcefToEnu(const QVector3D &ecef, const QGeoCoordinate &ref)
     GeographicLib::LocalCartesian ltp(ref.latitude(), ref.longitude(), ref.altitude(),
                                       GeographicLib::Geocentric::WGS84());
     ltp.Forward(lat, lon, h, x, y, z);
-    return QVector3D(x, y, z);
+    return Vec3(x, y, z);
 }
 
-QVector3D convertEnuToEcef(const QVector3D &enu, const QGeoCoordinate &ref)
+Vec3 convertEnuToEcef(const Vec3 &enu, const QGeoCoordinate &ref)
 {
     // ENU -> Geodetic
     double lat, lon, h;
@@ -138,7 +138,7 @@ QVector3D convertEnuToEcef(const QVector3D &enu, const QGeoCoordinate &ref)
     // Geodetic -> ECEF
     double x, y, z;
     GeographicLib::Geocentric::WGS84().Forward(lat, lon, h, x, y, z);
-    return QVector3D(x, y, z);
+    return Vec3(x, y, z);
 }
 
 // ============================================================================

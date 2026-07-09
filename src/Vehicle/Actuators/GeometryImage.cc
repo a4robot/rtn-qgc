@@ -3,6 +3,7 @@
 #include <QtCore/QDir>
 
 #include <array>
+#include <cmath>
 
 using namespace GeometryImage;
 
@@ -170,8 +171,8 @@ QPixmap VehicleGeometryImageProvider::requestPixmap([[maybe_unused]] const QStri
     _actuatorImagePositions.clear();
 
     // get the dimensions
-    QVector3D min{1e10f, 1e10f, 1e10f};
-    QVector3D max{-1e10f, -1e10f, -1e10f};
+    QGCVector3D min{1e10f, 1e10f, 1e10f};
+    QGCVector3D max{-1e10f, -1e10f, -1e10f};
     for (const auto& actuator : _actuators) {
         for (int i = 0; i < 3; ++i) {
             if (actuator.position[i] < min[i]) {
@@ -198,8 +199,9 @@ QPixmap VehicleGeometryImageProvider::requestPixmap([[maybe_unused]] const QStri
                     if (&actuatorBefore == &actuator) {
                         break;
                     }
-                    QVector2D diff = actuatorBefore.position.toVector2D() - actuator.position.toVector2D();
-                    if (diff.length() < 0.03f) {
+                    const float dx = actuatorBefore.position.x() - actuator.position.x();
+                    const float dy = actuatorBefore.position.y() - actuator.position.y();
+                    if (std::hypot(dx, dy) < 0.03f) {
                         coaxActuators.append(actuator);
                         isCoax = true;
                         break;

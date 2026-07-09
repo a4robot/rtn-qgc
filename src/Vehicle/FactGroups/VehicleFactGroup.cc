@@ -1,11 +1,59 @@
 #include "VehicleFactGroup.h"
 #include "Vehicle.h"
 #include "QGCMath.h"
+#include "QGCVector3D.h"
 
 #include <cmath>
 
-#include <QtGui/QQuaternion>
-#include <QtGui/QVector3D>
+namespace
+{
+
+// Gui-free stand-in for QQuaternion, scoped to this file's attitude-quaternion
+// handling. QQuaternion lives in Qt6::Gui; pulling it into this headless-
+// reachable telemetry path would drag libQt6Gui (and transitively
+// libQt6DBus) into the QML-OFF ghost build. See STRANGLER_MILESTONES.md Q8g
+// (wave 17). w/x/y/z match QQuaternion's (scalar, x, y, z) layout.
+struct AttitudeQuat
+{
+    float w = 1.f;
+    float x = 0.f;
+    float y = 0.f;
+    float z = 0.f;
+
+    float length() const { return std::sqrt(w * w + x * x + y * y + z * z); }
+
+    // Hamilton product, in place: *this = *this * other (same semantics as
+    // QQuaternion::operator*=).
+    AttitudeQuat &operator*=(const AttitudeQuat &o)
+    {
+        const float nw = w * o.w - x * o.x - y * o.y - z * o.z;
+        const float nx = w * o.x + x * o.w + y * o.z - z * o.y;
+        const float ny = w * o.y - x * o.z + y * o.w + z * o.x;
+        const float nz = w * o.z + x * o.y - y * o.x + z * o.w;
+        w = nw; x = nx; y = ny; z = nz;
+        return *this;
+    }
+};
+
+// Rotates vector v by quaternion q (same optimized cross-product formula as
+// QQuaternion's operator*(QQuaternion, QVector3D): v' = v + 2*w*(qv x v) +
+// 2*(qv x (qv x v)), where qv = (q.x, q.y, q.z)).
+QGCVector3D operator*(const AttitudeQuat &q, const QGCVector3D &v)
+{
+    const QGCVector3D qv(q.x, q.y, q.z);
+    const QGCVector3D uv(qv.y() * v.z() - qv.z() * v.y(),
+                          qv.z() * v.x() - qv.x() * v.z(),
+                          qv.x() * v.y() - qv.y() * v.x());
+    const QGCVector3D uuv(qv.y() * uv.z() - qv.z() * uv.y(),
+                           qv.z() * uv.x() - qv.x() * uv.z(),
+                           qv.x() * uv.y() - qv.y() * uv.x());
+    const float k1 = 2.f * q.w;
+    return QGCVector3D(v.x() + k1 * uv.x() + 2.f * uuv.x(),
+                        v.y() + k1 * uv.y() + 2.f * uuv.y(),
+                        v.z() + k1 * uv.z() + 2.f * uuv.z());
+}
+
+} // namespace
 
 VehicleFactGroup::VehicleFactGroup(QObject *parent)
     : FactGroup(100, QStringLiteral(":/json/Vehicle/VehicleFact.json"), parent)
@@ -171,9 +219,9 @@ void VehicleFactGroup::_handleAttitudeQuaternion(Vehicle *vehicle, const mavlink
     mavlink_attitude_quaternion_t attitudeQuaternion{};
     mavlink_msg_attitude_quaternion_decode(&message, &attitudeQuaternion);
 
-    QQuaternion quat(attitudeQuaternion.q1, attitudeQuaternion.q2, attitudeQuaternion.q3, attitudeQuaternion.q4);
-    QVector3D rates(attitudeQuaternion.rollspeed, attitudeQuaternion.pitchspeed, attitudeQuaternion.yawspeed);
-    QQuaternion repr_offset(attitudeQuaternion.repr_offset_q[0], attitudeQuaternion.repr_offset_q[1], attitudeQuaternion.repr_offset_q[2], attitudeQuaternion.repr_offset_q[3]);
+    AttitudeQuat quat{attitudeQuaternion.q1, attitudeQuaternion.q2, attitudeQuaternion.q3, attitudeQuaternion.q4};
+    QGCVector3D rates(attitudeQuaternion.rollspeed, attitudeQuaternion.pitchspeed, attitudeQuaternion.yawspeed);
+    const AttitudeQuat repr_offset{attitudeQuaternion.repr_offset_q[0], attitudeQuaternion.repr_offset_q[1], attitudeQuaternion.repr_offset_q[2], attitudeQuaternion.repr_offset_q[3]};
 
     // if repr_offset is valid, rotate attitude and rates
     if (repr_offset.length() >= 0.5f) {
@@ -182,7 +230,7 @@ void VehicleFactGroup::_handleAttitudeQuaternion(Vehicle *vehicle, const mavlink
     }
 
     float attRoll, attPitch, attYaw;
-    float q[] = { quat.scalar(), quat.x(), quat.y(), quat.z() };
+    float q[] = { quat.w, quat.x, quat.y, quat.z };
     mavlink_quaternion_to_euler(q, &attRoll, &attPitch, &attYaw);
 
     _handleAttitudeWorker(attRoll, attPitch, attYaw);

@@ -159,7 +159,7 @@ bool Viewer3DTerrainGeometry::_buildTerrain(const QGeoCoordinate &roiMinCoordina
             sectorAngle = sectorRef + j * sectorStep;
 
             Vertex vertex;
-            const QVector3D localPoint = QGCGeo::convertGpsToEnu(QGeoCoordinate(stackAngle, sectorAngle, 0), refCoordinate);
+            const QGCGeo::Vec3 localPoint = QGCGeo::convertGpsToEnu(QGeoCoordinate(stackAngle, sectorAngle, 0), refCoordinate);
             vertex.x = localPoint.x();
             vertex.y = localPoint.y();
             vertex.z = 0;

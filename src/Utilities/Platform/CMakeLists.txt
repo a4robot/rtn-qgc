@@ -41,22 +41,32 @@ target_sources(${CMAKE_PROJECT_NAME}
 # Backends: macOS Keychain, Windows Credential Manager, iOS Keychain, Android Keystore,
 # Linux libsecret/KWallet. QGCKeychain falls back to QSettings at runtime when no backend
 # daemon is reachable (headless / minimal sessions).
-
-CPMAddPackage(
-    NAME qtkeychain
-    GITHUB_REPOSITORY frankosterfeld/qtkeychain
-    VERSION 0.15.0-dev
-    GIT_TAG 53a8e6a31f7d24bc58d91515cc7fcbb34af554db
-    SYSTEM YES
-    OPTIONS
-        "BUILD_WITH_QT6 ON"
-        "BUILD_TEST_APPLICATION OFF"
-        "BUILD_TESTING OFF"
-        "BUILD_TRANSLATIONS OFF"
-        "BUILD_SHARED_LIBS OFF"
-)
-qgc_disable_dependency_warnings(qt6keychain)
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE qt6keychain)
+#
+# qtkeychain's Linux backend unconditionally requires Qt6::DBus (KWallet talks to it
+# over a generated D-Bus interface; there's no upstream CMake option to build without
+# it -- confirmed against qtkeychain's own CMakeLists.txt, wave 17 Q8g). A headless
+# ghost has no D-Bus session/keychain daemon to talk to anyway, so QGCKeychain.cc's
+# runtime fallback (QSettings-backed, already written for exactly this "headless
+# environment" case) is used directly instead of linking qt6keychain (and therefore
+# Qt6::DBus) at all when QGC_ENABLE_QML=OFF.
+if(QGC_ENABLE_QML)
+    CPMAddPackage(
+        NAME qtkeychain
+        GITHUB_REPOSITORY frankosterfeld/qtkeychain
+        VERSION 0.15.0-dev
+        GIT_TAG 53a8e6a31f7d24bc58d91515cc7fcbb34af554db
+        SYSTEM YES
+        OPTIONS
+            "BUILD_WITH_QT6 ON"
+            "BUILD_TEST_APPLICATION OFF"
+            "BUILD_TESTING OFF"
+            "BUILD_TRANSLATIONS OFF"
+            "BUILD_SHARED_LIBS OFF"
+    )
+    qgc_disable_dependency_warnings(qt6keychain)
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE qt6keychain)
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE QGC_HAS_KEYCHAIN)
+endif()
 
 # ----------------------------------------------------------------------------
 # libgcrypt early init (Linux)

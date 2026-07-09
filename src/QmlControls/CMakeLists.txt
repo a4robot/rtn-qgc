@@ -31,14 +31,10 @@ target_sources(${CMAKE_PROJECT_NAME}
         QGCGeoBoundingCube.h
         QGCMapCircle.cc
         QGCMapCircle.h
-        QGCMapPalette.cc
-        QGCMapPalette.h
         QGCMapPolygon.cc
         QGCMapPolygon.h
         QGCMapPolyline.cc
         QGCMapPolyline.h
-        QGCPalette.cc
-        QGCPalette.h
         QGCQGeoCoordinate.cc
         QGCQGeoCoordinate.h
         QGroundControlQmlGlobal.cc
@@ -85,6 +81,19 @@ target_sources(${CMAKE_PROJECT_NAME}
 # machinery, which only resolves against a real QGuiApplication instance, so it
 # fails to build once QGCApplication stops deriving from QGuiApplication in OFF
 # builds (see Q7d probe, QGCApplication.h QGCApplicationBase alias).
+#
+# QGCPalette/QGCMapPalette (Q8g, wave 17): the ~40-entry QColor theme table is
+# pure QML-rendering config (light/dark UI theming) -- QColor lives in
+# Qt6::Gui, and QGCPalette's many Q_PROPERTY(QColor ...) force moc to emit
+# code needing it regardless of whether _buildMap() ever runs. Their two
+# headless-compiled callers were adjusted to not need the type:
+# AppSettings::_indoorPaletteChanged/DECLARE_SETTINGGROUP(App) guard the
+# QGCPalette::setGlobalTheme() call with #ifdef QGC_ENABLE_QML (that call
+# doesn't touch QColor itself, but pulls this whole translation unit's
+# QColor-heavy code in at .o granularity), QGCCorePlugin::paletteOverride is
+# QGC_ENABLE_QML-gated to match, and QGroundControlQmlGlobal (a genuine
+# headless dependency of MissionManager) only constructs its _globalPalette
+# member under the same guard.
 if(QGC_ENABLE_QML)
     target_sources(${CMAKE_PROJECT_NAME}
         PRIVATE
@@ -96,6 +105,10 @@ if(QGC_ENABLE_QML)
             HorizontalFactValueGrid.h
             QGCImageProvider.cc
             QGCImageProvider.h
+            QGCMapPalette.cc
+            QGCMapPalette.h
+            QGCPalette.cc
+            QGCPalette.h
             ScreenToolsController.cc
             ScreenToolsController.h
             TerrainProfile.cc

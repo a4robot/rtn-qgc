@@ -2,8 +2,6 @@
 
 #include <atomic>
 
-#include <QtGui/QVector3D>
-
 #include "Joystick.h"
 
 struct SDL_Joystick;
@@ -80,8 +78,8 @@ public:
     bool hasAccelerometer() const override;
     bool setGyroscopeEnabled(bool enabled) override;
     bool setAccelerometerEnabled(bool enabled) override;
-    QVector3D gyroscopeData() const override;
-    QVector3D accelerometerData() const override;
+    QGCVector3D gyroscopeData() const override;
+    QGCVector3D accelerometerData() const override;
     float gyroscopeDataRate() const override;
     float accelerometerDataRate() const override;
 
@@ -165,8 +163,8 @@ private:
     // Cached sensor data (updated from events)
     // Note: These are accessed from main thread only (via Qt::QueuedConnection)
     // but marked atomic for defensive thread safety
-    QVector3D _cachedGyroData;
-    QVector3D _cachedAccelData;
+    QGCVector3D _cachedGyroData;
+    QGCVector3D _cachedAccelData;
     std::atomic<bool> _gyroDataCached{false};
     std::atomic<bool> _accelDataCached{false};
 
@@ -179,8 +177,8 @@ private:
 
 public:
     // Called by JoystickManager when sensor events are received
-    void updateCachedGyroData(const QVector3D &data);
-    void updateCachedAccelData(const QVector3D &data);
+    void updateCachedGyroData(const QGCVector3D &data);
+    void updateCachedAccelData(const QGCVector3D &data);
     void checkConnectionStateChanged();
 
     /// Check for axis drift (significant deviation from center at rest)

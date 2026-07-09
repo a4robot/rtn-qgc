@@ -1,6 +1,7 @@
 qt_add_library(QGCMath STATIC
     QGCMath.cc
     QGCMath.h
+    QGCVector3D.h
 )
 
 target_link_libraries(QGCMath

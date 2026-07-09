@@ -12,10 +12,35 @@
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonParseError>
 #include <QtCore/QVariant>
+#ifdef QGC_ENABLE_QML
 #include <QtGui/QCursor>
 #include <QtGui/QGuiApplication>
+#endif
 
 QGC_LOGGING_CATEGORY(APMAirframeComponentControllerLog, "AutoPilotPlugins.APMAirframeComponentController")
+
+namespace
+{
+// Busy-cursor UI feedback around the github param-file download below is
+// QML-rendering-only (there is no cursor in the headless ghost). QCursor/
+// QGuiApplication live in Qt6::Gui, so no-op these in QGC_ENABLE_QML=OFF
+// builds rather than pulling libQt6Gui (and transitively libQt6DBus) into
+// the headless ghost for a cosmetic wait-cursor. See STRANGLER_MILESTONES.md
+// Q8g (wave 17).
+inline void qgcSetWaitCursor()
+{
+#ifdef QGC_ENABLE_QML
+    QGuiApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
+#endif
+}
+
+inline void qgcRestoreCursor()
+{
+#ifdef QGC_ENABLE_QML
+    QGuiApplication::restoreOverrideCursor();
+#endif
+}
+} // namespace
 
 /*===========================================================================*/
 
@@ -74,7 +99,7 @@ void APMAirframeComponentController::_loadParametersFromDownloadFile(const QStri
     QFile parametersFile(downloadedParamFile);
     if (!parametersFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qCWarning(APMAirframeComponentControllerLog) << "Unable to open downloaded parameter file" << downloadedParamFile << parametersFile.errorString();
-        QGuiApplication::restoreOverrideCursor();
+        qgcRestoreCursor();
         return;
     }
 
@@ -91,13 +116,13 @@ void APMAirframeComponentController::_loadParametersFromDownloadFile(const QStri
             param->setRawValue(QVariant::fromValue(aux.at(1)));
         }
     }
-    QGuiApplication::restoreOverrideCursor();
+    qgcRestoreCursor();
     _vehicle->parameterManager()->refreshAllParameters();
 }
 
 void APMAirframeComponentController::loadParameters(const QString &paramFile)
 {
-    QGuiApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
+    qgcSetWaitCursor();
 
     QGCFileDownload *const downloader = new QGCFileDownload(this);
     (void) connect(downloader, &QGCFileDownload::finished, downloader, &QObject::deleteLater);
@@ -105,7 +130,7 @@ void APMAirframeComponentController::loadParameters(const QString &paramFile)
     const QString paramFileUrl = QStringLiteral("https://api.github.com/repos/ArduPilot/ardupilot/contents/Tools/Frame_params/%1?ref=master");
     if (!downloader->start(paramFileUrl.arg(paramFile))) {
         QGC::showAppMessage(tr("Param file github json download failed to start: %1").arg(downloader->errorString()));
-        QGuiApplication::restoreOverrideCursor();
+        qgcRestoreCursor();
         downloader->deleteLater();
     }
 }
@@ -116,7 +141,7 @@ void APMAirframeComponentController::_githubJsonDownloadComplete(bool success, c
         QFile jsonFile(localFile);
         if (!jsonFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
             qCWarning(APMAirframeComponentControllerLog) << "Unable to open github json file" << localFile << jsonFile.errorString();
-            QGuiApplication::restoreOverrideCursor();
+            qgcRestoreCursor();
             return;
         }
         const QByteArray bytes = jsonFile.readAll();
@@ -126,7 +151,7 @@ void APMAirframeComponentController::_githubJsonDownloadComplete(bool success, c
         const QJsonDocument doc = QJsonDocument::fromJson(bytes, &jsonParseError);
         if (jsonParseError.error != QJsonParseError::NoError) {
             qCWarning(APMAirframeComponentControllerLog) <<  "Unable to open json document" << localFile << jsonParseError.errorString();
-            QGuiApplication::restoreOverrideCursor();
+            qgcRestoreCursor();
             return;
         }
 
@@ -136,12 +161,12 @@ void APMAirframeComponentController::_githubJsonDownloadComplete(bool success, c
         const QJsonObject json = doc.object();
         if (!downloader->start(json[QLatin1String("download_url")].toString())) {
             QGC::showAppMessage(tr("Param file download failed to start: %1").arg(downloader->errorString()));
-            QGuiApplication::restoreOverrideCursor();
+            qgcRestoreCursor();
             downloader->deleteLater();
         }
     } else if (!errorMsg.isEmpty()) {
         QGC::showAppMessage(tr("Param file github json download failed: %1").arg(errorMsg));
-        QGuiApplication::restoreOverrideCursor();
+        qgcRestoreCursor();
     }
 }
 
@@ -151,7 +176,7 @@ void APMAirframeComponentController::_paramFileDownloadComplete(bool success, co
         _loadParametersFromDownloadFile(localFile);
     } else if (!errorMsg.isEmpty()) {
         QGC::showAppMessage(tr("Param file download failed: %1").arg(errorMsg));
-        QGuiApplication::restoreOverrideCursor();
+        qgcRestoreCursor();
     }
 }
 

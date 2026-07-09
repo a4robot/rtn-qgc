@@ -1,6 +1,5 @@
 #include "QmlObjectListModel.h"
 #include "AirframeComponentController.h"
-#include <QtGui/QGuiApplication>
 #include "AirframeComponentAirframes.h"
 #include "MultiVehicleManager.h"
 #include "AppMessages.h"
@@ -11,7 +10,32 @@
 
 #include <QtCore/QThread>
 #include <QtCore/QVariant>
+#ifdef QGC_ENABLE_QML
 #include <QtGui/QCursor>
+#include <QtGui/QGuiApplication>
+#endif
+
+namespace
+{
+// Busy-cursor UI feedback is QML-rendering-only (there is no cursor in the
+// headless ghost). QCursor/QGuiApplication live in Qt6::Gui, so no-op these
+// in QGC_ENABLE_QML=OFF builds rather than pulling libQt6Gui (and
+// transitively libQt6DBus) into the headless ghost for a cosmetic wait-
+// cursor. See STRANGLER_MILESTONES.md Q8g (wave 17).
+inline void qgcSetWaitCursor()
+{
+#ifdef QGC_ENABLE_QML
+    QGuiApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
+#endif
+}
+
+inline void qgcRestoreCursor()
+{
+#ifdef QGC_ENABLE_QML
+    QGuiApplication::restoreOverrideCursor();
+#endif
+}
+} // namespace
 
 bool AirframeComponentController::_typesRegistered = false;
 
@@ -80,7 +104,7 @@ void AirframeComponentController::changeAutostart(void)
 		return;
 	}
 
-    QGuiApplication::setOverrideCursor(QCursor(Qt::WaitCursor));
+    qgcSetWaitCursor();
 
     Fact* sysAutoStartFact  = getParameterFact(-1, "SYS_AUTOSTART");
     Fact* sysAutoConfigFact = getParameterFact(-1, "SYS_AUTOCONFIG");
@@ -116,7 +140,7 @@ void AirframeComponentController::_rebootAfterStackUnwind(void)
         QThread::usleep(500);
         QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
     }
-    QGuiApplication::restoreOverrideCursor();
+    qgcRestoreCursor();
     LinkManager::instance()->disconnectAll();
 }
 

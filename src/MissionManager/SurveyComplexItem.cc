@@ -10,10 +10,11 @@
 #include "QGCApplication.h"
 #include "Vehicle.h"
 #include "QGCLoggingCategory.h"
+#include "QGCMath.h"
 
-#include <QtGui/QPolygonF>
 #include <QtCore/QJsonArray>
 #include <QtCore/QLineF>
+#include <QtCore/QPointF>
 
 QGC_LOGGING_CATEGORY(SurveyComplexItemLog, "Plan.SurveyComplexItem")
 
@@ -521,7 +522,7 @@ void SurveyComplexItem::_intersectLinesWithRect(const QList<QLineF>& lineList, c
     }
 }
 
-void SurveyComplexItem::_intersectLinesWithPolygon(const QList<QLineF>& lineList, const QPolygonF& polygon, QList<QLineF>& resultLines)
+void SurveyComplexItem::_intersectLinesWithPolygon(const QList<QLineF>& lineList, const QList<QPointF>& polygon, QList<QLineF>& resultLines)
 {
     resultLines.clear();
 
@@ -685,13 +686,13 @@ void SurveyComplexItem::_rebuildTransectsPhase1WorkerSinglePolygon(bool refly)
     // Convert polygon to bounding rect
 
     qCDebug(SurveyComplexItemLog) << "_rebuildTransectsPhase1 Polygon";
-    QPolygonF polygon;
+    QList<QPointF> polygon;
     for (int i=0; i<polygonPoints.count(); i++) {
         qCDebug(SurveyComplexItemLog) << "Vertex" << polygonPoints[i];
         polygon << polygonPoints[i];
     }
     polygon << polygonPoints[0];
-    QRectF boundingRect = polygon.boundingRect();
+    QRectF boundingRect = QGC::polygonBoundingRect(polygon);
     QPointF boundingCenter = boundingRect.center();
     qCDebug(SurveyComplexItemLog) << "Bounding rect" << boundingRect.topLeft().x() << boundingRect.topLeft().y() << boundingRect.bottomRight().x() << boundingRect.bottomRight().y();
 
@@ -884,15 +885,15 @@ void SurveyComplexItem::_rebuildTransectsPhase1WorkerSplitPolygons(bool refly)
         qCDebug(SurveyComplexItemLog) << "_rebuildTransectsPhase1 vertex:x:y" << vertex << polygonPoints.last().x() << polygonPoints.last().y();
     }
 
-    // convert into QPolygonF
-    QPolygonF polygon;
+    // convert into QList<QPointF>
+    QList<QPointF> polygon;
     for (int i=0; i<polygonPoints.count(); i++) {
         qCDebug(SurveyComplexItemLog) << "Vertex" << polygonPoints[i];
         polygon << polygonPoints[i];
     }
 
     // Create list of separate polygons
-    QList<QPolygonF> polygons{};
+    QList<QList<QPointF>> polygons{};
     _PolygonDecomposeConvex(polygon, polygons);
 
     // iterate over polygons
@@ -924,7 +925,7 @@ void SurveyComplexItem::_rebuildTransectsPhase1WorkerSplitPolygons(bool refly)
     }
 }
 
-void SurveyComplexItem::_PolygonDecomposeConvex(const QPolygonF& polygon, QList<QPolygonF>& decomposedPolygons)
+void SurveyComplexItem::_PolygonDecomposeConvex(const QList<QPointF>& polygon, QList<QList<QPointF>>& decomposedPolygons)
 {
 	// this follows "Mark Keil's Algorithm" https://mpen.ca/406/keil
     int decompSize = std::numeric_limits<int>::max();
@@ -934,7 +935,7 @@ void SurveyComplexItem::_PolygonDecomposeConvex(const QPolygonF& polygon, QList<
         return;
     }
 
-    QList<QPolygonF> decomposedPolygonsMin{};
+    QList<QList<QPointF>> decomposedPolygonsMin{};
 
     for (auto vertex = polygon.begin(); vertex != polygon.end(); ++vertex)
     {
@@ -953,7 +954,7 @@ void SurveyComplexItem::_PolygonDecomposeConvex(const QPolygonF& polygon, QList<
             bool canSee = _VertexCanSeeOther(polygon, vertex, vertexOther);
             if (!canSee) continue;
 
-            QPolygonF polyLeft;
+            QList<QPointF> polyLeft;
             auto v = vertex;
             auto polyLeftContainsReflex = false;
             while ( v != vertexOther) {
@@ -967,7 +968,7 @@ void SurveyComplexItem::_PolygonDecomposeConvex(const QPolygonF& polygon, QList<
             polyLeft << *vertexOther;
             auto polyLeftValid = !(polyLeftContainsReflex && polyLeft.size() == 3);
 
-            QPolygonF polyRight;
+            QList<QPointF> polyRight;
             v = vertexOther;
             auto polyRightContainsReflex = false;
             while ( v != vertex) {
@@ -987,10 +988,10 @@ void SurveyComplexItem::_PolygonDecomposeConvex(const QPolygonF& polygon, QList<
             }
 
             // recursion
-            QList<QPolygonF> polyLeftDecomposed{};
+            QList<QList<QPointF>> polyLeftDecomposed{};
             _PolygonDecomposeConvex(polyLeft, polyLeftDecomposed);
 
-            QList<QPolygonF> polyRightDecomposed{};
+            QList<QList<QPointF>> polyRightDecomposed{};
             _PolygonDecomposeConvex(polyRight, polyRightDecomposed);
 
             // compositon
@@ -1019,7 +1020,7 @@ void SurveyComplexItem::_PolygonDecomposeConvex(const QPolygonF& polygon, QList<
     return;
 }
 
-bool SurveyComplexItem::_VertexCanSeeOther(const QPolygonF& polygon, const QPointF* vertexA, const QPointF* vertexB) {
+bool SurveyComplexItem::_VertexCanSeeOther(const QList<QPointF>& polygon, const QPointF* vertexA, const QPointF* vertexB) {
     if (vertexA == vertexB) return false;
     auto vertexAAfter = vertexA + 1 == polygon.end() ? polygon.begin() : vertexA + 1;
     auto vertexABefore = vertexA == polygon.begin() ? polygon.end() - 1 : vertexA - 1;
@@ -1063,7 +1064,7 @@ bool SurveyComplexItem::_VertexCanSeeOther(const QPolygonF& polygon, const QPoin
     return visible;
 }
 
-bool SurveyComplexItem::_VertexIsReflex(const QPolygonF& polygon, QList<QPointF>::const_iterator& vertexIter) {
+bool SurveyComplexItem::_VertexIsReflex(const QList<QPointF>& polygon, QList<QPointF>::const_iterator& vertexIter) {
     auto vertexBefore = vertex == polygon.begin() ? polygon.end() - 1 : vertex - 1;
     auto vertexAfter = vertex == polygon.end() - 1 ? polygon.begin() : vertex + 1;
     auto area = (((vertex->x() - vertexBefore->x())*(vertexAfter->y() - vertexBefore->y()))-((vertexAfter->x() - vertexBefore->x())*(vertex->y() - vertexBefore->y())));
@@ -1072,7 +1073,7 @@ bool SurveyComplexItem::_VertexIsReflex(const QPolygonF& polygon, QList<QPointF>
 }
 #endif
 
-void SurveyComplexItem::_rebuildTransectsFromPolygon(bool refly, const QPolygonF& polygon, const QGeoCoordinate& tangentOrigin, const QPointF* const transitionPoint)
+void SurveyComplexItem::_rebuildTransectsFromPolygon(bool refly, const QList<QPointF>& polygon, const QGeoCoordinate& tangentOrigin, const QPointF* const transitionPoint)
 {
     // Generate transects
 
@@ -1088,7 +1089,7 @@ void SurveyComplexItem::_rebuildTransectsFromPolygon(bool refly, const QPolygonF
     // Convert polygon to bounding rect
 
     qCDebug(SurveyComplexItemLog) << "_rebuildTransectsPhase1 Polygon";
-    QRectF boundingRect = polygon.boundingRect();
+    QRectF boundingRect = QGC::polygonBoundingRect(polygon);
     QPointF boundingCenter = boundingRect.center();
     qCDebug(SurveyComplexItemLog) << "Bounding rect" << boundingRect.topLeft().x() << boundingRect.topLeft().y() << boundingRect.bottomRight().x() << boundingRect.bottomRight().y();
 

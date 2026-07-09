@@ -16,7 +16,8 @@ using JoystickBackend = JoystickSDL;
 
 #include <QtCore/QApplicationStatic>
 #include <QtCore/QSettings>
-#include <QtGui/QVector3D>
+
+#include "QGCVector3D.h"
 
 QGC_LOGGING_CATEGORY(JoystickManagerLog, "Joystick.JoystickManager")
 
@@ -26,6 +27,8 @@ JoystickManager::JoystickManager(QObject *parent)
     : QObject(parent)
     , _joystickManagerSettings(SettingsManager::instance()->joystickManagerSettings())
 {
+    (void) qRegisterMetaType<QGCVector3D>("QGCVector3D");
+
     qCDebug(JoystickManagerLog) << this;
 
     // SDL_PumpEvents() must be called from main thread for device add/remove events
@@ -316,7 +319,7 @@ void JoystickManager::_handleSensorUpdate(int instanceId, int sensor, float x, f
     Joystick *joystick = _findJoystickByInstanceId(instanceId);
     if (joystick) {
         auto *sdlJoystick = qobject_cast<JoystickBackend*>(joystick);
-        const QVector3D data(x, y, z);
+        const QGCVector3D data(x, y, z);
         // SDL_SENSOR_ACCEL = 1, SDL_SENSOR_GYRO = 2
         if (sensor == 1 || sensor == 4 || sensor == 6) {  // ACCEL, ACCEL_L, ACCEL_R
             if (sdlJoystick) {

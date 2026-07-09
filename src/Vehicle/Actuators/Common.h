@@ -1,10 +1,10 @@
 #pragma once
 
 #include "Fact.h"
+#include "QGCVector3D.h"
 
 #include <QtCore/QString>
 #include <QtCore/QJsonValue>
-#include <QtGui/QVector3D>
 
 class ParameterManager;
 
@@ -133,14 +133,14 @@ struct ActuatorGeometry
         bool highlight{false};
     };
 
-    ActuatorGeometry(Type type_=Type::Other, int index_=0, QVector3D position_={},
+    ActuatorGeometry(Type type_=Type::Other, int index_=0, QGCVector3D position_={},
             SpinDirection spinDirection_=SpinDirection::Unspecified)
     : type(type_), index(index_), position(position_), spinDirection(spinDirection_) { }
 
     Type type;
     int index;
     int labelIndexOffset{0};
-    QVector3D position;
+    QGCVector3D position;
     SpinDirection spinDirection;
 
     RenderOptions renderOptions{};

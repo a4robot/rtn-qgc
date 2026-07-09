@@ -2,6 +2,7 @@
 #include "QGCGeo.h"
 #include "GeoJsonHelper.h"
 #include "JsonParsing.h"
+#include "QGCMath.h"
 #include "QGCQGeoCoordinate.h"
 #include "AppMessages.h"
 #include "QGCApplication.h"
@@ -159,9 +160,9 @@ QPointF QGCMapPolygon::_pointFFromCoord(const QGeoCoordinate& coordinate) const
     return QPointF();
 }
 
-QPolygonF QGCMapPolygon::_toPolygonF(void) const
+QList<QPointF> QGCMapPolygon::_toPolygonF(void) const
 {
-    QPolygonF polygon;
+    QList<QPointF> polygon;
 
     if (_polygonPath.count() > 2) {
         for (int i=0; i<_polygonPath.count(); i++) {
@@ -175,7 +176,7 @@ QPolygonF QGCMapPolygon::_toPolygonF(void) const
 bool QGCMapPolygon::containsCoordinate(const QGeoCoordinate& coordinate) const
 {
     if (_polygonPath.count() > 2) {
-        return _toPolygonF().containsPoint(_pointFFromCoord(coordinate), Qt::OddEvenFill);
+        return QGC::polygonContainsPoint(_toPolygonF(), _pointFFromCoord(coordinate));
     } else {
         return false;
     }
@@ -368,7 +369,7 @@ void QGCMapPolygon::_updateCenter(void)
         QGeoCoordinate center;
 
         if (_polygonPath.count() > 2) {
-            QPolygonF polygonF = _toPolygonF();
+            QList<QPointF> polygonF = _toPolygonF();
             const int n = polygonF.count();
 
             // Surveyor's (shoelace) formula for polygon centroid

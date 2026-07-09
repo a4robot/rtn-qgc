@@ -4,7 +4,9 @@
 #include <QtCore/QVariantList>
 #include <QtQmlIntegration/QtQmlIntegration>
 
+#ifdef QGC_ENABLE_QML
 #include "QGCPalette.h"
+#endif
 
 class ComplexMissionItem;
 class FactMetaData;
@@ -88,8 +90,10 @@ public:
     /// @return An instance of an alternate position source (or NULL if not available)
     virtual QGeoPositionInfoSource *createPositionSource(QObject *parent) { Q_UNUSED(parent); return nullptr; }
 
+#ifdef QGC_ENABLE_QML
     /// Allows a plugin to override the specified color name from the palette
     virtual void paletteOverride(const QString &colorName, QGCPalette::PaletteColorInfo_t &colorInfo) { Q_UNUSED(colorName); Q_UNUSED(colorInfo); };
+#endif
 
     virtual void factValueGridCreateDefaultSettings(FactValueGridModel* factValueGrid);
 

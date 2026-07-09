@@ -2,8 +2,8 @@
 
 #include <QtCore/QObject>
 #include <QtPositioning/QGeoCoordinate>
+#include <QtCore/QPointF>
 #include <QtCore/QVariantList>
-#include <QtGui/QPolygonF>
 #ifdef QGC_ENABLE_QML
 #include <QtXml/QDomElement>
 #endif
@@ -164,7 +164,7 @@ private slots:
 
 private:
     void            _init                   (void);
-    QPolygonF       _toPolygonF             (void) const;
+    QList<QPointF>  _toPolygonF             (void) const;
     QGeoCoordinate  _coordFromPointF        (const QPointF& point) const;
     QPointF         _pointFFromCoord        (const QGeoCoordinate& coordinate) const;
 

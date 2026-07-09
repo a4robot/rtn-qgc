@@ -77,7 +77,7 @@ public:
 
             const QGeoCoordinate &gpsCoord = it.value();
             gpsPoints.push_back(gpsCoord);
-            const QVector3D localPt = QGCGeo::convertGpsToEnu(gpsCoord, _gpsRef);
+            const QGCGeo::Vec3 localPt = QGCGeo::convertGpsToEnu(gpsCoord, _gpsRef);
             localPoints.push_back(QVector2D(localPt.x(), localPt.y()));
 
             xMax = std::fmax(xMax, localPt.x());
@@ -331,7 +331,7 @@ void OsmParserThread::_parseOsmFile(const QString &filePath)
                 building.bb_min = QVector2D(std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
 
                 for (const QGeoCoordinate &gpsCoord : building.points_gps) {
-                    const QVector3D localPt = QGCGeo::convertGpsToEnu(gpsCoord, _gpsRefPoint);
+                    const QGCGeo::Vec3 localPt = QGCGeo::convertGpsToEnu(gpsCoord, _gpsRefPoint);
                     const QVector2D local2D(localPt.x(), localPt.y());
                     building.points_local.push_back(local2D);
 
@@ -342,7 +342,7 @@ void OsmParserThread::_parseOsmFile(const QString &filePath)
                 }
 
                 for (const QGeoCoordinate &gpsCoord : building.points_gps_inner) {
-                    const QVector3D localPt = QGCGeo::convertGpsToEnu(gpsCoord, _gpsRefPoint);
+                    const QGCGeo::Vec3 localPt = QGCGeo::convertGpsToEnu(gpsCoord, _gpsRefPoint);
                     const QVector2D local2D(localPt.x(), localPt.y());
                     building.points_local_inner.push_back(local2D);
 

@@ -3,7 +3,6 @@
 #include <QtCore/QObject>
 #include <QtCore/QStringList>
 #include <QtCore/QVariantList>
-#include <QtGui/QColor>
 #include <QtQmlIntegration/QtQmlIntegration>
 
 class Fact;
@@ -44,14 +43,14 @@ public:
     Q_PROPERTY(QVariantList         rangeColors         READ    rangeColors         WRITE setRangeColors    NOTIFY rangeColorsChanged)
     Q_PROPERTY(QVariantList         rangeIcons          READ    rangeIcons          WRITE setRangeIcons     NOTIFY rangeIconsChanged)
     Q_PROPERTY(QVariantList         rangeOpacities      READ    rangeOpacities      WRITE setRangeOpacities NOTIFY rangeOpacitiesChanged)
-    Q_PROPERTY(QColor               currentColor        MEMBER _currentColor                                NOTIFY currentColorChanged)
+    Q_PROPERTY(QString              currentColor        MEMBER _currentColor                                NOTIFY currentColorChanged)  ///< color name/hex string; Gui-free (Q8g wave 17) -- QML coerces strings to color bindings automatically
     Q_PROPERTY(double               currentOpacity      MEMBER _currentOpacity                              NOTIFY currentOpacityChanged)
     Q_PROPERTY(QString              currentIcon         MEMBER _currentIcon                                 NOTIFY currentIconChanged)
 
     Q_INVOKABLE void    setFact         (const QString& factGroupName, const QString& factName);
     Q_INVOKABLE void    clearFact       (void);
-    Q_INVOKABLE bool    isValidColor    (const QColor& color)   { return color.isValid(); }
-    Q_INVOKABLE QColor  invalidColor    (void)                  { return QColor(); }
+    Q_INVOKABLE bool    isValidColor    (const QString& color)  { return !color.isEmpty(); }
+    Q_INVOKABLE QString invalidColor    (void)                  { return QString(); }
     Q_INVOKABLE void    addRangeValue   (void);
     Q_INVOKABLE void    removeRangeValue(int index);
 
@@ -93,7 +92,7 @@ signals:
     void rangeColorsChanged     (const QVariantList& rangeColors);
     void rangeIconsChanged      (const QVariantList& rangeIcons);
     void rangeOpacitiesChanged  (const QVariantList& rangeOpacities);
-    void currentColorChanged    (const QColor& currentColor);
+    void currentColorChanged    (const QString& currentColor);
     void currentOpacityChanged  (double currentOpacity);
     void currentIconChanged     (const QString& currentIcon);
 
@@ -118,7 +117,7 @@ private:
     QString                 _text;
     bool                    _showUnits =            true;
     QString                 _icon;
-    QColor                  _currentColor;
+    QString                 _currentColor;
     double                  _currentOpacity =       1.0;
     QString                 _currentIcon;
 
@@ -132,7 +131,7 @@ private:
     // semantic values in the apppropriate list.
     RangeType           _rangeType =        NoRangeInfo;
     QVariantList        _rangeValues;                       ///< double values which indicate range setpoints
-    QVariantList        _rangeColors;                       ///< QColor
+    QVariantList        _rangeColors;                       ///< color name/hex strings
     QVariantList        _rangeIcons;                        ///< QString resource name
     QVariantList        _rangeOpacities;                    /// double opacity value
 

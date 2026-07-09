@@ -20,7 +20,9 @@ class MultiVehicleManager;
 class QGCCorePlugin;
 class QGCMapEngineManager;
 class NTRIPManager;
+#ifdef QGC_ENABLE_QML
 class QGCPalette;
+#endif
 class QGCPositionManager;
 class SettingsManager;
 class VideoManager;
@@ -36,7 +38,9 @@ Q_MOC_INCLUDE("MissionCommandTree.h")
 Q_MOC_INCLUDE("MultiVehicleManager.h")
 Q_MOC_INCLUDE("QGCCorePlugin.h")
 Q_MOC_INCLUDE("QGCMapEngineManager.h")
+#ifdef QGC_ENABLE_QML
 Q_MOC_INCLUDE("QGCPalette.h")
+#endif
 Q_MOC_INCLUDE("PositionManager.h")
 Q_MOC_INCLUDE("SettingsManager.h")
 Q_MOC_INCLUDE("VideoManager.h")
@@ -80,7 +84,9 @@ public:
 #ifndef QGC_NO_SERIAL_LINK
     Q_PROPERTY(FactGroup*           gpsRtk                  READ    gpsRtkFactGroup         CONSTANT)
 #endif
+#ifdef QGC_ENABLE_QML
     Q_PROPERTY(QGCPalette*          globalPalette           MEMBER  _globalPalette          CONSTANT)   ///< This palette will always return enabled colors
+#endif
     Q_PROPERTY(QmlUnitsConversion*  unitsConversion         READ    unitsConversion         CONSTANT)
     Q_PROPERTY(bool                 singleFirmwareSupport   READ    singleFirmwareSupport   CONSTANT)
     Q_PROPERTY(bool                 singleVehicleSupport    READ    singleVehicleSupport    CONSTANT)
@@ -242,7 +248,9 @@ private:
     MultiVehicleManager*    _multiVehicleManager    = nullptr;
     SettingsManager*        _settingsManager        = nullptr;
     QGCCorePlugin*          _corePlugin             = nullptr;
+#ifdef QGC_ENABLE_QML
     QGCPalette*             _globalPalette          = nullptr;
+#endif
 #ifndef QGC_NO_SERIAL_LINK
     FactGroup*              _gpsRtkFactGroup        = nullptr;
 #endif

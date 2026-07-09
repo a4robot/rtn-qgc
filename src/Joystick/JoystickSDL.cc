@@ -914,7 +914,7 @@ bool JoystickSDL::setAccelerometerEnabled(bool enabled)
     return false;
 }
 
-QVector3D JoystickSDL::gyroscopeData() const
+QGCVector3D JoystickSDL::gyroscopeData() const
 {
     // Use cached data from events if available (more efficient than polling)
     if (_gyroDataCached) {
@@ -922,7 +922,7 @@ QVector3D JoystickSDL::gyroscopeData() const
     }
 
     if (!_sdlGamepad) {
-        return QVector3D();
+        return QGCVector3D();
     }
     std::array<float, 3> data = {0.0f, 0.0f, 0.0f};
     if (!SDL_GetGamepadSensorData(_sdlGamepad, SDL_SENSOR_GYRO, data.data(), 3)) {
@@ -930,12 +930,12 @@ QVector3D JoystickSDL::gyroscopeData() const
         if (SDL_GamepadSensorEnabled(_sdlGamepad, SDL_SENSOR_GYRO)) {
             qCDebug(JoystickSDLLog) << "Failed to get gyroscope data:" << SDL_GetError();
         }
-        return QVector3D();
+        return QGCVector3D();
     }
-    return QVector3D(data[0], data[1], data[2]);
+    return QGCVector3D(data[0], data[1], data[2]);
 }
 
-QVector3D JoystickSDL::accelerometerData() const
+QGCVector3D JoystickSDL::accelerometerData() const
 {
     // Use cached data from events if available (more efficient than polling)
     if (_accelDataCached) {
@@ -943,7 +943,7 @@ QVector3D JoystickSDL::accelerometerData() const
     }
 
     if (!_sdlGamepad) {
-        return QVector3D();
+        return QGCVector3D();
     }
     std::array<float, 3> data = {0.0f, 0.0f, 0.0f};
     if (!SDL_GetGamepadSensorData(_sdlGamepad, SDL_SENSOR_ACCEL, data.data(), 3)) {
@@ -951,9 +951,9 @@ QVector3D JoystickSDL::accelerometerData() const
         if (SDL_GamepadSensorEnabled(_sdlGamepad, SDL_SENSOR_ACCEL)) {
             qCDebug(JoystickSDLLog) << "Failed to get accelerometer data:" << SDL_GetError();
         }
-        return QVector3D();
+        return QGCVector3D();
     }
-    return QVector3D(data[0], data[1], data[2]);
+    return QGCVector3D(data[0], data[1], data[2]);
 }
 
 float JoystickSDL::gyroscopeDataRate() const
@@ -1378,14 +1378,14 @@ bool JoystickSDL::sendVirtualSensorData(int sensorType, float x, float y, float 
 // Cached Sensor Data (Event-Driven Updates)
 //-----------------------------------------------------------------------------
 
-void JoystickSDL::updateCachedGyroData(const QVector3D &data)
+void JoystickSDL::updateCachedGyroData(const QGCVector3D &data)
 {
     _cachedGyroData = data;
     _gyroDataCached = true;
     emit gyroscopeDataUpdated(data);
 }
 
-void JoystickSDL::updateCachedAccelData(const QVector3D &data)
+void JoystickSDL::updateCachedAccelData(const QGCVector3D &data)
 {
     _cachedAccelData = data;
     _accelDataCached = true;

@@ -29,6 +29,7 @@
 #include <QtCore/QLineF>
 #include <QtCore/QSettings>
 #ifdef QGC_ENABLE_QML
+#include "QGCPalette.h"
 #include <QtGui/QClipboard>
 #include <QtGui/QGuiApplication>
 #endif
@@ -54,7 +55,9 @@ QGroundControlQmlGlobal::QGroundControlQmlGlobal(QObject *parent)
     , _multiVehicleManager(MultiVehicleManager::instance())
     , _settingsManager(SettingsManager::instance())
     , _corePlugin(QGCCorePlugin::instance())
+#ifdef QGC_ENABLE_QML
     , _globalPalette(new QGCPalette(this))
+#endif
 #ifndef QGC_NO_SERIAL_LINK
     , _gpsRtkFactGroup(GPSManager::instance()->gpsRtk()->gpsRtkFactGroup())
 #endif

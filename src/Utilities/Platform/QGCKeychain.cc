@@ -1,12 +1,14 @@
 #include "QGCKeychain.h"
 
 #include <QtCore/QCoreApplication>
-#include <QtCore/QEventLoop>
 #include <QtCore/QLatin1StringView>
 #include <QtCore/QSettings>
+#ifdef QGC_HAS_KEYCHAIN
+#include <QtCore/QEventLoop>
 #include <atomic>
 #include <mutex>
 #include <qtkeychain/keychain.h>
+#endif
 
 #include "QGCLoggingCategory.h"
 
@@ -16,10 +18,12 @@ namespace {
 
 constexpr QLatin1StringView kSettingsGroup{"KeychainFallback"};
 
+#ifdef QGC_HAS_KEYCHAIN
 QString serviceName()
 {
     return QCoreApplication::applicationName();
 }
+#endif
 
 QSettings settingsStore()
 {
@@ -56,6 +60,7 @@ bool fallbackRemove(const QString& key)
     return s.status() == QSettings::NoError;
 }
 
+#ifdef QGC_HAS_KEYCHAIN
 // Once the backend proves unavailable, skip all future probes for the session.
 std::atomic<bool> g_qtkeychainUnavailable{false};
 
@@ -99,11 +104,13 @@ bool isMissingSecretService(QKeychain::Error err, const QString& errorString)
     return errorString.contains(QLatin1String("org.freedesktop.secrets")) ||
            errorString.contains(QLatin1String("ServiceUnknown"));
 }
+#endif // QGC_HAS_KEYCHAIN
 
 }  // namespace
 
 bool QGCKeychain::writeBinary(const QString& key, const QByteArray& data)
 {
+#ifdef QGC_HAS_KEYCHAIN
     probeBackendOnce();
     if (!g_qtkeychainUnavailable.load(std::memory_order_relaxed)) {
         QKeychain::WritePasswordJob job(serviceName());
@@ -122,11 +129,16 @@ bool QGCKeychain::writeBinary(const QString& key, const QByteArray& data)
             return false;
         }
     }
+#endif // QGC_HAS_KEYCHAIN
+    // No qtkeychain backend built in (headless ghost, QGC_ENABLE_QML=OFF) --
+    // no D-Bus session/keychain daemon to talk to anyway, so go straight to
+    // the same QSettings-backed store used as qtkeychain's runtime fallback.
     return fallbackWrite(key, data);
 }
 
 QByteArray QGCKeychain::readBinary(const QString& key)
 {
+#ifdef QGC_HAS_KEYCHAIN
     probeBackendOnce();
     if (!g_qtkeychainUnavailable.load(std::memory_order_relaxed)) {
         QKeychain::ReadPasswordJob job(serviceName());
@@ -147,13 +159,15 @@ QByteArray QGCKeychain::readBinary(const QString& key)
             return {};
         }
     }
+#endif // QGC_HAS_KEYCHAIN
     return fallbackRead(key);
 }
 
 bool QGCKeychain::remove(const QString& key)
 {
-    probeBackendOnce();
     bool keychainOk = false;
+#ifdef QGC_HAS_KEYCHAIN
+    probeBackendOnce();
     if (!g_qtkeychainUnavailable.load(std::memory_order_relaxed)) {
         QKeychain::DeletePasswordJob job(serviceName());
         job.setInsecureFallback(false);
@@ -168,6 +182,7 @@ bool QGCKeychain::remove(const QString& key)
             qCWarning(QGCKeychainLog) << "Keychain remove error:" << job.errorString();
         }
     }
+#endif // QGC_HAS_KEYCHAIN
     // Always clear the QSettings fallback too — entry may live there from a prior session.
     const bool fallbackOk = fallbackRemove(key);
     return keychainOk || fallbackOk;

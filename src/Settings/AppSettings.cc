@@ -1,6 +1,8 @@
 #include "AppSettings.h"
 #include "QGCFileHelper.h"
+#ifdef QGC_ENABLE_QML
 #include "QGCPalette.h"
+#endif
 #include "AppMessages.h"
 #include "QGCApplication.h"
 #include "QGCMAVLink.h"
@@ -56,7 +58,9 @@ AppSettings::LanguageInfo_t AppSettings::_rgLanguageInfo[] = {
 
 DECLARE_SETTINGGROUP(App, "")
 {
+#ifdef QGC_ENABLE_QML
     QGCPalette::setGlobalTheme(indoorPalette()->rawValue().toBool() ? QGCPalette::Dark : QGCPalette::Light);
+#endif
 
     // Instantiate savePath so we can check for override and setup default path if needed
 
@@ -259,7 +263,9 @@ QString AppSettings::_childSavePath(const char* directory)
 
 void AppSettings::_indoorPaletteChanged(void)
 {
+#ifdef QGC_ENABLE_QML
     QGCPalette::setGlobalTheme(indoorPalette()->rawValue().toBool() ? QGCPalette::Dark : QGCPalette::Light);
+#endif
 }
 
 QString AppSettings::missionSavePath(void)

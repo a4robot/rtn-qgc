@@ -176,7 +176,7 @@ void InstrumentValueData::_resetRangeInfo(void)
         case NoRangeInfo:
             break;
         case ColorRange:
-            _rangeColors.append(QColor("green"));
+            _rangeColors.append(QStringLiteral("green"));
             break;
         case OpacityRange:
             _rangeOpacities.append(1.0);
@@ -201,7 +201,7 @@ void InstrumentValueData::addRangeValue(void)
     case NoRangeInfo:
         break;
     case ColorRange:
-        _rangeColors.append(QColor("green"));
+        _rangeColors.append(QStringLiteral("green"));
         break;
     case OpacityRange:
         _rangeOpacities.append(1.0);
@@ -254,7 +254,7 @@ void InstrumentValueData::_updateRanges(void)
 
 void InstrumentValueData::_updateColor(void)
 {
-    QColor newColor;
+    QString newColor;
 
     int rangeIndex = -1;
 
@@ -262,7 +262,7 @@ void InstrumentValueData::_updateColor(void)
         rangeIndex =_currentRangeIndex(_fact->rawValue().toDouble());
     }
     if (rangeIndex != -1) {
-        newColor = _rangeColors[rangeIndex].value<QColor>();
+        newColor = _rangeColors[rangeIndex].toString();
     }
 
     if (newColor != _currentColor) {

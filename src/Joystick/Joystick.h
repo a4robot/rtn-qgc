@@ -5,12 +5,12 @@
 #include <QtCore/QObject>
 #include <QtCore/QThread>
 #include <QtCore/QVariantMap>
-#include <QtGui/QVector3D>
 #include <QtQmlIntegration/QtQmlIntegration>
 
 #include <functional>
 #include <array>
 
+#include "QGCVector3D.h"
 #include "RemoteControlCalibrationController.h"
 #include "JoystickSettings.h"
 
@@ -239,8 +239,8 @@ public:
     Q_INVOKABLE virtual bool hasAccelerometer() const { return false; }
     Q_INVOKABLE virtual bool setGyroscopeEnabled(bool enabled) { Q_UNUSED(enabled); return false; }
     Q_INVOKABLE virtual bool setAccelerometerEnabled(bool enabled) { Q_UNUSED(enabled); return false; }
-    Q_INVOKABLE virtual QVector3D gyroscopeData() const { return QVector3D(); }
-    Q_INVOKABLE virtual QVector3D accelerometerData() const { return QVector3D(); }
+    Q_INVOKABLE virtual QGCVector3D gyroscopeData() const { return QGCVector3D(); }
+    Q_INVOKABLE virtual QGCVector3D accelerometerData() const { return QGCVector3D(); }
     Q_INVOKABLE virtual float gyroscopeDataRate() const { return 0.0f; }
     Q_INVOKABLE virtual float accelerometerDataRate() const { return 0.0f; }
 
@@ -374,8 +374,8 @@ signals:
     void rawButtonPressedChanged(int index, bool pressed); ///< Signalled during PollingForConfiguration
 
     // Sensor event signals (for event-driven updates)
-    void gyroscopeDataUpdated(const QVector3D &data);
-    void accelerometerDataUpdated(const QVector3D &data);
+    void gyroscopeDataUpdated(const QGCVector3D &data);
+    void accelerometerDataUpdated(const QGCVector3D &data);
     void touchpadEvent(int touchpad, int finger, bool down, float x, float y, float pressure);
 
     // Additional event signals

@@ -5,6 +5,7 @@
 
 #include <QtCore/QtNumeric>
 
+#include <algorithm>
 #include <cmath>
 #include <float.h>
 
@@ -152,6 +153,48 @@ bool fuzzyCompare(float value1, float value2, float tolerance)
     } else {
         return fabsf(value1 - value2) <= tolerance;
     }
+}
+
+QRectF polygonBoundingRect(const QList<QPointF> &points)
+{
+    if (points.isEmpty()) {
+        return QRectF();
+    }
+
+    double minX = points.first().x();
+    double maxX = minX;
+    double minY = points.first().y();
+    double maxY = minY;
+
+    for (const QPointF &p : points) {
+        minX = std::min(minX, p.x());
+        maxX = std::max(maxX, p.x());
+        minY = std::min(minY, p.y());
+        maxY = std::max(maxY, p.y());
+    }
+
+    return QRectF(QPointF(minX, minY), QPointF(maxX, maxY));
+}
+
+bool polygonContainsPoint(const QList<QPointF> &points, const QPointF &point)
+{
+    // Standard even-odd (crossing number) point-in-polygon test (PNPOLY),
+    // matching QPolygonF::containsPoint(pt, Qt::OddEvenFill)'s semantics.
+    if (points.size() < 3) {
+        return false;
+    }
+
+    bool inside = false;
+    const qsizetype n = points.size();
+    for (qsizetype i = 0, j = n - 1; i < n; j = i++) {
+        const QPointF &pi = points.at(i);
+        const QPointF &pj = points.at(j);
+        if (((pi.y() > point.y()) != (pj.y() > point.y())) &&
+            (point.x() < (pj.x() - pi.x()) * (point.y() - pi.y()) / (pj.y() - pi.y()) + pi.x())) {
+            inside = !inside;
+        }
+    }
+    return inside;
 }
 
 }
