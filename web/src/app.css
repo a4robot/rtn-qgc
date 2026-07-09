@@ -54,6 +54,12 @@ body {
   letter-spacing: 0.1em;
 }
 
+.gcs-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .gcs-grid {
   flex: 1;
   display: grid;

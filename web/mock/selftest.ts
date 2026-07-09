@@ -121,6 +121,20 @@ class TestConn {
 }
 
 const isTelemetry = (m: Record<string, unknown>) => m.type === "telemetry";
+const NOTIFICATION_SEVERITIES = new Set(["info", "warning", "critical"]);
+
+/** Shape check for the `notification` push contract: {type, severity, text, timeUs, vehicleId?}. */
+function notificationSchemaOk(m: Record<string, unknown>): boolean {
+  return (
+    m.type === "notification" &&
+    typeof m.severity === "string" &&
+    NOTIFICATION_SEVERITIES.has(m.severity) &&
+    typeof m.text === "string" &&
+    m.text.length > 0 &&
+    typeof m.timeUs === "number" &&
+    (m.vehicleId === undefined || (typeof m.vehicleId === "number" && Number.isInteger(m.vehicleId)))
+  );
+}
 
 /** §12 #5 schema: every §4 field present; numeric leaves number (airSpeed may be null). */
 function telemetrySchemaOk(m: Record<string, unknown>): boolean {
@@ -162,6 +176,18 @@ async function main(): Promise<void> {
     typeof helloAck.serverTimeUs === "number" &&
       Math.abs((helloAck.serverTimeUs as number) / 1000 - Date.now()) < 5000,
     helloAck.serverTimeUs,
+  );
+
+  // --- §14.3 welcome notification: "info" push right after helloAck, exact
+  // text "Ghost bridge ready", no vehicleId.
+  const infoNotif = await conn.next("welcome notification", (m) => m.type === "notification");
+  check(
+    "§14.3 welcome notification matches contract shape (info, exact text, no vehicleId)",
+    notificationSchemaOk(infoNotif) &&
+      infoNotif.severity === "info" &&
+      infoNotif.text === "Ghost bridge ready" &&
+      infoNotif.vehicleId === undefined,
+    infoNotif,
   );
 
   // --- §12 #3: tick at 1 Hz with vehicleIds [1].
@@ -486,13 +512,46 @@ async function main(): Promise<void> {
   conn.send({ type: "unsubscribe", id: "mi2", channel: "mission", vehicleId: 1 });
   await conn.next("mission unsubscribeAck", (m) => m.type === "unsubscribeAck" && m.id === "mi2");
 
+  // --- notification demo (mock-only, not §14 sourcing — see server.ts):
+  // warning then critical push, vehicle-scoped (§14's optional vehicleId).
+  // The server is spawned below with MOCK_NOTIFICATION_*_MS shortened so
+  // this doesn't wait the real 15s/40s dev timing.
+  const warningNotif = await conn.next(
+    "warning notification",
+    (m) => m.type === "notification" && m.severity === "warning",
+    5000,
+  );
+  check(
+    "notification: warning push matches contract shape (vehicleId 1)",
+    notificationSchemaOk(warningNotif) && warningNotif.vehicleId === 1,
+    warningNotif,
+  );
+
+  const criticalNotif = await conn.next(
+    "critical notification",
+    (m) => m.type === "notification" && m.severity === "critical",
+    5000,
+  );
+  check(
+    "notification: critical push matches contract shape (vehicleId 1)",
+    notificationSchemaOk(criticalNotif) && criticalNotif.vehicleId === 1,
+    criticalNotif,
+  );
+
   conn.close();
 }
 
 // Spawn the server under test, run the checks, then tear it down.
+// MOCK_NOTIFICATION_*_MS shortened so the notification-demo checks above
+// don't wait the real 15s/40s dev timing (see server.ts's "notification demo").
 const serverProc = Bun.spawn(["bun", new URL("./server.ts", import.meta.url).pathname], {
   stdout: "pipe",
   stderr: "inherit",
+  env: {
+    ...process.env,
+    MOCK_NOTIFICATION_WARNING_MS: "50",
+    MOCK_NOTIFICATION_CRITICAL_MS: "150",
+  },
 });
 try {
   // Wait for the listen line before connecting.

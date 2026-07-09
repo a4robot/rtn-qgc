@@ -31,6 +31,15 @@ export {
   usePlanStore,
   type PlanStoreState,
 } from "./planStore.ts";
+export {
+  useNotifications,
+  useNotificationStore,
+  useUnreadNotificationCount,
+  useSpeechMuted,
+  MAX_NOTIFICATIONS,
+  type NotificationRecord,
+  type NotificationStoreState,
+} from "./notificationStore.ts";
 export { bindBridgeToStores } from "./bindBridge.ts";
 export {
   useActiveVehicle,

@@ -10,6 +10,8 @@ import { CoreMap } from "./components/map/CoreMap.tsx";
 import { GotoOnClick } from "./components/map/GotoOnClick.tsx";
 import { MissionLayer } from "./components/map/MissionLayer.tsx";
 import { VehicleLayer } from "./components/map/VehicleLayer.tsx";
+import { NotificationBell } from "./components/notifications/NotificationBell.tsx";
+import { NotificationToasts } from "./components/notifications/NotificationToasts.tsx";
 import { WaypointAdder } from "./components/plan/WaypointAdder.tsx";
 import { WaypointList } from "./components/plan/WaypointList.tsx";
 import { Attitude } from "./components/telemetry/Attitude.tsx";
@@ -73,10 +75,14 @@ export function App() {
       <header className="gcs-header">
         <h1>RTN Ghost GCS</h1>
         <VehicleSelect activeVehicleId={activeVehicleId} onSelect={onSelectVehicle} />
-        <span className={`gcs-header-status gcs-header-status--${connectionState}`}>
-          {connectionState}
-        </span>
+        <div className="gcs-header-right">
+          <NotificationBell />
+          <span className={`gcs-header-status gcs-header-status--${connectionState}`}>
+            {connectionState}
+          </span>
+        </div>
       </header>
+      <NotificationToasts />
       <main className="gcs-grid">
         <section className="gcs-panel gcs-video" aria-label="Video">
           <DualCam client={client} streamIds={[1, 2]} />

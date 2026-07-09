@@ -22,6 +22,7 @@ import type {
   ClientMessage,
   CommandResponse,
   MissionResponse,
+  Notification,
   Telemetry,
   ParamValue,
 } from "./types.ts";
@@ -36,6 +37,7 @@ export type MessageHandler = (message: BridgeMessage) => void;
 export type CommandResponseHandler = (message: CommandResponse) => void;
 export type ParamValueHandler = (message: ParamValue) => void;
 export type MissionResponseHandler = (message: MissionResponse) => void;
+export type NotificationHandler = (message: Notification) => void;
 export type StateHandler = (state: ConnectionState) => void;
 export type SeqGapHandler = (gap: SeqGap) => void;
 /**
@@ -100,6 +102,7 @@ export class BridgeClient {
   private readonly commandResponseHandlers = new Set<CommandResponseHandler>();
   private readonly paramValueHandlers = new Set<ParamValueHandler>();
   private readonly missionResponseHandlers = new Set<MissionResponseHandler>();
+  private readonly notificationHandlers = new Set<NotificationHandler>();
   private readonly binaryFrameHandlers = new Set<BinaryFrameHandler>();
   private readonly lastSeqByChannel = new Map<Channel, number>();
 
@@ -177,6 +180,18 @@ export class BridgeClient {
     this.missionResponseHandlers.add(callback);
     return () => {
       this.missionResponseHandlers.delete(callback);
+    };
+  }
+
+  /**
+   * Observe notification pushes (PROTOCOL.md §14, keyed by nothing — pure
+   * server-push, no subscription, no request id; mirrors {@link
+   * onCommandResponse}). Returns an unsubscribe function.
+   */
+  onNotification(callback: NotificationHandler): () => void {
+    this.notificationHandlers.add(callback);
+    return () => {
+      this.notificationHandlers.delete(callback);
     };
   }
 
@@ -376,6 +391,14 @@ export class BridgeClient {
     // §11.1: tick rides outside the channel/seq envelope — dispatch by type.
     if (type === "tick") {
       this.dispatch("tick", message);
+      return;
+    }
+
+    // §14: notification — server-push, no subscription/channel/seq envelope, dispatched by type (like tick).
+    if (type === "notification") {
+      for (const handler of this.notificationHandlers) {
+        handler(message as unknown as Notification);
+      }
       return;
     }
 

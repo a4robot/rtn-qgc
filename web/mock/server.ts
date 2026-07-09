@@ -5,6 +5,10 @@
  * channel + upload/download/clear (§7), and binary H.264 video streaming
  * (§9), so the web UI can be developed against a fake ghost.
  *
+ * Also pushes a demo `notification` stream per connection (info on hello,
+ * warning ~15s in, critical ~40s in — see "notification demo" below) so the
+ * web UI's toast/bell can be developed against a fake ghost too.
+ *
  * Telemetry is played back from fixtures/telemetry.json (a scripted flight,
  * one sample per second) on a global loop clock shared by all clients; the
  * server interpolates between fixture samples to produce a smooth 10 Hz
@@ -482,6 +486,8 @@ interface Session {
   missionStreams: Map<string, MissionStream>;
   /** Pending commandProgress timers, cleared on disconnect. */
   commandTimers: Set<ReturnType<typeof setTimeout>>;
+  /** Pending demo `notification` timers (see "notification demo" below), cleared on disconnect. */
+  notificationTimers: Set<ReturnType<typeof setTimeout>>;
 }
 
 type Socket = ServerWebSocket<Session>;
@@ -504,6 +510,62 @@ function sendError(
     ...(extra.vehicleId !== undefined ? { vehicleId: extra.vehicleId } : {}),
     retryable: extra.retryable ?? false,
   });
+}
+
+// --- notification channel (PROTOCOL.md §14) -----------------------------------
+//
+// §14.3's welcome notification ("Ghost bridge ready", info, no vehicleId,
+// sent to that client only, right after its own helloAck) is implemented
+// byte-compatibly. The warning ~15s in and critical ~40s in that follow it
+// are NOT part of §14 (real sourcing is C++ AudioOutput::say() /
+// showCriticalVehicleMessage() / showAppMessage(), §14.1) — they're a mock-only
+// demo so devs building the notification UI (toasts + header bell) see
+// warning/critical severities live against a fake ghost too (fixture mode
+// reuses the same timing — nothing about it depends on which telemetry
+// fixture is loaded). This mock does not implement §14.2's 1s dedup window
+// (no organic duplicate source to dedup against).
+// Overridable via env so selftest.ts doesn't have to wait 15s/40s per run;
+// `bun run mock` (real dev use) gets the production 15s/40s defaults.
+const NOTIFICATION_WARNING_DELAY_MS = Number(process.env.MOCK_NOTIFICATION_WARNING_MS ?? 15_000);
+const NOTIFICATION_CRITICAL_DELAY_MS = Number(process.env.MOCK_NOTIFICATION_CRITICAL_MS ?? 40_000);
+
+function sendNotification(
+  ws: Socket,
+  severity: "info" | "warning" | "critical",
+  text: string,
+  vehicleId?: number,
+): void {
+  send(ws, {
+    type: "notification",
+    severity,
+    text,
+    timeUs: nowUs(),
+    ...(vehicleId !== undefined ? { vehicleId } : {}),
+  });
+}
+
+/** Schedule the demo warning/critical pushes, cancelable via `session.notificationTimers`. */
+function scheduleNotificationDemo(ws: Socket): void {
+  // §14.3: byte-compatible welcome text with the real bridge — "Ghost bridge ready", no vehicleId.
+  sendNotification(ws, "info", "Ghost bridge ready");
+
+  const warnTimer = setTimeout(() => {
+    ws.data.notificationTimers.delete(warnTimer);
+    if (ws.data.closed) {
+      return;
+    }
+    sendNotification(ws, "warning", "Battery below 30%", VEHICLE_ID);
+  }, NOTIFICATION_WARNING_DELAY_MS);
+  ws.data.notificationTimers.add(warnTimer);
+
+  const criticalTimer = setTimeout(() => {
+    ws.data.notificationTimers.delete(criticalTimer);
+    if (ws.data.closed) {
+      return;
+    }
+    sendNotification(ws, "critical", "GPS fix lost — switch to manual", VEHICLE_ID);
+  }, NOTIFICATION_CRITICAL_DELAY_MS);
+  ws.data.notificationTimers.add(criticalTimer);
 }
 
 function stopStreams(session: Session): void {
@@ -560,6 +622,7 @@ function handleHello(ws: Socket, msg: Record<string, unknown>): void {
     serverVersion: SERVER_VERSION,
     serverTimeUs: nowUs(),
   });
+  const firstHello = ws.data.tickTimer === null;
   ws.data.tickTimer ??= setInterval(() => {
     send(ws, {
       type: "tick",
@@ -568,6 +631,10 @@ function handleHello(ws: Socket, msg: Record<string, unknown>): void {
       vehicleIds: [VEHICLE_ID],
     });
   }, TICK_INTERVAL_MS);
+  // Re-hello (idempotent) shouldn't restart the demo timers/re-send "ready".
+  if (firstHello) {
+    scheduleNotificationDemo(ws);
+  }
 }
 
 /** Validate the `id`/`channel` fields shared by every subscribe/unsubscribe message. */
@@ -1183,6 +1250,7 @@ const server = Bun.serve<Session, never>({
       videoStreams: new Map(),
       missionStreams: new Map(),
       commandTimers: new Set(),
+      notificationTimers: new Set(),
     };
     if (srv.upgrade(req, { data: session })) {
       return;
@@ -1206,6 +1274,10 @@ const server = Bun.serve<Session, never>({
         clearTimeout(timer);
       }
       ws.data.commandTimers.clear();
+      for (const timer of ws.data.notificationTimers) {
+        clearTimeout(timer);
+      }
+      ws.data.notificationTimers.clear();
     },
   },
 });

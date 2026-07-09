@@ -7,6 +7,7 @@
  *  - "tick"                    → connectionStore.applyTick + vehicleStore.syncVehicleIds
  *  - "telemetry"               → vehicleStore.applyTelemetry
  *  - "mission"                  → missionStore.applyMissionState
+ *  - notification               → notificationStore.addNotification
  *  - seq gaps                  → connectionStore.recordSeqGap
  */
 
@@ -15,6 +16,7 @@ import { useConnectionStore } from "./connectionStore.ts";
 import { useVehicleStore } from "./vehicleStore.ts";
 import { useParamStore } from "./paramStore.ts";
 import { useMissionStore } from "./missionStore.ts";
+import { useNotificationStore } from "./notificationStore.ts";
 
 /**
  * Subscribe the stores to a BridgeClient. Returns a cleanup function that
@@ -25,6 +27,7 @@ export function bindBridgeToStores(client: BridgeClient): () => void {
   const vehicles = useVehicleStore.getState();
   const params = useParamStore.getState();
   const missions = useMissionStore.getState();
+  const notifications = useNotificationStore.getState();
 
   // Reflect the client's current state immediately; onStateChange only
   // fires on transitions.
@@ -68,6 +71,10 @@ export function bindBridgeToStores(client: BridgeClient): () => void {
 
     client.onParamValue((message) => {
       params.applyParamValue(message);
+    }),
+
+    client.onNotification((message) => {
+      notifications.addNotification(message);
     }),
   ];
 

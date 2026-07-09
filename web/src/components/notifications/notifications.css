@@ -1,0 +1,211 @@
+/* Notification toasts + header bell/mute — dark-theme --status-* convention
+   (see components/telemetry/status.css, components/plan/WaypointList.css). */
+
+.notif-toast-stack {
+  --status-ok: #3fb950;
+  --status-warn: #d29922;
+  --status-critical: #f85149;
+
+  position: fixed;
+  top: 3.5rem;
+  right: 1rem;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(22rem, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+.notif-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  animation: notif-toast-in 0.15s ease-out;
+}
+
+@keyframes notif-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.notif-toast-severity {
+  flex: none;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.notif-toast-text {
+  font-size: 0.8rem;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.notif-toast--info {
+  border-color: rgba(47, 129, 247, 0.5);
+}
+.notif-toast--info .notif-toast-severity {
+  color: var(--accent);
+}
+
+.notif-toast--warning {
+  border-color: rgba(210, 153, 34, 0.5);
+}
+.notif-toast--warning .notif-toast-severity {
+  color: var(--status-warn);
+}
+
+.notif-toast--critical {
+  border-color: var(--status-critical);
+  background: rgba(248, 81, 73, 0.12);
+}
+.notif-toast--critical .notif-toast-severity {
+  color: var(--status-critical);
+}
+
+/* --- header bell + mute button --- */
+
+.notif-bell-group {
+  --status-ok: #3fb950;
+  --status-warn: #d29922;
+  --status-critical: #f85149;
+
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.notif-mute-button,
+.notif-bell-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.notif-mute-button:hover,
+.notif-bell-button:hover {
+  border-color: var(--accent);
+}
+
+.notif-mute-button--muted {
+  color: var(--fg-dim);
+}
+
+.notif-bell-wrap {
+  position: relative;
+}
+
+.notif-bell-badge {
+  position: absolute;
+  top: -0.3rem;
+  right: -0.3rem;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: var(--status-critical);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.05rem;
+  text-align: center;
+}
+
+.notif-bell-dropdown {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  z-index: 60;
+  width: 20rem;
+  max-height: 20rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.notif-bell-empty {
+  padding: 0.75rem;
+  color: var(--fg-dim);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.notif-bell-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.notif-bell-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 4px;
+  border-left: 3px solid transparent;
+}
+
+.notif-bell-item--info {
+  border-left-color: var(--accent);
+}
+.notif-bell-item--warning {
+  border-left-color: var(--status-warn);
+}
+.notif-bell-item--critical {
+  border-left-color: var(--status-critical);
+}
+
+.notif-bell-item-severity {
+  text-transform: uppercase;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--fg-dim);
+}
+
+.notif-bell-item-text {
+  font-size: 0.78rem;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.notif-bell-item-time {
+  font-size: 0.68rem;
+  color: var(--fg-dim);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}

@@ -138,6 +138,38 @@ export interface ParamValue {
 /** Command-lifecycle messages the bridge pushes, keyed by request id. */
 export type CommandResponse = CommandAck | CommandProgress;
 
+/** Notification severity — drives toast color and (for warning/critical) speech. */
+export type NotificationSeverity = "info" | "warning" | "critical";
+
+/**
+ * Unsolicited notification push, PROTOCOL.md §14 — server-push, no
+ * subscription, outside the channel/seq envelope like {@link Tick} (§14: "not
+ * state in the §2 sense" — a missed notification simply never displays, same
+ * as a missed tick). Dispatched by `type`, not by channel. Every
+ * hello-authenticated client receives every broadcast notification, plus one
+ * targeted welcome notification (severity "info", text "Ghost bridge ready",
+ * no vehicleId) right after its own helloAck (§14.3).
+ */
+export interface Notification {
+  type: "notification";
+  severity: NotificationSeverity;
+  /**
+   * Human-readable, already de-jargoned for speech (§14: "the same text QGC
+   * would otherwise speak locally") — safe to pass directly to
+   * speechSynthesis with no client-side reformatting.
+   */
+  text: string;
+  /** Bridge-side timestamp, microseconds since epoch (matches Tick.serverTimeUs's unit). */
+  timeUs: number;
+  /**
+   * Present only when unambiguously attributable to one vehicle at the
+   * source (§14: v0.1 omits it for every current source; multi-vehicle
+   * disambiguation, when present, rides in `text` instead). Absence does
+   * NOT imply a single-vehicle deployment — never assume that.
+   */
+  vehicleId?: number;
+}
+
 /**
  * Mission item schema, PROTOCOL.md §7.1 — field-for-field with MAVLink
  * `MISSION_ITEM_INT` (coordinates as plain degrees/meters; the bridge handles
