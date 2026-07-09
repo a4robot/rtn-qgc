@@ -162,6 +162,27 @@ option(QGC_ENABLE_TILE_CACHE "Enable the sqlite-backed map/terrain tile cache (Q
 option(QGC_ENABLE_QT_WEBSOCKETS "Use Qt's QWebSocketServer/QWebSocket for the WebBridge transport (OFF uses CPM-vendored IXWebSocket instead, dropping Qt6::WebSockets)" ON)
 
 # ============================================================================
+# State Machine Options
+# ============================================================================
+
+# src/Utilities/StateMachine/'s QGCStateMachine framework (STRANGLER_MILESTONES.md M8
+# Q8b): QState/QStateMachine (Qt6::StateMachine) by default, matching upstream. OFF swaps
+# in src/Utilities/StateMachine/portable/, a QObject-based reimplementation of the subset
+# of the framework AUDIT.md (tools/ghost/statemachine-port/AUDIT.md) found actually used by
+# the 5 real consumer machines (InitialConnectStateMachine, ComponentInformationManager,
+# RequestMetaDataTypeStateMachine, and ParameterManager's two ad-hoc PARAM_SET/
+# PARAM_REQUEST_READ machines). This is the highest-leverage remaining ghost-diet job:
+# Qt6::StateMachine INTERFACE-links Qt6::Gui (and transitively Qt6::DBus) at the Qt package
+# level regardless of whether anything actually uses Gui symbols (wave-14 Q7d finding), so as
+# long as anything links the StateMachine Qt module -- and QGCStateMachine is the only thing
+# in this repo that does -- libQt6Gui/libQt6DBus stay in the ghost's link graph even in the
+# headless/no-QML build. Selected via include-path shadowing + a disjoint target_sources()
+# list (see src/Utilities/StateMachine/CMakeLists.txt), not per-file #ifdef: the 90-file
+# framework's ON path is untouched, so upstream sync is unaffected. Default ON preserves
+# current behavior; the ghost-diet build opts out explicitly.
+option(QGC_ENABLE_QT_STATEMACHINE "Use Qt's QState/QStateMachine for QGCStateMachine (OFF uses a portable QObject-based reimplementation instead, dropping Qt6::StateMachine and transitively Qt6::Gui/Qt6::DBus)" ON)
+
+# ============================================================================
 # MAVLink Configuration
 # ============================================================================
 

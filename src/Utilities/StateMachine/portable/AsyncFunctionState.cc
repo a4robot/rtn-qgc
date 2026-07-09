@@ -1,0 +1,32 @@
+#include "AsyncFunctionState.h"
+
+AsyncFunctionState::AsyncFunctionState(const QString &stateName, QGCStateMachine *machine, SetupFunction setupFunction, int timeoutMsecs)
+    : WaitStateBase(stateName, machine, timeoutMsecs)
+    , _setupFunction(std::move(setupFunction))
+{
+}
+
+void AsyncFunctionState::connectWaitSignal()
+{
+    // Connection is set up dynamically via connectToCompletion() in the setup function
+}
+
+void AsyncFunctionState::disconnectWaitSignal()
+{
+    if (_completionConnection) {
+        disconnect(_completionConnection);
+        _completionConnection = {};
+    }
+}
+
+void AsyncFunctionState::onWaitEntered()
+{
+    if (_setupFunction) {
+        _setupFunction(this);
+    }
+
+    if (!_completionConnection && timeoutMsecs() == 0) {
+        qCCritical(QGCStateMachineLog) << stateName()
+            << "has no completion connection and no timeout - state may hang indefinitely";
+    }
+}

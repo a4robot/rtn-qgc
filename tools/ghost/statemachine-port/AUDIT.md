@@ -332,3 +332,79 @@ at audit time is only a docs-only commit ahead of that build — verified
 `git show --stat` touches only `STRANGLER_MILESTONES.md`) was reused
 per the job's own escape valve ("prefer log-category capture over code
 changes if the existing logging suffices").
+
+## Q8b results (wave 16)
+
+The port landed at `src/Utilities/StateMachine/portable/` (34 files: the
+~12 load-bearing classes plus the 3 diagnostic helpers this doc's
+minimal-replacement spec called out), selected by
+`QGC_ENABLE_QT_STATEMACHINE` (default ON = this doc's 90-file framework,
+untouched; OFF = portable/). See `src/Utilities/StateMachine/CMakeLists.txt`
+and `portable/QGCStateMachine.h`'s header comment for the design.
+
+**ldd**: `libQt6StateMachine.so` is gone from the OFF binary's link graph, as
+predicted. `libQt6Gui.so`/`libQt6DBus.so` are *still* present, but not
+because of this subsystem — `src/Utilities/Geo/CMakeLists.txt`'s
+`QGCGeoMath` target links `Qt6::Gui` unconditionally (not `QGC_ENABLE_QML`-
+gated) because `QGCGeo.cc`/`.h` uses `QVector3D` (a Qt6::Gui type despite
+being pure 3-float-vector math) for headless-reachable ENU/ECEF coordinate
+conversions. This was previously masked by `Qt6::StateMachine`'s own Gui
+pull; eliminating it is a distinct follow-up job. Remaining Qt libs on the
+OFF binary: Core, DBus, Gui, Network, Positioning, SerialPort (7→6, not the
+theoretical 7→4, precisely because of the QGCGeoMath finding above).
+
+**Replay-compare**: byte-identical against `baseline-mocklink-connect.log`
+after one *additional*, documented normalization on top of `capture.sh`'s
+existing one: the trailing `` - (Class::Method:line)`` context suffix
+(`LogManager`'s `%{function}:%{line}` message pattern) is stripped for
+lines in the `Utilities.QGCStateMachine` category only. This category's
+backing source files are exactly what this port rewrites, so their
+`__PRETTY_FUNCTION__`/line-number metadata necessarily differs from the
+Qt-based original's even when the class name, method name, category,
+message text, and — critically — the *order* of every line are identical;
+verifying it word-for-word would be verifying source-file layout, not
+transition semantics. Every *other* category's lines (originating from the
+five unchanged consumer files) matched the baseline byte-for-byte with no
+normalization needed. Verified over 5 consecutive runs post-fix (see
+below), all byte-identical after normalization.
+
+**A genuine ordering bug, found and fixed**: an early version of this port
+posted one fresh `Qt::QueuedConnection` dispatch per transition. That
+introduced two problems, both traced empirically (not by inspection alone):
+1. ParameterManager's ad-hoc `PARAM_SET` machine's `WaitForParamResponseState`
+   would spuriously time out against MockLink's response in a large fraction
+   of runs (MockLink runs its own `QThread` worker) — because each of the
+   chain's trivial hops (`SendMavlinkMessageState` → a `FunctionState` →
+   `WaitForParamResponseState`) was a fresh trip through the *generic* Qt
+   event queue, giving MockLink's cross-thread traffic more opportunities to
+   interleave ahead of the listener being armed than the Qt-based original's
+   internal event processing (which drains a chain like this without
+   yielding back to the outer event loop between hops).
+2. The fix — draining all currently-queued transition steps in a loop
+   instead of re-posting per hop — initially used a *per-instance* queue,
+   which broke `ComponentInformationManager`'s completion ordering relative
+   to `InitialConnectStateMachine`'s next transition (two *different*
+   machine instances triggering each other mid-chain need one global FIFO,
+   not two independently-draining local ones). Fixed by making the pending-
+   step queue process-wide (`QGCStateMachine::_scheduleStep`/`_drainSteps`,
+   static, shared by every instance) — see `portable/QGCStateMachine.cc`'s
+   `qgcStateMachinePendingSteps()` for the detail and rationale.
+
+**Conformance/probe**: `tools/ghost/mockghostprobe.ts` 6/6.
+`tools/ghost/conformance/run.ts` 68-69/69 PASS (69 total minus the 2
+environment-gated SKIPs — `--bridge-token` and the video group — both
+expected without a second auth instance / GST feed), 0 FAIL, 0 GAP, run
+against the OFF binary.
+
+**Unit tests**: `test/Utilities/StateMachine/` (the Qt-based framework's
+own suite — `QGCStateMachineTest`, per-state/per-transition tests including
+several for classes this port intentionally excludes, e.g.
+`GuardedTransitionTest`, `ParallelStateTest`, `TimeoutTransitionTest`) is
+gated behind `QGC_ENABLE_QT_STATEMACHINE` too now, so it only compiles in
+the ON config — porting that coverage to the portable framework is out of
+this v1 port's scope (flagged, not silently dropped; see
+`test/Utilities/StateMachine/CMakeLists.txt`'s comment). Not build-verified
+under `QGC_BUILD_TESTING=ON` this wave (ON-path files are unmodified, and
+`QGC_BUILD_TESTING` defaults OFF for Release builds either way) — flagged
+for whoever next touches this to confirm with a Debug/testing-enabled
+build.
