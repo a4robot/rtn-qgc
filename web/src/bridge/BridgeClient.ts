@@ -20,7 +20,9 @@ import type {
   BridgeMessage,
   Channel,
   ClientMessage,
+  CommandAck,
   CommandResponse,
+  MissionAck,
   MissionResponse,
   Notification,
   Telemetry,
@@ -432,6 +434,29 @@ export class BridgeClient {
     }
     if (type === "error") {
       console.warn("[BridgeClient] bridge error:", data);
+      // PROTOCOL.md §10: a request-answering error (one that echoes the request `id`, e.g.
+      // CommandChannel/MissionChannel's UNKNOWN_VEHICLE) is the *only* response a `command` or
+      // mission* request will ever get in that case — no commandAck/missionAck follows. The
+      // request-tracking UI (useCommandRequests, WaypointList) only understands the ack shapes,
+      // so translate a keyed error into a synthetic rejected ack and fan it out to both response
+      // handler sets (the id only matches whichever store is actually tracking it; the other
+      // dispatch is a harmless no-op, same as any unrecognized id already is for those reducers).
+      // Unsolicited errors (no `id`, e.g. AUTH_REQUIRED/BAD_MESSAGE for a malformed frame) are
+      // intentionally left as the console.warn above only — there is no in-flight request to
+      // resolve.
+      const err = message as { id?: unknown; code?: unknown; message?: unknown; vehicleId?: unknown };
+      if (typeof err.id === "string" && err.id.length > 0) {
+        const vehicleId = typeof err.vehicleId === "number" ? err.vehicleId : -1;
+        const reason = typeof err.message === "string" ? err.message : typeof err.code === "string" ? err.code : "error";
+        const commandRejection: CommandAck = { type: "commandAck", id: err.id, vehicleId, status: "rejected", reason };
+        for (const handler of this.commandResponseHandlers) {
+          handler(commandRejection);
+        }
+        const missionRejection: MissionAck = { type: "missionAck", id: err.id, vehicleId, status: "rejected", reason };
+        for (const handler of this.missionResponseHandlers) {
+          handler(missionRejection);
+        }
+      }
       return;
     }
 

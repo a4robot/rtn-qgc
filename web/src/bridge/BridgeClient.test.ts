@@ -8,7 +8,7 @@
 import { beforeEach, expect, test } from "bun:test";
 
 import { BridgeClient } from "./BridgeClient.ts";
-import type { Channel } from "./types.ts";
+import type { Channel, CommandResponse, MissionResponse } from "./types.ts";
 
 class FakeSocket {
   static readonly CONNECTING = 0;
@@ -255,6 +255,63 @@ test("onSeqGap still observes gaps independently of the resubscribe hook", () =>
   socket.simulateMessage(telemetry(5));
 
   expect(gaps).toEqual([{ channel: "telemetry", expectedSeq: 2, receivedSeq: 5 }]);
+
+  client.disconnect();
+});
+
+test("keyed error: a §10 error carrying an id is translated into a rejected commandAck AND missionAck", () => {
+  // CommandChannel/MissionChannel answer an unknown-vehicle command/mission* request with a §10
+  // error envelope (Wave 15, consistent with FactChannel) instead of their usual ack shape — the
+  // client has no way to know up front which store (command or mission) was awaiting this id, so
+  // both handler sets get a synthetic rejection; only the one actually tracking the id acts on it.
+  const client = new BridgeClient();
+  client.connect("ws://fake");
+  const socket = latestSocket();
+  socket.simulateOpen();
+
+  const commandSeen: CommandResponse[] = [];
+  const missionSeen: MissionResponse[] = [];
+  client.onCommandResponse((message) => commandSeen.push(message));
+  client.onMissionResponse((message) => missionSeen.push(message));
+
+  socket.simulateMessage(
+    JSON.stringify({
+      type: "error",
+      id: "c-bogus-vehicle",
+      code: "UNKNOWN_VEHICLE",
+      message: "Unknown vehicle",
+      vehicleId: 999999,
+      retryable: false,
+    }),
+  );
+
+  expect(commandSeen).toEqual([
+    { type: "commandAck", id: "c-bogus-vehicle", vehicleId: 999999, status: "rejected", reason: "Unknown vehicle" },
+  ]);
+  expect(missionSeen).toEqual([
+    { type: "missionAck", id: "c-bogus-vehicle", vehicleId: 999999, status: "rejected", reason: "Unknown vehicle" },
+  ]);
+
+  client.disconnect();
+});
+
+test("keyed error: an unsolicited error (no id) is NOT translated into any ack", () => {
+  const client = new BridgeClient();
+  client.connect("ws://fake");
+  const socket = latestSocket();
+  socket.simulateOpen();
+
+  const commandSeen: CommandResponse[] = [];
+  const missionSeen: MissionResponse[] = [];
+  client.onCommandResponse((message) => commandSeen.push(message));
+  client.onMissionResponse((message) => missionSeen.push(message));
+
+  socket.simulateMessage(
+    JSON.stringify({ type: "error", code: "BAD_MESSAGE", message: "Unparseable JSON", retryable: false }),
+  );
+
+  expect(commandSeen).toEqual([]);
+  expect(missionSeen).toEqual([]);
 
   client.disconnect();
 });

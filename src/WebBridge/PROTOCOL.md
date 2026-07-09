@@ -83,9 +83,13 @@ If `protocolVersion` major version is unsupported, server replies with error `UN
 { "type": "unsubscribe", "id": "s2", "channel": "telemetry", "vehicleId": 1 }
 ```
 
-Ack: `{ "type": "subscribeAck", "id": "s1", "channel": "telemetry", "vehicleId": 1 }` followed immediately by the snapshot. Unknown channel → error `UNKNOWN_CHANNEL`; unknown vehicle → error `UNKNOWN_VEHICLE`.
+Ack: `{ "type": "subscribeAck", "id": "s1", "channel": "telemetry", "vehicleId": 1 }` followed immediately by the snapshot (if the vehicle is already known -- see below). Unknown channel → error `UNKNOWN_CHANNEL`; a vehicle-scoped channel (`telemetry`, `mission`) with `vehicleId` omitted entirely → error `BAD_MESSAGE` (§10: "missing required field" — §3's envelope table marks `vehicleId` required for vehicle-scoped messages).
 
 Subscribable channels: `telemetry`, `mission`, `video` (uses `streamId` instead of `vehicleId`, §9), `adsb`.
+
+> **Late-binding subscribes (v0.1 clarification).** A `subscribe` naming a `vehicleId` that is *not currently* in the tracked vehicle set (i.e. not in the most recent `tick.vehicleIds`, §11.1) is **not** an error: it is `subscribeAck`'d exactly like a known vehicle, and simply produces no snapshot yet — the client is now durably subscribed to that (channel, vehicleId) stream and starts receiving state transparently the moment the vehicle appears (no re-subscribe needed), same as if it had subscribed after the vehicle connected. This is deliberate, not a bug: the web client's own startup handshake (`web/src/bridge/session.ts`) subscribes `telemetry`/`mission` for its configured vehicle immediately after `hello`, routinely *before* a MockLink or real vehicle has finished attaching (autopilot boot/handshake can take ~1 s or more) — rejecting that subscribe with `UNKNOWN_VEHICLE` would break every cold start unless the client added its own "wait for tick, then subscribe" gate, which v0.1 does not require. A caveat of this: because delivery isn't gated by an explicit re-subscribe, the *first* message a late-bound client actually receives is not guaranteed to carry `snapshot: true` / `seq: 1` — it is instead whatever the channel's next periodic publish produces for that vehicle (still a **complete** current-state message per §2's "state, not events", just not flagged as the stream's first message). A client that cares about the seq/snapshot invariant for a vehicle it isn't sure exists yet should watch `tick.vehicleIds` and only subscribe (or re-subscribe, to force a fresh seq-1 snapshot) once the id appears there.
+>
+> An `UNKNOWN_VEHICLE` error remains reserved for vehicle-scoped **request/response** messages answered against a specific `vehicleId` at the moment they are handled — `command` (§5), `getParam`/`setParam` (§6), and `missionUpload`/`missionDownload`/`missionClear` (§7.2) all reply with the §10 error envelope (not their usual ack shape) when `vehicleId` does not resolve to a tracked vehicle *right now*, since (unlike a subscribe) there is no later moment at which that specific request could still be answered.
 
 ---
 
@@ -159,6 +163,8 @@ Every response carries `status` (`accepted` | `rejected`), a human-readable `rea
 ```
 
 `accepted` means the autopilot accepted the command, not that the action completed — track completion via telemetry (`armed`, `flightMode`, `altRel`) and progress messages.
+
+A `command` naming a `vehicleId` that does not resolve to a currently-tracked vehicle is answered with the §10 error envelope (`UNKNOWN_VEHICLE`), not a `commandAck` — see §3.1's late-binding note for why this differs from `subscribe`'s treatment of the same condition.
 
 ### 5.3 Progress (unsolicited, 0..n per request)
 
@@ -249,7 +255,9 @@ Responses:
 { "type": "missionAck", "id": "m-3", "vehicleId": 1, "status": "accepted", "itemCount": 0 }
 ```
 
-Failures use `status: "rejected"` + `reason` (+ `mavResult`/`MAV_MISSION_RESULT` in `mavResult` when available). Subscribing to channel `mission` yields a `missionState` snapshot/update stream (current mission `items`, `currentSeq`) following §2 — the on-vehicle mission is state like any other.
+Failures use `status: "rejected"` + `reason` (+ `mavResult`/`MAV_MISSION_RESULT` in `mavResult` when available). A mission message naming a `vehicleId` that does not resolve to a currently-tracked vehicle is answered with the §10 error envelope (`UNKNOWN_VEHICLE`) instead of a `missionAck`/`missionItems` — same reasoning as §5.2's `command` note. Subscribing to channel `mission` yields a `missionState` snapshot/update stream (current mission `items`, `currentSeq`) following §2 — the on-vehicle mission is state like any other.
+
+> **`itemCount` may be less than the uploaded array length.** A successful `missionUpload`'s `missionAck.itemCount` reflects the vehicle's *post-write* mission item count, not `items.length` from the request — `PlanManager::writeMissionItems()` silently drops the first (home) item before sending when the firmware doesn't want it sent as part of the mission proper (`MISSION_TYPE_MISSION`'s home-item convention). A client that uploads N items should not assert `itemCount === N`; asserting `itemCount >= 1` (or comparing against a separately-tracked "did this include a home item" expectation) is the correct check.
 
 ```json
 { "type": "missionState", "channel": "mission", "vehicleId": 1, "seq": 3, "snapshot": false,
@@ -318,6 +326,8 @@ Each binary WS frame carries exactly one H.264 access unit prefixed by a fixed *
 | 16 | n | payload | One complete **Annex-B H.264 access unit** (start codes included) |
 
 Rules: the first binary frame after `videoConfig` is a keyframe; a client joining mid-stream renders nothing until the first keyframe; frames with bad magic/version are dropped and counted, not fatal. Binary frames carry no `seq` — video is inherently lossy state; recovery is "wait for next keyframe", and stream (re)configuration arrives via `videoConfig` on the JSON side.
+
+This is a per-client, server-enforced guarantee, not just client-side advice: the bridge withholds binary frames from each client individually from the moment it (re)subscribes to a `video` stream until the next keyframe for that stream arrives, then forwards normally — a client that subscribes mid-GOP never sees a non-keyframe first frame, regardless of what other already-synced clients on the same stream are receiving concurrently.
 
 ---
 

@@ -9,7 +9,7 @@
  * it's treated as a hard failure -- for CI legs that provision the feed themselves and want to
  * catch a regression that silently drops video.
  */
-import { check, gap, skip, TestConn } from "../lib.ts";
+import { check, skip, TestConn } from "../lib.ts";
 
 export async function runVideoGroup(url: string, streamId: number, videoExpected: boolean): Promise<void> {
   const conn = await TestConn.openAuthed(url);
@@ -65,22 +65,16 @@ export async function runVideoGroup(url: string, streamId: number, videoExpected
   const flags = dv.getUint8(4);
   check("§9.2 flags bits 1-7 are reserved (0)", (flags & 0xfe) === 0, flags);
 
-  // --- GAP: §9.2 states plainly "the first binary frame after videoConfig is a keyframe; a
-  // client joining mid-stream renders nothing until the first keyframe." In the real
-  // implementation, a (re)subscribe replays the last cached videoConfig (WebBridgeServer.cc's
-  // cacheVideoConfig()/late-subscriber replay) but frameReady() is a single global broadcast of
-  // whatever the live GStreamer tee emits next (VideoStreamServer.h's own doc comment calls this
-  // a "stop-gap") -- there is no per-client "wait for the next IDR before forwarding" gate. A
-  // client subscribing to an already-running stream lands mid-GOP and gets a non-keyframe first,
-  // reproduced 4/4 times in manual probing against a live feed (this run makes it 5/5 or reports
-  // the divergence closing -- see the escalation note in lib.ts's gap() if this ever flips).
-  // Client-side, this means "wait for the first keyframe before rendering" (§9.2's own stated
-  // fallback) is NOT optional polish -- it is load-bearing from the very first frame, for any
-  // subscriber that isn't the single original one.
+  // --- §9.2: "the first binary frame after videoConfig is a keyframe; a client joining
+  // mid-stream renders nothing until the first keyframe." Fixed in Wave 15:
+  // WebBridgeServer::broadcastBinary() now gates each client individually
+  // (ClientState::videoPendingKeyframe) from the moment it (re)subscribes to a video stream until
+  // the next keyframe for that stream is seen, withholding non-keyframe frames from that client
+  // only -- see PROTOCOL.md §9.2's per-client enforcement note.
   const isKeyframe = (flags & 0x01) === 1;
-  gap(
-    "§9.2 GAP: first binary frame after (re)subscribe is not reliably a keyframe (no per-client keyframe-wait gate; VideoStreamServer.h calls this a stop-gap)",
-    !isKeyframe,
+  check(
+    "§9.2 first binary frame after (re)subscribe is a keyframe (per-client keyframe-wait gate)",
+    isKeyframe,
     { observedKeyframeBit: isKeyframe ? 1 : 0, expectedPerSpec: 1 },
   );
 

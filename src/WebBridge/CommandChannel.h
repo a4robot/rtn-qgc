@@ -58,9 +58,11 @@ public:
 public slots:
     /// Connectable to WebBridgeServer::commandReceived(quint64, QJsonObject). @p request is the
     /// full §5.1 envelope (id/vehicleId/action already validated non-empty by WebBridgeServer;
-    /// params/action semantics validated here). Always emits exactly one responseReady() with a
-    /// `commandAck` (§5.2) -- never a §10 error envelope; unknown/invalid input is expressed as
-    /// a rejected ack instead (per assignment: "Unknown action -> rejected ack, not a §10
+    /// params/action semantics validated here). Always emits exactly one responseReady(): a
+    /// `commandAck` (§5.2) for every outcome except an unknown vehicleId, which answers with a
+    /// §10 `error` envelope (UNKNOWN_VEHICLE) instead -- consistent with FactChannel's handling
+    /// of the same condition. Unknown/invalid action (a *known* vehicle, bad `action`/`params`)
+    /// stays a rejected ack, not a §10 error (per: "Unknown action -> rejected ack, not a §10
     /// error").
     void handleCommand(quint64 clientToken, const QJsonObject &request);
 
@@ -75,6 +77,15 @@ private:
     /// (-1) means "the autopilot did not answer" (or this action is not correlated at all), in
     /// which case §5.2's "mavResult ... when the autopilot answered" is honored by omitting it.
     static QJsonObject _makeAck(const QString &id, int vehicleId, bool accepted, const QString &reason = QString(), int mavResult = -1);
+
+    /// Builds a §10 error envelope ({type: "error", id, code, message, vehicleId, retryable}).
+    /// Used for `command` requests targeting a vehicleId this channel has no Vehicle for --
+    /// consistent with FactChannel's getParam/setParam handling of the identical condition
+    /// (PROTOCOL.md §10's UNKNOWN_VEHICLE: "vehicleId not connected"), unlike every other
+    /// rejection in this class (which stays a plain rejected `commandAck` per the class doc's
+    /// "unknown action -> rejected ack, not a §10 error" convention -- this one case is different
+    /// because the failure is about the envelope's addressing, not the action itself).
+    static QJsonObject _makeUnknownVehicleError(const QString &id, int vehicleId);
 
     /// (vehicleId, MAV_CMD) -- the correlation key for a single in-flight request. At most one
     /// pending entry may exist per key at a time (see _dispatch()); a second request that maps

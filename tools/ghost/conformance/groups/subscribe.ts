@@ -4,11 +4,11 @@
  * Covers: subscribeAck echoes id/channel/vehicleId, unknown channel -> UNKNOWN_CHANNEL, missing
  * required field -> BAD_MESSAGE, unsubscribe stops the stream, re-subscribe restarts seq at 1
  * with a fresh snapshot (§2.4's gap-detection re-subscribe contract), and connection survives all
- * of the above. Also documents a real conformance gap: §3.1 says "unknown vehicle -> error
- * UNKNOWN_VEHICLE" but the telemetry/mission channels silently subscribeAck an unknown vehicleId
- * and then never send a snapshot (no error, ever) -- see the gap() call below.
+ * of the above. Also covers §3.1's two vehicleId edge cases, both now NORMATIVE (not gaps, as of
+ * Wave 15): a `vehicleId` naming a not-yet-tracked vehicle is accepted (late-binding subscribe,
+ * §3.1's doc note) while a vehicle-scoped channel with `vehicleId` omitted entirely is BAD_MESSAGE.
  */
-import { check, gap, telemetrySchemaOk, TestConn } from "../lib.ts";
+import { check, telemetrySchemaOk, TestConn } from "../lib.ts";
 
 export async function runSubscribeGroup(url: string, vehicleId: number): Promise<void> {
   const conn = await TestConn.openAuthed(url);
@@ -60,40 +60,49 @@ export async function runSubscribeGroup(url: string, vehicleId: number): Promise
 
   check("§3.1/§10 connection survives every error above", conn.isOpen);
 
-  // --- §3.1 GAP: "unknown vehicle -> error UNKNOWN_VEHICLE" is explicit normative text. The real
-  // bridge instead subscribeAcks an unknown vehicleId unconditionally (WebBridgeServer.cc's
-  // _handleSubscription() never validates the scope id against MultiVehicleManager) and the
-  // owning channel's sendSnapshot() (TelemetryChannel.cc / MissionChannel.cc) just silently
-  // no-ops ("qCDebug ... unknown vehicleId") when it can't find the vehicle -- no error, no
-  // snapshot, ever. FactChannel (getParam/setParam) DOES implement this correctly (see
-  // command.ts's/mission.ts's matching gap() calls for the same pattern on those channels).
+  // --- §3.1 late-binding subscribe (NORMATIVE as of Wave 15, see PROTOCOL.md §3.1's doc note):
+  // a vehicleId not in the currently-tracked vehicle set is accepted (subscribeAck'd) rather than
+  // erroring -- it produces no snapshot yet (this bogus id will never actually connect, so "yet"
+  // never arrives within the probe window), but the subscription is durably recorded and delivery
+  // would begin transparently if/when the vehicle appeared. This is deliberate: the web client's
+  // startup handshake (web/src/bridge/session.ts) subscribes telemetry/mission for its configured
+  // vehicle immediately after hello, routinely before a MockLink/real vehicle finishes attaching.
   const bogusVehicleId = 999999;
   conn.send({ type: "subscribe", id: "e4", channel: "telemetry", vehicleId: bogusVehicleId });
   const unknownVehicleAck = await conn.next("subscribeAck for bogus vehicleId", (m) => m.type === "subscribeAck" && m.id === "e4");
   const noError = await conn.tryNext((m) => m.type === "error" && m.id === "e4", 300);
   const noSnapshot = await conn.tryNext((m) => m.type === "telemetry" && m.vehicleId === bogusVehicleId, 700);
-  gap(
-    "§3.1 GAP: subscribe with unknown vehicleId should error UNKNOWN_VEHICLE, but real bridge subscribeAcks + goes silent (no error, no snapshot, ever)",
+  check(
+    "§3.1 subscribe with a not-yet-tracked vehicleId is accepted (late-binding), not UNKNOWN_VEHICLE",
     unknownVehicleAck.vehicleId === bogusVehicleId && noError === null && noSnapshot === null,
     { ack: unknownVehicleAck, noError, noSnapshot },
   );
 
-  // --- Same root cause, different trigger: subscribing to a vehicle-scoped channel with
-  // vehicleId OMITTED entirely (not just wrong) is not rejected either. §3's envelope table
-  // marks `vehicleId` required "for vehicle-scoped messages", which subscribe/telemetry clearly
-  // is -- a strict reading says this should be BAD_MESSAGE (§10: "missing required field"). The
-  // real bridge instead treats a missing vehicleId exactly like an unknown one: subscribeAck
-  // (with no vehicleId field, since WebBridgeServer.cc's `hasVehicleId` is false) and then
-  // silence forever (TelemetryChannel::sendSnapshot(kNoVehicleId) finds no vehicle either).
+  // --- §3/§10: subscribing to a vehicle-scoped channel with vehicleId OMITTED entirely (not just
+  // unresolvable) IS a malformed request -- §3's envelope table marks `vehicleId` required "for
+  // vehicle-scoped messages", and unlike the late-binding case above there is no id to bind to
+  // later. Fixed in Wave 15 (WebBridgeServer::_handleSubscription() now checks channel membership
+  // in the vehicle-scoped set before accepting).
   conn.send({ type: "subscribe", id: "e5", channel: "telemetry" }); // vehicleId omitted entirely
-  const missingVehicleAck = await conn.next("subscribeAck with vehicleId omitted", (m) => m.type === "subscribeAck" && m.id === "e5");
-  const noErrorMissing = await conn.tryNext((m) => m.type === "error" && m.id === "e5", 300);
-  const noSnapshotMissing = await conn.tryNext((m) => m.type === "telemetry" && m.vehicleId === undefined, 700);
-  gap(
-    "§3/§10 GAP: subscribe to a vehicle-scoped channel with vehicleId omitted should be BAD_MESSAGE, but real bridge subscribeAcks + goes silent",
-    missingVehicleAck.vehicleId === undefined && noErrorMissing === null && noSnapshotMissing === null,
-    { ack: missingVehicleAck, noErrorMissing, noSnapshotMissing },
+  const missingVehicleErr = await conn.next("BAD_MESSAGE for vehicleId omitted", (m) => m.type === "error" && m.id === "e5");
+  check(
+    "§3/§10 subscribe to a vehicle-scoped channel with vehicleId omitted -> error BAD_MESSAGE",
+    missingVehicleErr.code === "BAD_MESSAGE",
+    missingVehicleErr,
   );
+
+  // Same rule applies to `mission` (the other vehicle-scoped channel); `video` (streamId-scoped)
+  // and `adsb` (unscoped) are deliberately NOT covered by this rule -- see the vehicle-scoped set
+  // in WebBridgeServer::_handleSubscription().
+  conn.send({ type: "subscribe", id: "e6", channel: "mission" }); // vehicleId omitted entirely
+  const missingVehicleErrMission = await conn.next("BAD_MESSAGE for vehicleId omitted (mission)", (m) => m.type === "error" && m.id === "e6");
+  check(
+    "§3/§10 subscribe to mission with vehicleId omitted -> error BAD_MESSAGE",
+    missingVehicleErrMission.code === "BAD_MESSAGE",
+    missingVehicleErrMission,
+  );
+
+  check("§3.1/§10 connection survives every error/edge case above", conn.isOpen);
 
   conn.close();
 }

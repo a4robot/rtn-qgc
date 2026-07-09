@@ -84,8 +84,12 @@ signals:
     /// Because h264parse is configured with config-interval=-1 (§9.2's "keyframes must be
     /// preceded by in-band SPS/PPS" requirement), SPS/PPS is actually re-observed before *every*
     /// keyframe; this signal only re-fires when the bytes actually differ from the last one
-    /// sent, so it does not fire once per GOP in the steady-state case. See stop-gap note in
-    /// VideoStreamServer.cc about replaying the last config to newly-subscribing clients.
+    /// sent, so it does not fire once per GOP in the steady-state case. WebBridgeServer replays
+    /// the last cached config to a newly-subscribing client (cacheVideoConfig()) and separately
+    /// withholds this class's frameReady() binary frames from that client until its first
+    /// keyframe (WebBridgeServer::broadcastBinary()'s per-client keyframe gate, PROTOCOL.md §9.2)
+    /// -- this class itself stays a single global broadcaster of whatever the live pipeline emits
+    /// next; it does not know about individual clients.
     ///
     /// Same cross-thread-emission note as frameReady() applies (QJsonObject is also
     /// implicitly-shared / safe to copy across threads).

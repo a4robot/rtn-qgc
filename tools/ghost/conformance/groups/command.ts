@@ -10,7 +10,7 @@
  * therefore written to be self-resetting (a leading, tolerant "make sure we start disarmed" step)
  * rather than assuming a known starting armed state.
  */
-import { check, gap, TestConn } from "../lib.ts";
+import { check, TestConn } from "../lib.ts";
 
 /** Waits for a FRESH telemetry sample confirming `armed`. Drains any already-buffered telemetry
  * first: `TestConn.next()` does a `findIndex` over the whole buffer, so a stale sample from
@@ -77,19 +77,15 @@ export async function runCommandGroup(url: string, vehicleId: number): Promise<v
   const unknownActionAck = await conn.next("unknown-action commandAck", (m) => m.type === "commandAck" && m.id === "c-unknown-action", 2000);
   check("§5 unknown action -> rejected commandAck (not a §10 error)", unknownActionAck.status === "rejected" && typeof unknownActionAck.reason === "string", unknownActionAck);
 
-  // --- GAP: command to an unknown vehicle. §10's error table lists UNKNOWN_VEHICLE generically
-  // ("vehicleId not connected") and FactChannel (getParam/setParam) implements exactly that as a
-  // §10 error envelope for this condition. CommandChannel instead answers with an ordinary
-  // rejected commandAck carrying reason "Unknown vehicle" -- a real, protocol-visible surface
-  // that a client branching on `type === "error"` vs `type === "commandAck"` would need to know
-  // about. Not unambiguously "wrong" (§5.2 never explicitly promises an error envelope here), but
-  // it is inconsistent with FactChannel's handling of the identical condition -- pinned as a gap.
+  // --- §10: command to an unknown vehicle. Fixed in Wave 15 for consistency with FactChannel
+  // (getParam/setParam), which already answered this condition with a §10 error envelope:
+  // CommandChannel now does too (UNKNOWN_VEHICLE), instead of the old rejected-commandAck shape.
   const bogusVehicleId = 999999;
   conn.send({ type: "command", id: "c-bogus-vehicle", vehicleId: bogusVehicleId, action: "arm", params: {} });
-  const bogusVehicleAck = await conn.next("commandAck for unknown vehicle", (m) => (m.type === "commandAck" || m.type === "error") && m.id === "c-bogus-vehicle", 2000);
-  gap(
-    "§10 GAP: command to unknown vehicle answers with rejected commandAck, not error UNKNOWN_VEHICLE (inconsistent with FactChannel)",
-    bogusVehicleAck.type === "commandAck" && bogusVehicleAck.status === "rejected" && bogusVehicleAck.reason === "Unknown vehicle",
+  const bogusVehicleAck = await conn.next("response for unknown-vehicle command", (m) => (m.type === "commandAck" || m.type === "error") && m.id === "c-bogus-vehicle", 2000);
+  check(
+    "§10 command to unknown vehicle -> error UNKNOWN_VEHICLE (consistent with FactChannel)",
+    bogusVehicleAck.type === "error" && bogusVehicleAck.code === "UNKNOWN_VEHICLE" && bogusVehicleAck.vehicleId === bogusVehicleId,
     bogusVehicleAck,
   );
 

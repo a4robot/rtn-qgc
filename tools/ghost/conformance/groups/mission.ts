@@ -5,7 +5,7 @@
  * Runs against a real MockLink vehicle's MissionManager -- upload/clear are real PlanManager
  * transactions (async, correlated), not canned mock echoes.
  */
-import { check, gap, TestConn } from "../lib.ts";
+import { check, TestConn } from "../lib.ts";
 
 export async function runMissionGroup(url: string, vehicleId: number): Promise<void> {
   const conn = await TestConn.openAuthed(url);
@@ -103,16 +103,16 @@ export async function runMissionGroup(url: string, vehicleId: number): Promise<v
   const afterClear = await conn.next("missionState update after clear (empty)", (m) => isMissionState(m) && Array.isArray(m.items) && (m.items as unknown[]).length === 0, 3000);
   check("§7.2 missionState update after clear has an empty item list", Array.isArray(afterClear.items) && (afterClear.items as unknown[]).length === 0, afterClear.items);
 
-  // --- GAP: mission message to an unknown vehicle -- same pattern as command.ts. §10's
-  // UNKNOWN_VEHICLE error is not used here either; MissionChannel answers with an ordinary
-  // rejected missionAck reason "Unknown vehicle" instead (handleMissionMessage()'s early-return
-  // when `!vehicle || !vehicle->missionManager()`).
+  // --- §10: mission message to an unknown vehicle -- same fix as command.ts. MissionChannel now
+  // answers with the §10 error envelope (UNKNOWN_VEHICLE), consistent with FactChannel, instead
+  // of the old rejected-missionAck shape (handleMissionMessage()'s early-return when
+  // `!vehicle || !vehicle->missionManager()`).
   const bogusVehicleId = 999999;
   conn.send({ type: "missionDownload", id: "md-bogus", vehicleId: bogusVehicleId });
   const bogusResp = await conn.next("response for unknown-vehicle missionDownload", (m) => (m.type === "missionAck" || m.type === "error") && m.id === "md-bogus", 2000);
-  gap(
-    "§10 GAP: mission message to unknown vehicle answers with rejected missionAck, not error UNKNOWN_VEHICLE",
-    bogusResp.type === "missionAck" && bogusResp.status === "rejected" && bogusResp.reason === "Unknown vehicle",
+  check(
+    "§10 mission message to unknown vehicle -> error UNKNOWN_VEHICLE (consistent with FactChannel)",
+    bogusResp.type === "error" && bogusResp.code === "UNKNOWN_VEHICLE" && bogusResp.vehicleId === bogusVehicleId,
     bogusResp,
   );
 

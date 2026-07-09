@@ -68,11 +68,12 @@ public slots:
     /// Connectable to WebBridgeServer::missionMessageReceived(clientToken, request). @p request
     /// is the full §7.2 envelope (id/vehicleId already validated present by WebBridgeServer);
     /// `type` selects missionUpload/missionDownload/missionClear, each validated and dispatched
-    /// here. Always emits exactly one responseReady() -- either a `missionItems` response
-    /// (successful missionDownload) or a `missionAck` (§7.2: every other outcome, success or
-    /// rejected) -- never a §10 error envelope; unknown message types or malformed items are
-    /// expressed as a rejected missionAck instead, matching CommandChannel's "unknown action ->
-    /// rejected ack, not a §10 error" convention.
+    /// here. Always emits exactly one responseReady(): a `missionItems` response (successful
+    /// missionDownload), a `missionAck` (§7.2: every other outcome, success or rejected), or --
+    /// for an unknown vehicleId specifically -- a §10 `error` envelope (UNKNOWN_VEHICLE),
+    /// consistent with FactChannel's handling of the same condition. Unknown message types or
+    /// malformed items (a *known* vehicle) stay a rejected missionAck, matching CommandChannel's
+    /// "unknown action -> rejected ack, not a §10 error" convention.
     void handleMissionMessage(quint64 clientToken, const QJsonObject &request);
 
 signals:
@@ -183,6 +184,13 @@ private:
     /// included only when @p itemCount >= 0 (missionAck always carries it on success per the
     /// examples, so callers pass a real count in that case).
     static QJsonObject _makeAck(const QString &id, int vehicleId, bool accepted, const QString &reason = QString(), int itemCount = -1);
+
+    /// Builds a §10 error envelope ({type: "error", id, code, message, vehicleId, retryable}) for
+    /// a mission message targeting a vehicleId this channel has no Vehicle (or MissionManager)
+    /// for. Mirrors CommandChannel::_makeUnknownVehicleError()'s reasoning: this is the one
+    /// rejection in this class that is about request *addressing*, not mission-operation
+    /// semantics, so it gets the §10 error shape FactChannel already uses for the same condition.
+    static QJsonObject _makeUnknownVehicleError(const QString &id, int vehicleId);
 
     WebBridge *_bridge = nullptr;                          ///< Not owned
     QHash<int, Vehicle *> _vehicles;                        ///< vehicleId -> Vehicle (not owned)

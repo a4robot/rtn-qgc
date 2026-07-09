@@ -276,8 +276,11 @@ void MissionChannel::handleMissionMessage(quint64 clientToken, const QJsonObject
 
     Vehicle *vehicle = _vehicles.value(vehicleId, nullptr);
     if (!vehicle || !vehicle->missionManager()) {
+        // §10 error envelope (UNKNOWN_VEHICLE), not a rejected missionAck -- see
+        // _makeUnknownVehicleError()'s doc comment for why this one case differs from the class's
+        // usual "rejected ack, not a §10 error" convention.
         qCDebug(MissionChannelLog) << "handleMissionMessage: unknown vehicle or no MissionManager for" << vehicleId;
-        emit responseReady(clientToken, _makeAck(id, vehicleId, false, QStringLiteral("Unknown vehicle")));
+        emit responseReady(clientToken, _makeUnknownVehicleError(id, vehicleId));
         return;
     }
 
@@ -563,4 +566,18 @@ QJsonObject MissionChannel::_makeAck(const QString &id, int vehicleId, bool acce
         ack[QStringLiteral("itemCount")] = itemCount;
     }
     return ack;
+}
+
+QJsonObject MissionChannel::_makeUnknownVehicleError(const QString &id, int vehicleId)
+{
+    // PROTOCOL.md §10 error envelope, matching FactChannel::handleMessage()'s UNKNOWN_VEHICLE
+    // shape and CommandChannel::_makeUnknownVehicleError() exactly.
+    QJsonObject err;
+    err[QStringLiteral("type")] = QStringLiteral("error");
+    err[QStringLiteral("id")] = id;
+    err[QStringLiteral("code")] = QStringLiteral("UNKNOWN_VEHICLE");
+    err[QStringLiteral("message")] = QStringLiteral("Unknown vehicle");
+    err[QStringLiteral("vehicleId")] = vehicleId;
+    err[QStringLiteral("retryable")] = false;
+    return err;
 }

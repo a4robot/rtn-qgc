@@ -82,6 +82,23 @@ QJsonObject CommandChannel::_makeAck(const QString &id, int vehicleId, bool acce
     return ack;
 }
 
+QJsonObject CommandChannel::_makeUnknownVehicleError(const QString &id, int vehicleId)
+{
+    // PROTOCOL.md §10 error envelope, matching FactChannel::handleMessage()'s UNKNOWN_VEHICLE
+    // shape exactly (code/message/retryable). Not retryable: the vehicleId in this specific
+    // request will never become valid for retry purposes -- a client that wants this vehicle
+    // should wait for it to appear in tick's vehicleIds (§3.1) and issue a fresh request with the
+    // same id semantics reused per §11.2's "new ids" guidance.
+    QJsonObject err;
+    err[QStringLiteral("type")] = QStringLiteral("error");
+    err[QStringLiteral("id")] = id;
+    err[QStringLiteral("code")] = QStringLiteral("UNKNOWN_VEHICLE");
+    err[QStringLiteral("message")] = QStringLiteral("Unknown vehicle");
+    err[QStringLiteral("vehicleId")] = vehicleId;
+    err[QStringLiteral("retryable")] = false;
+    return err;
+}
+
 int CommandChannel::_expectedMavCmdForAction(const QString &action, const Vehicle *vehicle)
 {
     // Per-action, per-firmware table of which MAV_CMD (if any) is guaranteed to produce a
@@ -288,8 +305,11 @@ void CommandChannel::handleCommand(quint64 clientToken, const QJsonObject &reque
     MultiVehicleManager *multiVehicleManager = MultiVehicleManager::instance();
     Vehicle *vehicle = multiVehicleManager ? multiVehicleManager->getVehicleById(vehicleId) : nullptr;
     if (!vehicle) {
+        // §10 error envelope (UNKNOWN_VEHICLE), not a rejected commandAck -- see _makeUnknownVehicleError()'s
+        // doc comment for why this one case differs from the class's usual "rejected ack, not a
+        // §10 error" convention.
         qCDebug(CommandChannelLog) << "handleCommand: unknown vehicle" << vehicleId << "for action" << action;
-        emit responseReady(clientToken, _makeAck(id, vehicleId, false, QStringLiteral("Unknown vehicle")));
+        emit responseReady(clientToken, _makeUnknownVehicleError(id, vehicleId));
         return;
     }
 
