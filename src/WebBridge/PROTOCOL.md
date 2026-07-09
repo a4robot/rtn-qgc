@@ -396,3 +396,57 @@ Everything else (`command`, `fact`, `mission`, `video`, `adsb`) is out of scope 
 
 - Protocol version is `major.minor`. Minor bumps are additive only (new optional fields, new types, new channels); clients MUST ignore unknown fields and unknown message types. Major bumps may break; negotiated at `hello`.
 - This document: **v0.1 draft** — subject to change until M1 mock and first client land; changes after that require bumping the version and noting them in a changelog section here.
+
+---
+
+## 14. Channel: `notification`
+
+Server → client only, no subscription -- like `tick` (§11.1), not like the subscribed streams
+(`telemetry`, `mission`, `video`, `adsb`): every `hello`-authenticated client receives every
+`notification` message, broadcast unconditionally, plus one targeted welcome message right after
+its own `helloAck` (§14.3). There is no `channel`/`seq`/`snapshot` envelope (§3) -- a notification
+is not "state" in the §2 sense (there is nothing to reconcile after a gap; a missed notification
+simply never displays, same as a missed `tick`), so it reuses `tick`'s envelope-free shape rather
+than `makeStreamMessage()`'s.
+
+```json
+{ "type": "notification", "severity": "info", "text": "Vehicle 1 armed", "timeUs": 1767690006000000, "vehicleId": 1 }
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `type` | string | yes | always `"notification"` |
+| `severity` | string | yes | `"info"` \| `"warning"` \| `"critical"` |
+| `text` | string | yes | Human-readable announcement text -- the same text QGC would otherwise speak locally (already de-abbreviated/de-jargoned for speech, e.g. "RTL" -> "return to launch"). The browser owns audio in this architecture (QGC_ENABLE_TEXTTOSPEECH gating, prior wave): a client that wants speech runs this through its own TTS. |
+| `timeUs` | u64 | yes | Server timestamp, microseconds (§1) |
+| `vehicleId` | int | omitted when unknown | Present only when the source event is unambiguously attributable to one vehicle at the C++ signal boundary. v0.1 omits it for every current source (§14.1: none of the three hooked call sites carry a vehicle id at the point of the hook) -- multi-vehicle disambiguation, when present, is embedded in `text` itself instead (e.g. "Vehicle 2 communication lost"). A future wave that re-sources this from `Vehicle`-scoped signals directly may start populating it; clients MUST NOT assume its absence means single-vehicle. |
+
+### 14.1 Sourcing
+
+Three C++ signals feed this one wire channel (`src/WebBridge/NotificationChannel.{h,cc}`):
+
+| Source | Severity | Notes |
+|---|---|---|
+| `AudioOutput::say()` (every spoken/would-be-spoken vehicle announcement: arm/disarm, flight mode changes, battery warnings, geofence breach, link lost/regained, `STATUSTEXT` messages QGC reads aloud) | `info` or `warning` | Classified by a small case-insensitive keyword scan over `text` (`warning`, `lost`, `breach`, `fail`, `reject`, `error`, `critical`, `emergency` -> `warning`; else `info`). `AudioOutput::say()` fires this signal unconditionally -- regardless of local TTS engine availability, mute, or volume, and identically whether or not the build has `QGC_ENABLE_TEXTTOSPEECH` -- because the browser, not local Qt, owns audio in this architecture; a muted/TTS-less desktop ghost must not silence the web client. |
+| `QGCApplication::showCriticalVehicleMessage()` | always `critical` | PreArm/preflight messages are filtered out before the signal fires, same as the desktop toolbar path. This is also the fix for headless boot: previously this method was a pure log statement with no observable side effect when no root QML window exists (`_showErrorsInToolbar` stays false, see `_initForHeadlessBoot()`); it now always fans out here regardless. |
+| `QGCApplication::showAppMessage()` | `info` or `warning` | Same keyword classification as `say()`. No double-fire risk: neither `showAppMessage()` nor `showCriticalVehicleMessage()` calls `AudioOutput::say()` (verified by reading both call sites), so each source event reaches the channel exactly once. |
+
+### 14.2 Dedup
+
+Identical `text` repeated within 1 s of its own previous emission is suppressed entirely (not
+queued, not coalesced -- simply not sent). This is a per-text debounce, not a global rate limit:
+unrelated text is never delayed by it. It exists because `MockLink`/`STATUSTEXT` sources can spam
+the identical message every tick (e.g. a repeated pre-arm health-check failure); collapsing that
+to at most 1/s keeps the channel useful without QGC-side rate-limiting logic living on the wire
+client. The mock server is not required to reproduce this byte-for-byte, but should avoid spamming
+duplicate notifications either.
+
+### 14.3 Welcome notification
+
+Immediately after `helloAck`, the server sends that client -- only that client, not a broadcast --
+one `notification` with `severity: "info"`, `text: "Ghost bridge ready"`, no `vehicleId`. This is a
+deliberate, always-present proof of channel liveness: a client can verify end-to-end notification
+delivery without depending on an organic vehicle event (arm, warning, link loss, ...) ever
+occurring during its session. It is exempt from §14.2's dedup window (each new connection gets its
+own delivery, even if the previous connection's welcome text is technically "the same text" within
+the last second of a rapid reconnect).

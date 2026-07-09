@@ -24,6 +24,7 @@ struct QMetaObject;
 class CommandChannel;
 class FactChannel;
 class MissionChannel;
+class NotificationChannel;
 class TelemetryChannel;
 class WebBridge;
 class WebBridgeServer;
@@ -100,6 +101,21 @@ public:
 signals:
     void languageChanged(const QLocale &locale);
 
+    /// Emitted from showCriticalVehicleMessage(), unconditionally and regardless of whether a
+    /// root QML window exists to display it (i.e. also in headless boot, where that method is
+    /// otherwise a pure log statement -- see its .cc comment). WebBridge's NotificationChannel
+    /// (src/WebBridge/NotificationChannel.h) subscribes to this to source `notification`
+    /// severity `critical` messages (PROTOCOL.md §14). PreArm/preflight messages are already
+    /// filtered out by showCriticalVehicleMessage() before this fires, same as the UI path.
+    void criticalVehicleMessageAnnounced(const QString &message);
+
+    /// Emitted from showAppMessage(), unconditionally, regardless of UI/headless state. Does not
+    /// overlap with AudioOutput::textAnnounced() or criticalVehicleMessageAnnounced() --
+    /// showAppMessage() does not call AudioOutput::say() or showCriticalVehicleMessage().
+    /// WebBridge's NotificationChannel subscribes to this for `notification` messages whose
+    /// severity it classifies heuristically from @p message (PROTOCOL.md §14).
+    void appMessageAnnounced(const QString &message, const QString &title);
+
 public slots:
     void showVehicleConfig();
 
@@ -159,6 +175,7 @@ private:
     FactChannel *_factChannel = nullptr;            ///< Parameter channel
     CommandChannel *_commandChannel = nullptr;      ///< §5 guided-action channel
     MissionChannel *_missionChannel = nullptr;      ///< §7 mission channel
+    NotificationChannel *_notificationChannel = nullptr; ///< §14 announcement channel
 #ifdef QGC_GST_STREAMING
     VideoStreamServer *_videoStreamServer = nullptr; ///< GStreamer tee tap → bridge `video` channel (§9)
     GhostVideoSource *_ghostVideoSource = nullptr;   ///< Feeds _videoStreamServer's tap from VideoSettings' configured source

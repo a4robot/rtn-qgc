@@ -186,14 +186,19 @@ void AudioOutput::_setVolume()
 #ifndef QGC_ENABLE_TEXTTOSPEECH
 void AudioOutput::say(const QString &text, TextMods textMods)
 {
-    // No engine to speak with; see init(). Deliberately silent (not a
-    // qCWarning) since this build was configured with TTS off on purpose.
-    Q_UNUSED(text);
+    // No engine to speak with; see init(). Deliberately silent (not a qCWarning) since this
+    // build was configured with TTS off on purpose -- but textAnnounced() still fires (see its
+    // doc comment) so non-speech consumers (WebBridge's NotificationChannel) keep working.
     Q_UNUSED(textMods);
+    emit textAnnounced(text);
 }
 #else
 void AudioOutput::say(const QString &text, TextMods textMods)
 {
+    // Fires before every early-return below (not-initialized, muted, volume 0, no engine
+    // capability) -- see textAnnounced()'s doc comment.
+    emit textAnnounced(text);
+
     if (!_initialized) {
         if (!QGC::runningUnitTests()) {
             qCWarning(AudioOutputLog) << "AudioOutput not initialized. Call init() before using say().";

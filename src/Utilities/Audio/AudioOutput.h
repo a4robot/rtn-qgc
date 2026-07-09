@@ -45,6 +45,17 @@ public:
     /// Tests the audio output. Will stop current output before test
     void testAudioOutput();
 
+signals:
+    /// Emitted at the top of every say() call, with the original (untranslated, not yet
+    /// audio-mangled by _fixTextMessageForAudio()) @p text -- before any of say()'s own
+    /// early-return gating (not-initialized, muted, volume 0, no TTS engine/capability). Fires
+    /// unconditionally in every build, including QGC_ENABLE_TEXTTOSPEECH=OFF, where say() is
+    /// otherwise a total no-op: this is the one signal that survives that gate, so consumers
+    /// that don't care about local speech synthesis (e.g. WebBridge's NotificationChannel, which
+    /// hands announcements to the browser to speak/display) still see every announcement QGC
+    /// would otherwise have spoken, regardless of local mute/volume/engine availability.
+    void textAnnounced(const QString &text);
+
 private:
     QTextToSpeech *_engine = nullptr;
     QAtomicInteger<qsizetype> _textQueueSize = 0;

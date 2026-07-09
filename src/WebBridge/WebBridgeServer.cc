@@ -93,6 +93,15 @@ void WebBridgeServer::broadcast(const QString &channel, int vehicleId, const QJs
     }
 }
 
+void WebBridgeServer::broadcastAll(const QJsonObject &message)
+{
+    for (auto it = _clients.constBegin(); it != _clients.constEnd(); ++it) {
+        if (it.value().authed) {
+            _sendJson(it.key(), message);
+        }
+    }
+}
+
 void WebBridgeServer::broadcastBinary(const QString &channel, int streamId, const QByteArray &frame)
 {
     const QString key = WebBridge::streamKey(channel, streamId);
@@ -190,11 +199,7 @@ void WebBridgeServer::_onDisconnected()
 
 void WebBridgeServer::_onTickReady(const QJsonObject &tick)
 {
-    for (auto it = _clients.constBegin(); it != _clients.constEnd(); ++it) {
-        if (it.value().authed) {
-            _sendJson(it.key(), tick);
-        }
-    }
+    broadcastAll(tick);
 }
 
 void WebBridgeServer::_onTextMessageReceived(const QString &message)
@@ -299,6 +304,7 @@ void WebBridgeServer::_handleHello(QWebSocket *client, const QJsonObject &obj)
     _sendJson(client, ack);
 
     qCDebug(WebBridgeServerLog) << client << "authenticated";
+    emit clientAuthenticated(_clients.value(client).token);
 }
 
 void WebBridgeServer::_handleSubscription(QWebSocket *client, const QJsonObject &obj, bool subscribe)

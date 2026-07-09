@@ -66,6 +66,12 @@ public:
     /// fan-out. Channel implementations (B2a+) call this to publish snapshots and updates.
     void broadcast(const QString &channel, int vehicleId, const QJsonObject &message);
 
+    /// Sends @p message to every authenticated client, unconditionally -- no subscription
+    /// filtering, unlike broadcast(). Same fan-out as the internal tick path (_onTickReady()),
+    /// exposed publicly for channels whose messages need no subscribe per PROTOCOL.md (currently
+    /// `notification`, §14; NotificationChannel connects to this via notificationReady()).
+    void broadcastAll(const QJsonObject &message);
+
     /// Sends @p frame as a single binary WS message to every authenticated client subscribed to
     /// the `video` stream identified by (channel, streamId) -- same subscription-key filtering as
     /// broadcast() (PROTOCOL.md §9: binary frames carry no seq/envelope of their own, so this
@@ -121,6 +127,12 @@ signals:
     /// requester for sendToClient(); @p request is the parsed request object verbatim.
     /// MissionChannel connects to this and answers via sendToClient().
     void missionMessageReceived(quint64 clientToken, const QJsonObject &request);
+
+    /// Emitted once a client's `hello` has been accepted and `helloAck` sent (PROTOCOL.md §1.1).
+    /// @p clientToken is the same stable per-connection id used by sendToClient(). NotificationChannel
+    /// (§14.3) connects to this to send a one-shot per-connection welcome notification that does
+    /// not depend on the client racing broadcastAll()'s fan-out against its own connect time.
+    void clientAuthenticated(quint64 clientToken);
 
 public slots:
     /// Sends a point-to-point response to a specific client.

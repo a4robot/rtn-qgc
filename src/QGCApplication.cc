@@ -46,6 +46,7 @@
 #include "CommandChannel.h"
 #include "FactChannel.h"
 #include "MissionChannel.h"
+#include "NotificationChannel.h"
 #include "TelemetryChannel.h"
 
 #include "UDPLink.h"
@@ -433,6 +434,7 @@ void QGCApplication::_initForHeadlessBoot()
         _factChannel = new FactChannel(this);
         _commandChannel = new CommandChannel(_webBridge, this);
         _missionChannel = new MissionChannel(_webBridge, this);
+        _notificationChannel = new NotificationChannel(_webBridge, this);
         connect(_webBridgeServer, &WebBridgeServer::snapshotRequested, _telemetryChannel, &TelemetryChannel::sendSnapshot);
         connect(_webBridgeServer, &WebBridgeServer::commandReceived, _commandChannel, &CommandChannel::handleCommand);
         connect(_commandChannel, &CommandChannel::responseReady, _webBridgeServer, &WebBridgeServer::sendToClient);
@@ -444,6 +446,22 @@ void QGCApplication::_initForHeadlessBoot()
         connect(_webBridgeServer, &WebBridgeServer::factMessageReceived, _factChannel, &FactChannel::handleMessage);
         connect(_factChannel, &FactChannel::responseReady, _webBridgeServer, &WebBridgeServer::reply);
         connect(_factChannel, &FactChannel::errorReady, _webBridgeServer, &WebBridgeServer::replyError);
+
+        // Notification (§14): sourced from signals this class itself emits (below) plus
+        // AudioOutput::textAnnounced() (connected inside NotificationChannel's own constructor,
+        // since AudioOutput has no QGCApplication dependency to avoid). Wired here, not inside
+        // NotificationChannel, so that class never needs to include QGCApplication.h (it would
+        // otherwise pull in QtGui just for these two signal declarations).
+        connect(this, &QGCApplication::criticalVehicleMessageAnnounced, _notificationChannel, &NotificationChannel::handleCriticalVehicleMessage);
+        connect(this, &QGCApplication::appMessageAnnounced, _notificationChannel, &NotificationChannel::handleAppMessage);
+        // Broadcast stream (§14): no subscription, every authenticated client -- same fan-out
+        // shape as WebBridge::tickReady() (§11.1).
+        connect(_notificationChannel, &NotificationChannel::notificationReady, _webBridgeServer, &WebBridgeServer::broadcastAll);
+        // One-shot per-connection "ghost bridge ready" (§14.3): targeted, not broadcast, so it is
+        // reliably observed by a client connecting well after bridge startup (broadcastAll() at
+        // construction time would reach nobody yet).
+        connect(_webBridgeServer, &WebBridgeServer::clientAuthenticated, _notificationChannel, &NotificationChannel::sendWelcome);
+        connect(_notificationChannel, &NotificationChannel::welcomeReady, _webBridgeServer, &WebBridgeServer::sendToClient);
 
 #ifdef QGC_GST_STREAMING
         // Video: taps a live GStreamer pipeline's shared tee and relays H.264 access units plus
@@ -533,6 +551,12 @@ void QGCApplication::showCriticalVehicleMessage(const QString &message)
         return;
     }
 
+    // Unconditional -- in particular this also fires in headless boot, where the branches below
+    // never reach a UI (_showErrorsInToolbar stays false, see _initForHeadlessBoot()) and this
+    // would otherwise be silently dropped to the log. NotificationChannel (src/WebBridge/) is
+    // exactly that non-UI consumer.
+    emit criticalVehicleMessageAnnounced(message);
+
     QObject *const rootQmlObject = _rootQmlObject();
     if (rootQmlObject && _showErrorsInToolbar) {
         QVariant varReturn;
@@ -549,6 +573,10 @@ void QGCApplication::showCriticalVehicleMessage(const QString &message)
 void QGCApplication::showAppMessage(const QString &message, const QString &title)
 {
     const QString dialogTitle = title.isEmpty() ? applicationName() : title;
+
+    // Unconditional, same reasoning as showCriticalVehicleMessage() above -- NotificationChannel
+    // is a non-UI consumer that wants every app message regardless of dialog/headless routing.
+    emit appMessageAnnounced(message, dialogTitle);
 
     QObject *const rootQmlObject = _rootQmlObject();
     if (rootQmlObject) {
