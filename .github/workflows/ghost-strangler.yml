@@ -127,6 +127,19 @@ jobs:
           PROBE_URL: ws://127.0.0.1:8899
         run: bun tools/ghost/mockghostprobe.ts
 
+      # PROTOCOL.md §1-§14 conformance suite (Wave 14 / M7 job Q7e prep) against the SAME booted
+      # ghost -- broader than the flagship probe above (every §-visible behavior a future
+      # QWebSocketServer -> non-Qt WS library swap could break), and a required characterization
+      # baseline per STRANGLER_MILESTONES.md's de-Qt testing protocol ("WebSockets: protocol
+      # conformance suite ... against bridge จริง before removing QWebSocketServer"). AUTH_PROBE_URL
+      # and a video feed are not provisioned in this job, so the --bridge-token and §9 video groups
+      # SKIP cleanly (not a failure) -- see tools/ghost/conformance/run.ts's env var docs.
+      - name: Run ghost PROTOCOL.md conformance suite
+        env:
+          PROBE_URL: ws://127.0.0.1:8899
+          VEHICLE_ID: '128'
+        run: bun tools/ghost/conformance/run.ts
+
       - name: Stop ghost
         if: always()
         run: |
