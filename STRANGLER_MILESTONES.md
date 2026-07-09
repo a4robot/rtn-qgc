@@ -276,7 +276,8 @@
 | Q7e | **WebSockets**: `QWebSocketServer`/`QWebSocket` → C++ WS lib (เช่น uWebSockets / Boost.Beast) — แตะเฉพาะ `src/WebBridge/` ซึ่งเป็นโค้ดของเราเองล้วน ไม่มีไฟล์ upstream เลย (จึงเป็น friction ① ทั้งที่เป็นการ swap dependency); ระวังเรื่อง thread/event-loop bridge ระหว่าง WS lib กับ Qt event loop ที่ยังอยู่ | `WebBridgeServer.{h,cc}` + channel classes — 100% additive-era code ของ strangler เอง | ① (ไฟล์เราเอง) | M | `libQt6WebSockets` |
 
 **ผล M7 เต็ม (แผนเดิม):** 11 → **6 libs** — Core, Network, Positioning, SerialPort, StateMachine, Xml
-**ผลจริง wave 14:** Q7a ✅ (−Multimedia) + Q7b ✅ (−Sql) + Q7c ✅ (KML gated) + Q7d demoted→② (Gui ติด StateMachine's Qt-level interface dep) + WS conformance baseline ✅ (69 assertions, 67 PASS + 5 GAP pinned — ดู tools/ghost/conformance/) → ghost = **9 libs**; Gui+DBus จะหลุดพร้อม Q8b, WebSockets swap (Q7e) รอ wave 15 โดยมี conformance suite เป็น safety net
+**ผลจริง wave 14:** Q7a ✅ (−Multimedia) + Q7b ✅ (−Sql) + Q7c ✅ (KML gated) + Q7d demoted→② (Gui ติด StateMachine's Qt-level interface dep) + WS conformance baseline ✅ (69 assertions, 67 PASS + 5 GAP pinned — ดู tools/ghost/conformance/) → ghost = **9 libs**
+**ผลจริง wave 15:** 5 gaps resolved (suite = 74 PASS / 0 FAIL / 0 GAP) ✅ + **Q7e ✅** — QWebSocketServer → IXWebSocket หลัง flag `QGC_ENABLE_QT_WEBSOCKETS` (−WebSockets) + **Q8c ✅** (−Xml, characterization test เก่า/ใหม่ตรงกัน) + Q8a audit+baseline ✅ (ทุก machine เป็น flat — port ง่ายกว่าที่คิด) → ghost = **7 libs**: Core, DBus, Gui, Network, Positioning, SerialPort, StateMachine; โบนัสพบ: Qt6::HttpServer link ไว้เพื่อ enum alias 2 ตัวที่ไม่ได้ใช้ — ตัดฟรีได้
 ทุก job แยก directory กัน → ปล่อยขนานได้ตามสูตร swarm เดิม
 
 ## M8 — De-Qt heavy tier: friction ② (rewrite ไฟล์ shared หนัก แต่ยัง reconcile ได้ในหลักการ)
