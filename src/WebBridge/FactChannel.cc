@@ -89,7 +89,7 @@ void FactChannel::_onVehicleRemoved(Vehicle *vehicle)
     _vehicles.remove(vehicle->id());
 }
 
-void FactChannel::handleMessage(QWebSocket *client, const QJsonObject &message)
+void FactChannel::handleMessage(quint64 clientId, const QJsonObject &message)
 {
     const QString type = message.value(QStringLiteral("type")).toString();
     const QString id = message.value(QStringLiteral("id")).toString();
@@ -97,23 +97,23 @@ void FactChannel::handleMessage(QWebSocket *client, const QJsonObject &message)
     const QString path = message.value(QStringLiteral("path")).toString();
 
     if (path.isEmpty()) {
-        emit errorReady(client, QStringLiteral("BAD_MESSAGE"), QStringLiteral("Missing required field: path"), false, id);
+        emit errorReady(clientId, QStringLiteral("BAD_MESSAGE"), QStringLiteral("Missing required field: path"), false, id);
         return;
     }
     if (vehicleId == -1) {
-        emit errorReady(client, QStringLiteral("BAD_MESSAGE"), QStringLiteral("Missing or invalid vehicleId"), false, id);
+        emit errorReady(clientId, QStringLiteral("BAD_MESSAGE"), QStringLiteral("Missing or invalid vehicleId"), false, id);
         return;
     }
 
     if (!_vehicles.contains(vehicleId)) {
-        emit errorReady(client, QStringLiteral("UNKNOWN_VEHICLE"), QStringLiteral("Unknown vehicle"), false, id);
+        emit errorReady(clientId, QStringLiteral("UNKNOWN_VEHICLE"), QStringLiteral("Unknown vehicle"), false, id);
         return;
     }
 
     // path is expected to be "vehicle.<vehicleId>.<PARAM_NAME>"
     const QString prefix = QStringLiteral("vehicle.%1.").arg(vehicleId);
     if (!path.startsWith(prefix)) {
-        emit errorReady(client, QStringLiteral("UNKNOWN_PARAM"), QStringLiteral("Invalid param path prefix"), false, id);
+        emit errorReady(clientId, QStringLiteral("UNKNOWN_PARAM"), QStringLiteral("Invalid param path prefix"), false, id);
         return;
     }
     const QString paramName = path.mid(prefix.length());
@@ -121,30 +121,30 @@ void FactChannel::handleMessage(QWebSocket *client, const QJsonObject &message)
     Vehicle *vehicle = _vehicles.value(vehicleId);
     ParameterManager *paramMgr = vehicle->parameterManager();
     if (!paramMgr->parameterExists(ParameterManager::defaultComponentId, paramName)) {
-        emit errorReady(client, QStringLiteral("UNKNOWN_PARAM"), QStringLiteral("Parameter not found"), false, id);
+        emit errorReady(clientId, QStringLiteral("UNKNOWN_PARAM"), QStringLiteral("Parameter not found"), false, id);
         return;
     }
 
     Fact *fact = paramMgr->getParameter(ParameterManager::defaultComponentId, paramName);
     if (!fact) {
-        emit errorReady(client, QStringLiteral("UNKNOWN_PARAM"), QStringLiteral("Parameter not found"), false, id);
+        emit errorReady(clientId, QStringLiteral("UNKNOWN_PARAM"), QStringLiteral("Parameter not found"), false, id);
         return;
     }
 
     if (type == QStringLiteral("getParam")) {
         QJsonObject paramMsg = _buildParamValueMessage(id, vehicleId, path, fact);
-        emit responseReady(client, paramMsg);
+        emit responseReady(clientId, paramMsg);
     } else if (type == QStringLiteral("setParam")) {
         if (!message.contains(QStringLiteral("value"))) {
-            emit errorReady(client, QStringLiteral("BAD_MESSAGE"), QStringLiteral("Missing required field: value"), false, id);
+            emit errorReady(clientId, QStringLiteral("BAD_MESSAGE"), QStringLiteral("Missing required field: value"), false, id);
             return;
         }
-        
+
         QVariant newValue = message.value(QStringLiteral("value")).toVariant();
 
         // Store the pending request so we can respond later
         PendingRequest req;
-        req.client = client;
+        req.clientId = clientId;
         req.id = id;
         req.vehicleId = vehicleId;
         _pendingRequests[path].append(req);
@@ -177,9 +177,9 @@ void FactChannel::_paramSetSuccess(int componentId, const QString &paramName)
     for (const PendingRequest &req : reqs) {
         if (fact) {
             QJsonObject paramMsg = _buildParamValueMessage(req.id, req.vehicleId, path, fact);
-            emit responseReady(req.client, paramMsg);
+            emit responseReady(req.clientId, paramMsg);
         } else {
-            emit errorReady(req.client, QStringLiteral("INTERNAL"), QStringLiteral("Fact not found after set"), false, req.id);
+            emit errorReady(req.clientId, QStringLiteral("INTERNAL"), QStringLiteral("Fact not found after set"), false, req.id);
         }
     }
 }
@@ -200,7 +200,7 @@ void FactChannel::_paramSetFailure(int componentId, const QString &paramName)
 
     QList<PendingRequest> reqs = _pendingRequests.take(path);
     for (const PendingRequest &req : reqs) {
-        emit errorReady(req.client, QStringLiteral("PARAM_TIMEOUT"), QStringLiteral("Vehicle did not confirm set"), true, req.id);
+        emit errorReady(req.clientId, QStringLiteral("PARAM_TIMEOUT"), QStringLiteral("Vehicle did not confirm set"), true, req.id);
     }
 }
 

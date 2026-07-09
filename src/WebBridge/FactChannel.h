@@ -7,12 +7,18 @@
 #include <QtCore/QString>
 
 class Vehicle;
-class QWebSocket;
 
 Q_DECLARE_LOGGING_CATEGORY(FactChannelLog)
 
 /// Handles the `fact` channel for WebBridge (PROTOCOL.md §6).
 /// Processes getParam and setParam requests and sends back responses to specific clients.
+///
+/// Client identity: @p clientId below is WebBridgeServer's opaque per-connection quint64 (the
+/// same one CommandChannel/MissionChannel already used) -- carried opaquely, never dereferenced.
+/// Pre-Q7e this was a raw `QWebSocket *` handed straight through from WebBridgeServer; it became
+/// quint64 as part of the Q7e transport swap (src/WebBridge/WsTransport.h) since QWebSocket no
+/// longer exists in a QGC_ENABLE_QT_WEBSOCKETS=OFF build -- the only channel-class touch that
+/// swap required, everything else here is unchanged.
 class FactChannel : public QObject
 {
     Q_OBJECT
@@ -23,16 +29,16 @@ public:
 
 public slots:
     /// Connects to WebBridgeServer::factMessageReceived
-    void handleMessage(QWebSocket *client, const QJsonObject &message);
+    void handleMessage(quint64 clientId, const QJsonObject &message);
 
 signals:
     /// Emitted when a response is ready to be sent back to a specific client.
     /// Connects to WebBridgeServer::reply
-    void responseReady(QWebSocket *client, const QJsonObject &message);
+    void responseReady(quint64 clientId, const QJsonObject &message);
 
     /// Emitted when an error occurs while processing a request.
     /// Connects to WebBridgeServer::replyError
-    void errorReady(QWebSocket *client, const QString &code, const QString &message, bool retryable, const QString &id);
+    void errorReady(quint64 clientId, const QString &code, const QString &message, bool retryable, const QString &id);
 
 private slots:
     void _onVehicleAdded(Vehicle *vehicle);
@@ -42,7 +48,7 @@ private slots:
 
 private:
     struct PendingRequest {
-        QWebSocket *client = nullptr;
+        quint64 clientId = 0;
         QString id;
         int vehicleId = -1;
     };

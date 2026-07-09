@@ -8,19 +8,27 @@
 #include <QtCore/QSet>
 #include <QtCore/QString>
 #include <QtNetwork/QHostAddress>
-#include <QtWebSockets/QWebSocket>
-#include <QtWebSockets/QWebSocketServer>
+#include <memory>
 
 class WebBridge;
+class WsTransport;
 
 Q_DECLARE_LOGGING_CATEGORY(WebBridgeServerLog)
 
-/// QtWebSockets transport for the WebBridge protocol defined in src/WebBridge/PROTOCOL.md
-/// (v0.1). This class owns the QWebSocketServer/QWebSocket plumbing and per-connection
-/// protocol state machine (hello handshake §1.1, subscribe/unsubscribe §2.2, error envelope
-/// §10, tick fan-out §11.1); it defers the transport-independent mechanics (server clock,
-/// sequence counters, message shaping) to WebBridge, and defers channel payload production
-/// (telemetry, mission, video, adsb — B2a+) to snapshotRequested()/broadcast().
+/// WebSocket transport for the WebBridge protocol defined in src/WebBridge/PROTOCOL.md (v0.1).
+/// This class owns the per-connection protocol state machine (hello handshake §1.1,
+/// subscribe/unsubscribe §2.2, error envelope §10, tick fan-out §11.1); it defers the concrete
+/// WebSocket implementation to a WsTransport (QtWsTransport/QWebSocketServer when
+/// QGC_ENABLE_QT_WEBSOCKETS=ON, the default; IxWsTransport/IXWebSocket when OFF -- see
+/// WsTransport.h, selected at compile time in src/WebBridge/CMakeLists.txt), the
+/// transport-independent mechanics (server clock, sequence counters, message shaping) to
+/// WebBridge, and channel payload production (telemetry, mission, video, adsb -- B2a+) to
+/// snapshotRequested()/broadcast().
+///
+/// Every client is identified by a stable, opaque quint64 id assigned by the transport
+/// (WsTransport::clientConnected()) -- this class and every channel above it never sees the
+/// underlying socket type, which is what lets the transport swap without touching channel logic
+/// (FactChannel is the one exception; see its header comment).
 ///
 /// One WebBridgeServer binds a single WebBridge (not owned; must outlive this object). It does
 /// not start/stop the WebBridge itself -- callers are expected to drive WebBridge::start()/
@@ -78,17 +86,22 @@ public:
     /// bypasses WebBridge::makeStreamMessage() and sends @p frame verbatim). @p channel is
     /// expected to be "video"; kept as a parameter (rather than hardcoded) so this stays
     /// consistent with broadcast()'s (channel, scopeId) key shape.
+    ///
+    /// §9.2 per-client keyframe gate: a client is additionally withheld @p frame (regardless of
+    /// the above) while its ClientState::videoPendingKeyframe still contains this stream's key --
+    /// i.e. from the moment it (re)subscribes until the first keyframe (flags bit 0) for this
+    /// stream is seen, per §9.2's "the first binary frame after videoConfig is a keyframe; a
+    /// client joining mid-stream renders nothing until the first keyframe". @p frame's flags byte
+    /// (offset 4, bit 0) is inspected once per call, not per client.
     void broadcastBinary(const QString &channel, int streamId, const QByteArray &frame);
 
     /// Sends @p message to exactly one client -- the one that sent the request identified by
-    /// @p clientToken (assigned in _onNewConnection(), stable for the lifetime of the
-    /// connection). Used by CommandChannel (B7b) to answer `command` requests (§5), which unlike
-    /// broadcast()'s subscription fan-out must go only to the requester. A token for a client
-    /// that has since disconnected is a silent no-op (the response is simply dropped, matching
-    /// PROTOCOL.md §11.2 #4: "In-flight requests ... at disconnect time are lost"). Kept
-    /// token-based (rather than QWebSocket*) so that non-QtWebSockets callers (CommandChannel is
-    /// Qt Core + Positioning only) never need to see a QWebSocket type.
-    void sendToClient(quint64 clientToken, const QJsonObject &message);
+    /// @p clientId (assigned by the transport, stable for the lifetime of the connection). Used
+    /// by CommandChannel (B7b) to answer `command` requests (§5), which unlike broadcast()'s
+    /// subscription fan-out must go only to the requester. An id for a client that has since
+    /// disconnected is a silent no-op (the response is simply dropped, matching PROTOCOL.md
+    /// §11.2 #4: "In-flight requests ... at disconnect time are lost").
+    void sendToClient(quint64 clientId, const QJsonObject &message);
 
 public slots:
     /// Caches the latest PROTOCOL.md §9.1 videoConfig payload for @p streamId -- the fields
@@ -111,41 +124,42 @@ signals:
     /// this class does not otherwise distinguish from `vehicleId`.
     void snapshotRequested(const QString &channel, int vehicleId);
 
-    /// Emitted when a "getParam" or "setParam" message is received.
-    void factMessageReceived(QWebSocket *client, const QJsonObject &message);
+    /// Emitted when a "getParam" or "setParam" message is received. @p clientId identifies the
+    /// requester for reply()/replyError().
+    void factMessageReceived(quint64 clientId, const QJsonObject &message);
 
     /// Emitted for every authenticated client's `command` message once the §5.1 envelope has
     /// been validated (id/vehicleId/action present -- BAD_MESSAGE is sent directly and this
-    /// signal is not emitted otherwise). @p clientToken identifies the requester for
+    /// signal is not emitted otherwise). @p clientId identifies the requester for
     /// sendToClient(); @p request is the parsed request object verbatim. CommandChannel (B7b)
     /// connects to this and answers via sendToClient().
-    void commandReceived(quint64 clientToken, const QJsonObject &request);
+    void commandReceived(quint64 clientId, const QJsonObject &request);
 
     /// Emitted for every authenticated client's `missionUpload`/`missionDownload`/`missionClear`
     /// message once the §7.2 envelope has been validated (id/vehicleId present -- BAD_MESSAGE is
-    /// sent directly and this signal is not emitted otherwise). @p clientToken identifies the
+    /// sent directly and this signal is not emitted otherwise). @p clientId identifies the
     /// requester for sendToClient(); @p request is the parsed request object verbatim.
     /// MissionChannel connects to this and answers via sendToClient().
-    void missionMessageReceived(quint64 clientToken, const QJsonObject &request);
+    void missionMessageReceived(quint64 clientId, const QJsonObject &request);
 
     /// Emitted once a client's `hello` has been accepted and `helloAck` sent (PROTOCOL.md §1.1).
-    /// @p clientToken is the same stable per-connection id used by sendToClient(). NotificationChannel
+    /// @p clientId is the same stable per-connection id used by sendToClient(). NotificationChannel
     /// (§14.3) connects to this to send a one-shot per-connection welcome notification that does
     /// not depend on the client racing broadcastAll()'s fan-out against its own connect time.
-    void clientAuthenticated(quint64 clientToken);
+    void clientAuthenticated(quint64 clientId);
 
 public slots:
     /// Sends a point-to-point response to a specific client.
-    void reply(QWebSocket *client, const QJsonObject &message);
+    void reply(quint64 clientId, const QJsonObject &message);
 
     /// Sends a point-to-point error envelope to a specific client (PROTOCOL.md §10).
-    void replyError(QWebSocket *client, const QString &code, const QString &message, bool retryable, const QString &id = QString());
+    void replyError(quint64 clientId, const QString &code, const QString &message, bool retryable, const QString &id = QString());
 
 
 private slots:
-    void _onNewConnection();
-    void _onTextMessageReceived(const QString &message);
-    void _onDisconnected();
+    void _onClientConnected(quint64 clientId);
+    void _onTextMessageReceived(quint64 clientId, const QString &message);
+    void _onClientDisconnected(quint64 clientId);
 
     /// Fans out WebBridge::tickReady() to every authenticated client (PROTOCOL.md §11.1: tick
     /// is unconditional, no subscription required).
@@ -156,8 +170,14 @@ private:
     struct ClientState
     {
         bool authed = false;              ///< Set once a valid `hello` has been received (§1.1)
-        quint64 token = 0;                 ///< Stable per-connection id for sendToClient() (assigned in _onNewConnection())
         QSet<QString> subscriptions;       ///< Stream keys (WebBridge::streamKey) this client is subscribed to (§2.2)
+        /// §9.2 per-client keyframe gate: stream keys (video/streamId) for which this client has
+        /// (re)subscribed but has not yet been forwarded a keyframe. While a key is present here,
+        /// broadcastBinary() withholds non-keyframe binary frames for that stream from this client
+        /// -- "a client joining mid-stream renders nothing until the first keyframe" (§9.2). Set on
+        /// every subscribe to `video` (see _handleSubscription()); cleared the moment a keyframe is
+        /// forwarded, or on unsubscribe.
+        QSet<QString> videoPendingKeyframe;
     };
 
     /// Handles a `hello` message: validates the (non-empty, per §1.1) token and, if present, the
@@ -165,33 +185,41 @@ private:
     /// Replies `BAD_MESSAGE` for a missing/empty token, `UNSUPPORTED_VERSION` (+ close) for a
     /// protocolVersion major-version mismatch, or `AUTH_FAILED` (+ close) if a server token is
     /// configured (setAuthToken()) and the client's token does not match it.
-    void _handleHello(QWebSocket *client, const QJsonObject &obj);
+    void _handleHello(quint64 clientId, const QJsonObject &obj);
 
     /// Handles `subscribe`/`unsubscribe` (§2.2): validates the channel, updates the client's
     /// subscription set, replies `subscribeAck`/`unsubscribeAck`, and (for subscribe) emits
     /// snapshotRequested(). Replies `BAD_MESSAGE` for a missing channel, `UNKNOWN_CHANNEL` for
-    /// an unrecognized one.
-    void _handleSubscription(QWebSocket *client, const QJsonObject &obj, bool subscribe);
+    /// an unrecognized one, and `BAD_MESSAGE` for a vehicle-scoped channel (`telemetry`,
+    /// `mission`) whose `vehicleId` field is omitted entirely (§3's envelope table: `vehicleId`
+    /// is required "for vehicle-scoped messages"; §10: "missing required field").
+    ///
+    /// Deliberately does NOT reject a `vehicleId` that is merely not (yet) in the tracked vehicle
+    /// set: PROTOCOL.md §3.1 documents this as an accepted late-binding subscribe (see the doc
+    /// comment there) rather than `UNKNOWN_VEHICLE` -- the web client's own startup handshake
+    /// (web/src/bridge/session.ts) subscribes telemetry/mission for its configured vehicle
+    /// immediately after `hello`, routinely before a MockLink/real vehicle has finished attaching.
+    void _handleSubscription(quint64 clientId, const QJsonObject &obj, bool subscribe);
 
     /// Handles a `command` message (PROTOCOL.md §5.1): validates that `id`, `vehicleId`, and
     /// `action` are present, replying `BAD_MESSAGE` (§10) if not, then emits commandReceived()
     /// for CommandChannel (B7b) to execute. This class does not itself know how to run guided
     /// actions -- validation here is limited to envelope shape, not action semantics/params.
-    void _handleCommand(QWebSocket *client, const QJsonObject &obj);
+    void _handleCommand(quint64 clientId, const QJsonObject &obj);
 
     /// Handles `missionUpload`/`missionDownload`/`missionClear` messages (PROTOCOL.md §7.2):
     /// validates that `id` and `vehicleId` are present, replying `BAD_MESSAGE` (§10) if not, then
     /// emits missionMessageReceived() for MissionChannel to execute. This class does not itself
     /// know mission item schema/semantics -- validation here is limited to envelope shape.
-    void _handleMission(QWebSocket *client, const QJsonObject &obj);
+    void _handleMission(quint64 clientId, const QJsonObject &obj);
 
     /// Serializes @p obj as compact JSON and sends it as a single text frame (PROTOCOL.md §1:
     /// "server never fragments a JSON message across frames").
-    void _sendJson(QWebSocket *client, const QJsonObject &obj);
+    void _sendJson(quint64 clientId, const QJsonObject &obj);
 
     /// Builds and sends the error envelope exactly per PROTOCOL.md §10. @p id is echoed when
     /// non-empty; omitted otherwise (unsolicited errors omit `id`).
-    void _sendError(QWebSocket *client, const QString &code, const QString &message, bool retryable, const QString &id = QString());
+    void _sendError(quint64 clientId, const QString &code, const QString &message, bool retryable, const QString &id = QString());
 
     /// Subscribable channels per PROTOCOL.md §2.2: telemetry, mission, video, adsb.
     static bool _isKnownChannel(const QString &channel);
@@ -199,12 +227,17 @@ private:
     static constexpr const char *kProtocolVersion = "0.1";           ///< PROTOCOL.md §1.1 helloAck/hello
     static constexpr const char *kServerVersion = "rtn-qgc 5.0";     ///< PROTOCOL.md §1.1 helloAck `serverVersion`
 
+    // RFC 6455 §7.4 close codes used below -- kept as plain constants (rather than an enum from
+    // a WS library header) so this file has no dependency on which WsTransport implementation is
+    // compiled in.
+    static constexpr quint16 kCloseNormal = 1000;
+    static constexpr quint16 kCloseProtocolError = 1002;
+    static constexpr quint16 kClosePolicyViolated = 1008;
+
     WebBridge *_bridge = nullptr;    ///< Not owned; must outlive this object
     QHostAddress _listenAddress = QHostAddress::LocalHost;    ///< Bind address for start() (--bridge-host override)
     QString _authToken;              ///< Required `hello` token (--bridge-token); empty = accept any non-empty token
-    QWebSocketServer _server;
-    QHash<QWebSocket *, ClientState> _clients;
-    QHash<quint64, QWebSocket *> _tokenToClient;    ///< Reverse index of ClientState::token for sendToClient()
+    std::unique_ptr<WsTransport> _transport;
+    QHash<quint64, ClientState> _clients;
     QHash<quint8, QJsonObject> _cachedVideoConfig;  ///< Last enveloped videoConfig message sent per streamId (§9.1), for late-subscriber replay
-    quint64 _nextClientToken = 1;                   ///< Monotonic counter; 0 is never issued so it can be used as a "no client" sentinel
 };

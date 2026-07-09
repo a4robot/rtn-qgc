@@ -25,7 +25,58 @@ qt_add_library(WebBridgeModule STATIC
     VideoStreamServer.h
     WebBridgeServer.cc
     WebBridgeServer.h
+    WsTransport.h
 )
+
+# ============================================================================
+# WS Transport (Q7e, STRANGLER_MILESTONES.md M7): WebBridgeServer's protocol state machine is
+# transport-independent (WsTransport.h); exactly one concrete implementation is compiled in,
+# selected by QGC_ENABLE_QT_WEBSOCKETS (cmake/CustomOptions.cmake):
+#   ON  (default, matches upstream)   -> QtWsTransport.{h,cc}, thin QWebSocketServer wrapper.
+#   OFF (ghost-diet build)            -> IxWsTransport.{h,cc}, CPM-vendored IXWebSocket -- see
+#                                        IxWsTransport.cc's header comment for the library-choice
+#                                        rationale (uWebSockets/libwebsockets/Boost.Beast were
+#                                        also evaluated).
+# ============================================================================
+if(QGC_ENABLE_QT_WEBSOCKETS)
+    target_sources(WebBridgeModule PRIVATE
+        QtWsTransport.cc
+        QtWsTransport.h
+    )
+    # WebBridgeServer.cc #ifdefs on this to pick QtWsTransport vs IxWsTransport -- keep the
+    # macro name identical to the CMake option so there is only one name to track.
+    target_compile_definitions(WebBridgeModule PUBLIC QGC_ENABLE_QT_WEBSOCKETS)
+    target_link_libraries(WebBridgeModule PUBLIC Qt6::WebSockets)
+else()
+    # IXWebSocket needs zlib (permessage-deflate support machinery, even though it's disabled at
+    # runtime by IxWsTransport -- USE_ZLIB just controls whether the library is *able* to, and
+    # find_package(ZLIB) below resolves to the same CPM-vendored zlib QGCCompression already
+    # fetches (src/Utilities/Compression/CMakeLists.txt's ZLIB::ZLIB alias), added to the build
+    # earlier (Utilities/ is add_subdirectory()'d before WebBridge/ in src/CMakeLists.txt) --
+    # no second zlib copy gets built. TLS is left off entirely (USE_TLS OFF): this is a
+    # localhost-only bridge per PROTOCOL.md §1's transport table, so no OpenSSL/mbedTLS
+    # dependency is pulled in.
+    CPMAddPackage(
+        NAME ixwebsocket
+        VERSION 12.0.1
+        GITHUB_REPOSITORY machinezone/IXWebSocket
+        GIT_TAG v12.0.1
+        OPTIONS
+            "BUILD_DEMO OFF"
+            "USE_TLS OFF"
+            "USE_ZLIB ON"
+            "IXWEBSOCKET_INSTALL OFF"
+    )
+    if(ixwebsocket_ADDED)
+        qgc_disable_dependency_warnings(ixwebsocket)
+    endif()
+
+    target_sources(WebBridgeModule PRIVATE
+        IxWsTransport.cc
+        IxWsTransport.h
+    )
+    target_link_libraries(WebBridgeModule PRIVATE ixwebsocket::ixwebsocket)
+endif()
 
 # VideoStreamServer taps the GStreamer pipeline; without GStreamer it compiles
 # to inert stubs. GStreamer::GStreamer is created by the VideoManager subtree
@@ -44,8 +95,9 @@ target_link_libraries(WebBridgeModule
         Qt6::QmlIntegration
     PUBLIC
         Qt6::Core
-        # WebBridgeServer.h exposes QWebSocketServer/QWebSocket types.
-        Qt6::WebSockets
+        # Qt6::WebSockets (QGC_ENABLE_QT_WEBSOCKETS=ON) or ixwebsocket::ixwebsocket (OFF) is
+        # linked above, per the WS Transport block -- WebBridgeServer.h no longer exposes either
+        # library's socket type (see WsTransport.h), so nothing here needs it PUBLIC.
 )
 
 # Headers are included bare (e.g. "Vehicle.h") to match repo convention, and

@@ -149,6 +149,19 @@ option(QGC_ENABLE_QT_MULTIMEDIA_BACKEND "Enable the QtMultimedia video backend (
 option(QGC_ENABLE_TILE_CACHE "Enable the sqlite-backed map/terrain tile cache (Qt6::Sql)" ON)
 
 # ============================================================================
+# WebBridge Transport Options
+# ============================================================================
+
+# src/WebBridge/'s WS transport (STRANGLER_MILESTONES.md Q7e): QWebSocketServer/QWebSocket
+# (Qt6::WebSockets) by default, matching upstream. OFF swaps in IXWebSocket (CPM-vendored, see
+# src/WebBridge/CMakeLists.txt and IxWsTransport.cc's rationale comment) instead, dropping
+# libQt6WebSockets from the ghost link -- the whole surface this touches is src/WebBridge/'s own
+# code (100% additive-era strangler code, no upstream file), gated behind WsTransport.h so the
+# protocol state machine in WebBridgeServer is identical either way. Default ON preserves current
+# behavior; the ghost-diet build opts out explicitly.
+option(QGC_ENABLE_QT_WEBSOCKETS "Use Qt's QWebSocketServer/QWebSocket for the WebBridge transport (OFF uses CPM-vendored IXWebSocket instead, dropping Qt6::WebSockets)" ON)
+
+# ============================================================================
 # MAVLink Configuration
 # ============================================================================
 
