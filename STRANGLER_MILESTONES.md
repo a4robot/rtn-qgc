@@ -245,6 +245,22 @@
 > **②** = rewrite ไฟล์ upstream-shared หนัก แต่ยัง reconcile กับ upstream ได้ในหลักการ
 > **③** = diverge ถาวร (point of no return) — ข้ามเส้นนี้แล้ว rebase upstream ของ ghost core ไม่ได้อีก
 
+### Testing protocol (ข้อบังคับจาก vegito, 2026-07-09): ทำเทสต์อย่างละเอียดทุกขั้นตอน
+
+ทุก job ใน M7/M8 ต้องผ่านลำดับนี้ — เข้มเป็นพิเศษกับ **StateMachine, Network, WebSockets**
+(สามตัวที่พังแล้วเจ็บสุด: vehicle connect flow / MAVLink links / ตัว bridge เอง):
+
+1. **Characterization tests ก่อนแตะโค้ด** — pin พฤติกรรม Qt เดิมด้วยเทสต์ที่เขียนและผ่าน *ก่อน* สลับ
+   (แบบเดียวกับแผน GeoCoordinate: generate expected values จาก implementation เดิม)
+2. **Equivalence phase** — ถ้าทำได้ให้รันของเก่า/ใหม่คู่กันหลัง flag แล้ว diff พฤติกรรม
+   (ลำดับ state transitions, wire bytes, timing tolerances)
+3. **e2e regression ทุก job** — mockghostprobe + video e2e + selftest ต้องเขียว *หลังทุก job* ไม่ใช่แค่ปลาย wave
+   (CI `ghost-strangler` เป็น backstop)
+4. **StateMachine:** capture transition log ของ InitialConnect/RequestMetaData กับ MockLink ก่อน port แล้ว replay-compare หลัง
+5. **WebSockets:** protocol conformance suite ตาม PROTOCOL.md §1–§14 กับ bridge จริงก่อนถอด QWebSocketServer
+   (mock selftest คือต้นแบบ)
+6. **Network:** เทสต์ MAVLink link layer (UDP/TCP echo, reconnect, partial-frame) + terrain tile fetch ก่อนแทน QNetworkAccessManager
+
 ## M7 — Qt Shrink: friction ① (additive/flag-gated — upstream merge ยังง่าย)
 
 ตัดทีละ lib แบบเดียวกับ audit ของ wave 9–12: นับ include/link site จริงก่อน แล้วค่อยตัด
