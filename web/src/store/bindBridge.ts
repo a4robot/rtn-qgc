@@ -9,6 +9,18 @@
  *  - "mission"                  → missionStore.applyMissionState
  *  - "image"                    → imageStore.applyImage
  *  - notification               → notificationStore.addNotification
+ *  - settingsValue              → settingsStore.applySettings (upsert — the getSettings snapshot
+ *                                  session.ts fires on connect needs somewhere to land even before
+ *                                  the SETTINGS tab is ever opened, same reason paramValue is wired
+ *                                  here; a setSetting's one-entry response harmlessly re-applies
+ *                                  too, since upsert is idempotent)
+ *  - settingChanged             → settingsStore.applySettingChanged (§16.5's authoritative push)
+ *  - linksValue                 → settingsStore.applyLinksSnapshot (same "needs a home before the
+ *                                  tab opens" reasoning as settingsValue above)
+ *  - linkAck NOT handled here — deliberately: it's a request/response for one specific
+ *    add/remove/connect/disconnect (mirrors missionAck/missionItems, which are likewise NOT wired
+ *    here — see WaypointList.tsx's own `useMissionRequest`); SettingsPanel.tsx's `useLinkRequests`
+ *    owns that lifecycle (pending flags, errors, triggering a follow-up getLinks) directly.
  *  - seq gaps                  → connectionStore.recordSeqGap
  */
 
@@ -19,6 +31,7 @@ import { useParamStore } from "./paramStore.ts";
 import { useMissionStore } from "./missionStore.ts";
 import { useImageStore } from "./imageStore.ts";
 import { useNotificationStore } from "./notificationStore.ts";
+import { useSettingsStore } from "./settingsStore.ts";
 
 /**
  * Subscribe the stores to a BridgeClient. Returns a cleanup function that
@@ -31,6 +44,7 @@ export function bindBridgeToStores(client: BridgeClient): () => void {
   const missions = useMissionStore.getState();
   const images = useImageStore.getState();
   const notifications = useNotificationStore.getState();
+  const settings = useSettingsStore.getState();
 
   // Reflect the client's current state immediately; onStateChange only
   // fires on transitions.
@@ -91,6 +105,26 @@ export function bindBridgeToStores(client: BridgeClient): () => void {
 
     client.onNotification((message) => {
       notifications.addNotification(message);
+    }),
+
+    // §16.3/§16.4: settingsValue answers both getSettings and setSetting (one shared shape) — see
+    // this module's header comment for why it's wired here rather than left to SettingsPanel alone.
+    client.onSettingsResponse((message) => {
+      if (message.type === "settingsValue") {
+        settings.applySettings(message.settings);
+      }
+    }),
+
+    // §16.5: the authoritative "a whitelisted setting's value changed" broadcast.
+    client.onSettingChanged((message) => {
+      settings.applySettingChanged(message.group, message.name, message.value, message.meta);
+    }),
+
+    // §16.7: only the getLinks snapshot lands here — linkAck is component-owned, see header comment.
+    client.onLinksResponse((message) => {
+      if (message.type === "linksValue") {
+        settings.applyLinksSnapshot(message.links);
+      }
     }),
   ];
 

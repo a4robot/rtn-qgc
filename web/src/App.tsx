@@ -18,6 +18,7 @@ import { Attitude } from "./components/telemetry/Attitude.tsx";
 import { ImagePanel } from "./components/telemetry/ImagePanel.tsx";
 import { Status } from "./components/telemetry/Status.tsx";
 import { ParamTable } from "./components/params/ParamTable.tsx";
+import { SettingsPanel } from "./components/settings/SettingsPanel.tsx";
 import { SidePanel } from "./components/SidePanel.tsx";
 import { VehicleSelect } from "./components/VehicleSelect.tsx";
 import { DualCam } from "./components/video/DualCam.tsx";
@@ -113,6 +114,7 @@ export function App() {
             flyContent={<ActionsPanel client={client} vehicleId={activeVehicleId} />}
             planContent={<WaypointList client={client} vehicleId={activeVehicleId} />}
             paramsContent={<ParamTable vehicleId={activeVehicleId} />}
+            settingsContent={<SettingsPanel client={client} />}
           />
         </section>
       </main>

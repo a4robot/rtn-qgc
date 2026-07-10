@@ -606,13 +606,232 @@ async function main(): Promise<void> {
     criticalNotif,
   );
 
+  // --- settings (PROTOCOL.md §16): getSettings (full snapshot) covers every whitelisted group.
+  const isSettingsValue = (m: Record<string, unknown>) => m.type === "settingsValue";
+  conn.send({ type: "getSettings", id: "gs1" });
+  const fullSettings = await conn.next("getSettings (all groups)", (m) => isSettingsValue(m) && m.id === "gs1");
+  const settingsList = fullSettings.settings as Record<string, unknown>[];
+  check(
+    "§16.3 getSettings (no group) returns settings from Video/App/AutoConnect",
+    new Set(settingsList.map((s) => s.group)).size === 3,
+    Array.from(new Set(settingsList.map((s) => s.group))),
+  );
+  const videoSourceEntry = settingsList.find((s) => s.group === "Video" && s.name === "videoSource");
+  check(
+    "§16.3 videoSource entry has type string + a non-empty enumValues list",
+    typeof videoSourceEntry?.value === "string" &&
+      (videoSourceEntry?.meta as Record<string, unknown>)?.type === "string" &&
+      Array.isArray((videoSourceEntry?.meta as Record<string, unknown>)?.enumValues) &&
+      ((videoSourceEntry?.meta as Record<string, unknown>)?.enumValues as unknown[]).length > 0,
+    videoSourceEntry,
+  );
+  const streamEnabledEntry = settingsList.find((s) => s.group === "Video" && s.name === "streamEnabled");
+  check(
+    "§16.3 streamEnabled entry has type bool",
+    typeof streamEnabledEntry?.value === "boolean" &&
+      (streamEnabledEntry?.meta as Record<string, unknown>)?.type === "bool",
+    streamEnabledEntry,
+  );
+
+  // --- getSettings scoped to one group returns only that group.
+  conn.send({ type: "getSettings", id: "gs2", group: "AutoConnect" });
+  const acSettings = await conn.next("getSettings (AutoConnect)", (m) => isSettingsValue(m) && m.id === "gs2");
+  const acList = acSettings.settings as Record<string, unknown>[];
+  check(
+    "§16.3 getSettings(group: AutoConnect) returns only AutoConnect entries",
+    acList.length > 0 && acList.every((s) => s.group === "AutoConnect"),
+    acList.map((s) => s.name),
+  );
+
+  // --- getSettings with an unrecognized group -> UNKNOWN_SETTINGS_GROUP.
+  conn.send({ type: "getSettings", id: "gs3", group: "Bogus" });
+  check(
+    "§16.3/§10 unknown settings group -> UNKNOWN_SETTINGS_GROUP",
+    (await conn.next("gs3 error", (m) => m.type === "error" && m.id === "gs3")).code === "UNKNOWN_SETTINGS_GROUP",
+  );
+
+  // --- setSetting round trip: response is a one-entry settingsValue with the new value, and a
+  // settingChanged broadcast follows with the same (group, name, value) plus meta/timeUs.
+  const isSettingChanged = (m: Record<string, unknown>) => m.type === "settingChanged";
+  conn.send({ type: "setSetting", id: "ss1", group: "Video", name: "streamEnabled", value: false });
+  const setAck = await conn.next("setSetting response", (m) => isSettingsValue(m) && m.id === "ss1");
+  const setAckEntries = setAck.settings as Record<string, unknown>[];
+  check(
+    "§16.4 setSetting response is a settingsValue with exactly the one changed entry",
+    setAckEntries.length === 1 &&
+      setAckEntries[0]?.group === "Video" &&
+      setAckEntries[0]?.name === "streamEnabled" &&
+      setAckEntries[0]?.value === false,
+    setAckEntries,
+  );
+  const changedPush = await conn.next("settingChanged after setSetting", isSettingChanged);
+  check(
+    "§16.5 settingChanged broadcast carries group/name/value/meta/timeUs",
+    changedPush.group === "Video" &&
+      changedPush.name === "streamEnabled" &&
+      changedPush.value === false &&
+      typeof (changedPush.meta as Record<string, unknown>)?.type === "string" &&
+      typeof changedPush.timeUs === "number",
+    changedPush,
+  );
+
+  // --- a second connected client also receives the settingChanged broadcast (§16.5's "every
+  // connected client, including the requester" multi-client fan-out — this checks the "other
+  // clients" half).
+  const conn2 = await TestConn.open();
+  conn2.send({ type: "hello", id: "h2", token: "dev-token-2", protocolVersion: "0.1" });
+  await conn2.next("conn2 helloAck", (m) => m.type === "helloAck");
+  await conn2.next("conn2 welcome notification", (m) => m.type === "notification"); // drain §14.3
+  conn.send({ type: "setSetting", id: "ss2", group: "Video", name: "streamEnabled", value: true });
+  await conn.next("setSetting response (ss2)", (m) => isSettingsValue(m) && m.id === "ss2");
+  const fanOutPush = await conn2.next("settingChanged fan-out to a different connection", isSettingChanged);
+  check(
+    "§16.5 settingChanged fans out to every authenticated connection, not just the requester",
+    fanOutPush.group === "Video" && fanOutPush.name === "streamEnabled" && fanOutPush.value === true,
+    fanOutPush,
+  );
+  conn2.close();
+
+  // --- setSetting on an unwhitelisted (group, name) -> SETTING_NOT_ALLOWED.
+  conn.send({ type: "setSetting", id: "ss3", group: "Video", name: "bogusName", value: true });
+  check(
+    "§16.4/§10 unwhitelisted setting -> SETTING_NOT_ALLOWED",
+    (await conn.next("ss3 error", (m) => m.type === "error" && m.id === "ss3")).code === "SETTING_NOT_ALLOWED",
+  );
+
+  // --- setSetting with a value of the wrong JSON type -> VALUE_OUT_OF_RANGE.
+  conn.send({ type: "setSetting", id: "ss4", group: "Video", name: "streamEnabled", value: "yes" });
+  check(
+    "§16.4/§10 wrong value type -> VALUE_OUT_OF_RANGE",
+    (await conn.next("ss4 error", (m) => m.type === "error" && m.id === "ss4")).code === "VALUE_OUT_OF_RANGE",
+  );
+
+  // --- setSetting videoSource to a value outside meta.enumValues -> VALUE_OUT_OF_RANGE.
+  conn.send({ type: "setSetting", id: "ss5", group: "Video", name: "videoSource", value: "Not A Real Source" });
+  check(
+    "§16.4/§10 videoSource outside enumValues -> VALUE_OUT_OF_RANGE",
+    (await conn.next("ss5 error", (m) => m.type === "error" && m.id === "ss5")).code === "VALUE_OUT_OF_RANGE",
+  );
+
+  // --- link management (PROTOCOL.md §16.7): getLinks returns the seeded AutoConnect UDP link.
+  const isLinksValue = (m: Record<string, unknown>) => m.type === "linksValue";
+  conn.send({ type: "getLinks", id: "gl1" });
+  const initialLinks = await conn.next("getLinks (initial)", (m) => isLinksValue(m) && m.id === "gl1");
+  const initialLinksList = initialLinks.links as Record<string, unknown>[];
+  const seededLink = initialLinksList.find((l) => l.name === "UDP Link (AutoConnect)");
+  check(
+    "§16.7 getLinks includes the seeded AutoConnect UDP link with the documented shape",
+    seededLink?.type === "udp" &&
+      seededLink?.connected === true &&
+      seededLink?.autoConnect === true &&
+      (seededLink?.config as Record<string, unknown>)?.listenPort === 14550,
+    seededLink,
+  );
+
+  // --- addLink: valid udp link -> accepted; duplicate name -> rejected; unaddable type -> rejected.
+  conn.send({ type: "addLink", id: "al1", config: { type: "udp", name: "selftest-udp", listenPort: 25550 } });
+  const addAck = await conn.next("addLink ack", (m) => m.type === "linkAck" && m.id === "al1");
+  check("§16.7 addLink (valid udp) -> accepted", addAck.status === "accepted" && addAck.name === "selftest-udp", addAck);
+
+  conn.send({ type: "addLink", id: "al2", config: { type: "udp", name: "selftest-udp", listenPort: 25551 } });
+  const dupAck = await conn.next("addLink dup ack", (m) => m.type === "linkAck" && m.id === "al2");
+  check(
+    "§16.7 addLink with a duplicate name -> rejected with a reason",
+    dupAck.status === "rejected" && typeof dupAck.reason === "string",
+    dupAck,
+  );
+
+  conn.send({ type: "addLink", id: "al3", config: { type: "bluetooth", name: "selftest-bt" } });
+  const badTypeAck = await conn.next("addLink bad type ack", (m) => m.type === "linkAck" && m.id === "al3");
+  check(
+    "§16.7 addLink with a non-addable type (bluetooth) -> rejected",
+    badTypeAck.status === "rejected",
+    badTypeAck,
+  );
+
+  // --- the new link now shows up in getLinks, not yet connected.
+  conn.send({ type: "getLinks", id: "gl2" });
+  const afterAddLinks = (await conn.next("getLinks (after add)", (m) => isLinksValue(m) && m.id === "gl2"))
+    .links as Record<string, unknown>[];
+  const newLink = afterAddLinks.find((l) => l.name === "selftest-udp");
+  check(
+    "§16.7 newly added link is listed, persisted but not connected",
+    newLink?.connected === false && newLink?.autoConnect === false,
+    newLink,
+  );
+
+  // --- connectLink: fire-and-forget accept, then getLinks (after the mock's simulated settle
+  // delay) observes the transition to connected — the documented "poll after connectLink" pattern.
+  conn.send({ type: "connectLink", id: "cl1", name: "selftest-udp" });
+  const connectAck = await conn.next("connectLink ack", (m) => m.type === "linkAck" && m.id === "cl1");
+  check("§16.7 connectLink -> accepted (requested, not yet connected)", connectAck.status === "accepted", connectAck);
+
+  await Bun.sleep(350); // past the mock's LINK_CONNECT_SIM_DELAY_MS (200ms)
+  conn.send({ type: "getLinks", id: "gl3" });
+  const afterConnectLinks = (await conn.next("getLinks (after connect settles)", (m) => isLinksValue(m) && m.id === "gl3"))
+    .links as Record<string, unknown>[];
+  check(
+    "§16.7 getLinks observes connected: true after connectLink settles",
+    afterConnectLinks.find((l) => l.name === "selftest-udp")?.connected === true,
+    afterConnectLinks.find((l) => l.name === "selftest-udp"),
+  );
+
+  // --- disconnectLink: same fire-and-forget shape, transitions back to disconnected.
+  conn.send({ type: "disconnectLink", id: "dl1", name: "selftest-udp" });
+  await conn.next("disconnectLink ack", (m) => m.type === "linkAck" && m.id === "dl1");
+  await Bun.sleep(350);
+  conn.send({ type: "getLinks", id: "gl4" });
+  const afterDisconnectLinks = (await conn.next("getLinks (after disconnect settles)", (m) => isLinksValue(m) && m.id === "gl4"))
+    .links as Record<string, unknown>[];
+  check(
+    "§16.7 getLinks observes connected: false after disconnectLink settles",
+    afterDisconnectLinks.find((l) => l.name === "selftest-udp")?.connected === false,
+    afterDisconnectLinks.find((l) => l.name === "selftest-udp"),
+  );
+
+  // --- connectLink/removeLink/disconnectLink on an unknown name -> rejected (not a §10 error).
+  conn.send({ type: "connectLink", id: "cl2", name: "no-such-link" });
+  const unknownConnectAck = await conn.next("connectLink unknown name ack", (m) => m.type === "linkAck" && m.id === "cl2");
+  check(
+    "§16.7 connectLink on an unknown name -> rejected ack, not a §10 error",
+    unknownConnectAck.status === "rejected" && typeof unknownConnectAck.reason === "string",
+    unknownConnectAck,
+  );
+
+  // --- removeLink: accepted removal drops it from a follow-up getLinks; unknown name -> rejected.
+  conn.send({ type: "removeLink", id: "rl1", name: "selftest-udp" });
+  const removeAck = await conn.next("removeLink ack", (m) => m.type === "linkAck" && m.id === "rl1");
+  check("§16.7 removeLink (existing) -> accepted", removeAck.status === "accepted", removeAck);
+
+  conn.send({ type: "getLinks", id: "gl5" });
+  const afterRemoveLinks = (await conn.next("getLinks (after remove)", (m) => isLinksValue(m) && m.id === "gl5"))
+    .links as Record<string, unknown>[];
+  check(
+    "§16.7 removed link no longer appears in getLinks",
+    afterRemoveLinks.every((l) => l.name !== "selftest-udp"),
+    afterRemoveLinks.map((l) => l.name),
+  );
+
+  conn.send({ type: "removeLink", id: "rl2", name: "selftest-udp" });
+  const removeAgainAck = await conn.next("removeLink (already gone) ack", (m) => m.type === "linkAck" && m.id === "rl2");
+  check(
+    "§16.7 removeLink on an unknown name -> rejected",
+    removeAgainAck.status === "rejected",
+    removeAgainAck,
+  );
+
   conn.close();
 }
 
 // Spawn the server under test, run the checks, then tear it down.
 // MOCK_NOTIFICATION_*_MS shortened so the notification-demo checks above
 // don't wait the real 15s/40s dev timing (see server.ts's "notification demo").
-const serverProc = Bun.spawn(["bun", new URL("./server.ts", import.meta.url).pathname], {
+// Pre-existing bug fixed in wave 19: `--fixture` (unlike MOCK_FIXTURE=1) previously wasn't
+// forwarded to the spawned child at all, so `bun mock/selftest.ts --fixture` silently ran the
+// server in default (non-survey) mode while this file's own FIXTURE_MODE (computed from ITS
+// process.argv) expected the survey mission — a spurious "6 fixture items" mismatch. Forwarding
+// argv here makes both invocation styles equivalent, as server.ts's own flag check already implies.
+const serverProc = Bun.spawn(["bun", new URL("./server.ts", import.meta.url).pathname, ...process.argv.slice(2)], {
   stdout: "pipe",
   stderr: "inherit",
   env: {

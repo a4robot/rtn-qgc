@@ -6,20 +6,24 @@
  * Rule: FLY and PLAN tabs mirror the map-click mode 1:1 (selecting one
  * flips the other, and vice versa — e.g. WaypointList's internal FLY/PLAN
  * toggle drives `setMapMode` directly, and the tab strip must follow it).
- * PARAMS has no map-mode equivalent, so selecting it leaves `mapMode`
- * wherever it was, and an external `mapMode` change never selects PARAMS.
+ * PARAMS and SETTINGS have no map-mode equivalent, so selecting either
+ * leaves `mapMode` wherever it was, and an external `mapMode` change never
+ * selects PARAMS/SETTINGS.
  */
 
 import type { MapMode } from "./uiStore.ts";
 
-export type SidePanelTab = "fly" | "plan" | "params";
+export type SidePanelTab = "fly" | "plan" | "params" | "settings";
+
+/** Tabs with no map-mode equivalent — selecting one leaves `mapMode` untouched. */
+const MAP_MODE_NEUTRAL_TABS: ReadonlySet<SidePanelTab> = new Set(["params", "settings"]);
 
 /**
  * The map mode that should result from selecting `tab`, given the map mode
- * currently in effect. Returns `currentMode` unchanged for the PARAMS tab.
+ * currently in effect. Returns `currentMode` unchanged for the PARAMS/SETTINGS tabs.
  */
 export function mapModeForTab(tab: SidePanelTab, currentMode: MapMode): MapMode {
-  return tab === "params" ? currentMode : tab;
+  return MAP_MODE_NEUTRAL_TABS.has(tab) ? currentMode : (tab as MapMode);
 }
 
 /**

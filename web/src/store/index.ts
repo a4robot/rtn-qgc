@@ -47,6 +47,17 @@ export {
   type NotificationRecord,
   type NotificationStoreState,
 } from "./notificationStore.ts";
+export {
+  useLinkPending,
+  useLinks,
+  useSetting,
+  useSettingPending,
+  useSettings,
+  useSettingsStore,
+  settingKey,
+  type PendingLinkOp,
+  type SettingsStoreState,
+} from "./settingsStore.ts";
 export { bindBridgeToStores } from "./bindBridge.ts";
 export {
   useActiveVehicle,

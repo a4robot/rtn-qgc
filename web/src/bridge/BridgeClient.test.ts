@@ -8,7 +8,7 @@
 import { beforeEach, expect, test } from "bun:test";
 
 import { BridgeClient } from "./BridgeClient.ts";
-import type { Channel, CommandResponse, MissionResponse } from "./types.ts";
+import type { Channel, CommandResponse, MissionResponse, SettingsResponse } from "./types.ts";
 
 class FakeSocket {
   static readonly CONNECTING = 0;
@@ -242,6 +242,81 @@ test("mission response: unsubscribe stops delivery", () => {
   client.disconnect();
 });
 
+test("settings response: onSettingsResponse receives settingsValue, ignores other types", () => {
+  const client = new BridgeClient();
+  client.connect("ws://fake");
+  const socket = latestSocket();
+  socket.simulateOpen();
+
+  const seen: string[] = [];
+  client.onSettingsResponse((message) => seen.push(message.type));
+
+  socket.simulateMessage(
+    JSON.stringify({
+      type: "settingsValue",
+      id: "s-1",
+      settings: [{ group: "Video", name: "streamEnabled", value: true, meta: { type: "bool" } }],
+    }),
+  );
+  socket.simulateMessage(
+    JSON.stringify({ type: "commandAck", id: "c-1", vehicleId: 1, status: "accepted" }),
+  );
+
+  expect(seen).toEqual(["settingsValue"]);
+
+  client.disconnect();
+});
+
+test("settingChanged: onSettingChanged receives the broadcast, unaffected by unrelated messages", () => {
+  const client = new BridgeClient();
+  client.connect("ws://fake");
+  const socket = latestSocket();
+  socket.simulateOpen();
+
+  const seen: unknown[] = [];
+  client.onSettingChanged((message) => seen.push(message));
+
+  socket.simulateMessage(
+    JSON.stringify({
+      type: "settingChanged",
+      group: "Video",
+      name: "streamEnabled",
+      value: true,
+      meta: { type: "bool" },
+      timeUs: 1_000_000,
+    }),
+  );
+  socket.simulateMessage(telemetry(1)); // unrelated — must not reach the settingChanged subscriber
+
+  expect(seen).toEqual([
+    { type: "settingChanged", group: "Video", name: "streamEnabled", value: true, meta: { type: "bool" }, timeUs: 1_000_000 },
+  ]);
+
+  client.disconnect();
+});
+
+test("links response: onLinksResponse receives linksValue and linkAck, ignores other types", () => {
+  const client = new BridgeClient();
+  client.connect("ws://fake");
+  const socket = latestSocket();
+  socket.simulateOpen();
+
+  const seen: string[] = [];
+  client.onLinksResponse((message) => seen.push(message.type));
+
+  socket.simulateMessage(JSON.stringify({ type: "linksValue", id: "l-1", links: [] }));
+  socket.simulateMessage(
+    JSON.stringify({ type: "linkAck", id: "l-2", status: "accepted", name: "my-udp-link" }),
+  );
+  socket.simulateMessage(
+    JSON.stringify({ type: "missionAck", id: "m-1", vehicleId: 1, status: "accepted", itemCount: 0 }),
+  );
+
+  expect(seen).toEqual(["linksValue", "linkAck"]);
+
+  client.disconnect();
+});
+
 test("onSeqGap still observes gaps independently of the resubscribe hook", () => {
   const client = new BridgeClient({ resubscribeDebounceMs: 10_000 });
   client.connect("ws://fake");
@@ -290,6 +365,32 @@ test("keyed error: a §10 error carrying an id is translated into a rejected com
   ]);
   expect(missionSeen).toEqual([
     { type: "missionAck", id: "c-bogus-vehicle", vehicleId: 999999, status: "rejected", reason: "Unknown vehicle" },
+  ]);
+
+  client.disconnect();
+});
+
+test("keyed error: a §10 error carrying an id is also translated into a settingsError (§16.4's SETTING_NOT_ALLOWED etc. have no ack shape of their own)", () => {
+  const client = new BridgeClient();
+  client.connect("ws://fake");
+  const socket = latestSocket();
+  socket.simulateOpen();
+
+  const settingsSeen: SettingsResponse[] = [];
+  client.onSettingsResponse((message) => settingsSeen.push(message));
+
+  socket.simulateMessage(
+    JSON.stringify({
+      type: "error",
+      id: "s-bogus-setting",
+      code: "SETTING_NOT_ALLOWED",
+      message: "Setting not in whitelist: Video.bogus",
+      retryable: false,
+    }),
+  );
+
+  expect(settingsSeen).toEqual([
+    { type: "settingsError", id: "s-bogus-setting", code: "SETTING_NOT_ALLOWED", message: "Setting not in whitelist: Video.bogus" },
   ]);
 
   client.disconnect();

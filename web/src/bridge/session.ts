@@ -150,6 +150,18 @@ export function startBridgeSession(
     });
   }
 
+  // §16: settings/links aren't a subscribe-stream (no channel/seq envelope,
+  // just a request/response like getParam), but per-connection state that's
+  // only worth having once hello succeeds — so the fetch lives in the same
+  // handshake as the channel subscribes below, not settingsStore/bindBridge.
+  function fetchSettings(): void {
+    client.send({ type: "getSettings", id: nextId("get-settings") });
+  }
+
+  function fetchLinks(): void {
+    client.send({ type: "getLinks", id: nextId("get-links") });
+  }
+
   const unbindState = client.onStateChange((state) => {
     if (state !== "connected") {
       return;
@@ -166,6 +178,8 @@ export function startBridgeSession(
     for (const streamId of options.videoStreamIds ?? []) {
       subscribeVideo(streamId);
     }
+    fetchSettings();
+    fetchLinks();
   });
 
   // §2.4: on a detected seq gap, re-subscribe the channel that gapped with

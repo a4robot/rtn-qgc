@@ -9,6 +9,17 @@
  * warning ~15s in, critical ~40s in — see "notification demo" below) so the
  * web UI's toast/bell can be developed against a fake ghost too.
  *
+ * `settings`/link management (PROTOCOL.md §16, Wave 19) is a GLOBAL whitelist
+ * table + configured-links table (see "settings"/"links" below) shared by
+ * every connection, same rationale as `missionState`: `getSettings`/
+ * `setSetting` (§16.3/§16.4) read/write it synchronously and every accepted
+ * write broadcasts `settingChanged` (§16.5) to every authenticated
+ * connection, not just the requester. `getLinks`/`addLink`/`removeLink`/
+ * `connectLink`/`disconnectLink` (§16.7) manage the links table;
+ * connect/disconnect are simulated fire-and-forget (ack immediately, flip
+ * `connected` after a short delay) so a client's "poll getLinks after
+ * connectLink" pattern is exercised for real.
+ *
  * `image` (PROTOCOL.md §15, Q8d) is a synthetic, deterministic-per-elapsed-time BMP test pattern
  * (see "image fixture" below) — not a real JPEG fixture, since a hand-rolled/embedded JPEG risks
  * being subtly invalid with no way to self-verify; a programmatically-constructed BMP is trivial
@@ -326,6 +337,128 @@ function replaceMission(items: MissionItemPayload[]): void {
   missionState.version += 1;
 }
 
+// --- settings (PROTOCOL.md §16) ---------------------------------------------
+//
+// App/link settings vs. `fact` (§6): no vehicle, no MAVLink round trip, always synchronous
+// (§16.1) -- unlike telemetry/mission there is nothing to "play back", so this is just a plain
+// mutable whitelist table (GLOBAL, shared by every connection, like `missionState` above) plus a
+// broadcast fan-out on change (§16.5). `settingsTypeString`'s coarse `string|int|double|bool`
+// mirrors SettingsChannel.cc's own coarsening of FactMetaData::ValueType_t.
+
+type SettingScalar = string | number | boolean;
+
+interface SettingEntry {
+  group: string;
+  name: string;
+  value: SettingScalar;
+  type: "string" | "int" | "double" | "bool";
+  /** Present only for `videoSource` (§16.3). */
+  enumValues?: string[];
+}
+
+/** §16.2's `Video.videoSource` enum -- mirrors VideoSettings.h's GStreamer-backed source list. */
+const VIDEO_SOURCE_ENUM = [
+  "Video Stream Disabled",
+  "RTSP Video Stream",
+  "UDP h.264 Video Stream",
+  "UDP h.265 Video Stream",
+  "TCP-MPEG2 Video Stream",
+  "MPEG-TS Video Stream",
+];
+
+const SETTINGS_GROUPS = new Set(["Video", "App", "AutoConnect"]);
+
+/** GLOBAL whitelist table, keyed by "<group>.<name>" -- the mock's own §16.2, seeded with plausible defaults. */
+const settingsState = new Map<string, SettingEntry>();
+function seedSetting(entry: SettingEntry): void {
+  settingsState.set(`${entry.group}.${entry.name}`, entry);
+}
+seedSetting({ group: "Video", name: "videoSource", value: "Video Stream Disabled", type: "string", enumValues: VIDEO_SOURCE_ENUM });
+seedSetting({ group: "Video", name: "udpUrl", value: "0.0.0.0:5600", type: "string" });
+seedSetting({ group: "Video", name: "rtspUrl", value: "", type: "string" });
+seedSetting({ group: "Video", name: "tcpUrl", value: "", type: "string" });
+seedSetting({ group: "Video", name: "streamEnabled", value: true, type: "bool" });
+seedSetting({ group: "Video", name: "lowLatencyMode", value: false, type: "bool" });
+seedSetting({ group: "App", name: "defaultMissionItemAltitude", value: 50, type: "double" });
+seedSetting({ group: "App", name: "offlineEditingFirmwareClass", value: 3, type: "int" });
+seedSetting({ group: "App", name: "offlineEditingVehicleClass", value: 2, type: "int" });
+seedSetting({ group: "App", name: "offlineEditingCruiseSpeed", value: 8, type: "double" });
+seedSetting({ group: "App", name: "offlineEditingHoverSpeed", value: 3, type: "double" });
+seedSetting({ group: "App", name: "offlineEditingAscentSpeed", value: 2, type: "double" });
+seedSetting({ group: "App", name: "offlineEditingDescentSpeed", value: 1, type: "double" });
+seedSetting({ group: "AutoConnect", name: "autoConnectUDP", value: true, type: "bool" });
+seedSetting({ group: "AutoConnect", name: "autoConnectPixhawk", value: true, type: "bool" });
+seedSetting({ group: "AutoConnect", name: "autoConnectSiKRadio", value: true, type: "bool" });
+seedSetting({ group: "AutoConnect", name: "autoConnectRTKGPS", value: true, type: "bool" });
+seedSetting({ group: "AutoConnect", name: "udpListenPort", value: 14550, type: "int" });
+
+/** Builds one §16.3 `settings[]` entry ({group, name, value, meta}) for `entry`. */
+function describeSetting(entry: SettingEntry): Record<string, unknown> {
+  const meta: Record<string, unknown> = { type: entry.type };
+  if (entry.enumValues) {
+    meta.enumValues = entry.enumValues;
+  }
+  return { group: entry.group, name: entry.name, value: entry.value, meta };
+}
+
+/** §16.4's VALUE_OUT_OF_RANGE condition: JSON type must match `entry.type`, and (for an enum'd string) be one of `enumValues`. */
+function settingValueAcceptable(entry: SettingEntry, value: unknown): { ok: true } | { ok: false; reason: string } {
+  if (entry.type === "bool") {
+    return typeof value === "boolean" ? { ok: true } : { ok: false, reason: "value must be a boolean" };
+  }
+  if (entry.type === "string") {
+    if (typeof value !== "string") {
+      return { ok: false, reason: "value must be a string" };
+    }
+    if (entry.enumValues && !entry.enumValues.includes(value)) {
+      return { ok: false, reason: "value is not one of meta.enumValues" };
+    }
+    return { ok: true };
+  }
+  // int|double: every remaining type is a plain JSON number on the wire.
+  return typeof value === "number" && Number.isFinite(value) ? { ok: true } : { ok: false, reason: "value must be a number" };
+}
+
+// --- links (PROTOCOL.md §16.7) ----------------------------------------------
+
+type MockLinkType = "serial" | "udp" | "tcp";
+const ADDABLE_LINK_TYPES: ReadonlySet<string> = new Set(["serial", "udp", "tcp"]);
+
+interface LinkEntry {
+  name: string;
+  type: MockLinkType;
+  connected: boolean;
+  autoConnect: boolean;
+  config: Record<string, unknown>;
+}
+
+/** GLOBAL configured-links table, keyed by name (§16.7: name is the primary key) -- seeded with the doc's own example AutoConnect UDP link. */
+const linksState = new Map<string, LinkEntry>();
+linksState.set("UDP Link (AutoConnect)", {
+  name: "UDP Link (AutoConnect)",
+  type: "udp",
+  connected: true,
+  autoConnect: true,
+  config: { listenPort: 14550, targetHosts: [] },
+});
+
+function describeLink(entry: LinkEntry): Record<string, unknown> {
+  return { name: entry.name, type: entry.type, connected: entry.connected, autoConnect: entry.autoConnect, config: entry.config };
+}
+
+function makeLinkAck(id: string, accepted: boolean, name: string, reason?: string): Record<string, unknown> {
+  return {
+    type: "linkAck",
+    id,
+    status: accepted ? "accepted" : "rejected",
+    name,
+    ...(accepted ? {} : { reason: reason ?? "rejected" }),
+  };
+}
+
+/** Simulated async settle time for connectLink/disconnectLink (§16.7: real connects dispatch onto a worker thread and are not instant). */
+const LINK_CONNECT_SIM_DELAY_MS = 200;
+
 // --- video fixture ----------------------------------------------------------
 //
 // fixtures/video.h264 is 8 s of H.264 baseline @ 640x360x15fps with an Access
@@ -579,9 +712,14 @@ interface Session {
   commandTimers: Set<ReturnType<typeof setTimeout>>;
   /** Pending demo `notification` timers (see "notification demo" below), cleared on disconnect. */
   notificationTimers: Set<ReturnType<typeof setTimeout>>;
+  /** Pending connectLink/disconnectLink settle timers (§16.7), cleared on disconnect. */
+  linkTimers: Set<ReturnType<typeof setTimeout>>;
 }
 
 type Socket = ServerWebSocket<Session>;
+
+/** Every authenticated connection -- PROTOCOL.md §16.5: settingChanged is broadcast to ALL of them, not just the requester (unlike the per-connection notification demo). */
+const authedSockets = new Set<Socket>();
 
 function send(ws: Socket, message: Record<string, unknown>): void {
   ws.send(JSON.stringify(message));
@@ -714,6 +852,7 @@ function handleHello(ws: Socket, msg: Record<string, unknown>): void {
   }
 
   ws.data.authed = true;
+  authedSockets.add(ws);
   send(ws, {
     type: "helloAck",
     protocolVersion: PROTOCOL_VERSION,
@@ -1344,6 +1483,170 @@ function handleMissionClear(ws: Socket, msg: Record<string, unknown>): void {
   send(ws, { type: "missionAck", id, vehicleId: VEHICLE_ID, status: "accepted", itemCount: 0 });
 }
 
+/** `getSettings` (§16.3): `group` omitted returns every whitelisted setting; an unrecognized `group` -> UNKNOWN_SETTINGS_GROUP. */
+function handleGetSettings(ws: Socket, msg: Record<string, unknown>): void {
+  const id = typeof msg.id === "string" ? msg.id : undefined;
+  if (id === undefined) {
+    sendError(ws, "BAD_MESSAGE", "getSettings requires a string id");
+    return;
+  }
+  const hasGroup = Object.prototype.hasOwnProperty.call(msg, "group");
+  const group = typeof msg.group === "string" ? msg.group : undefined;
+  if (hasGroup && (group === undefined || !SETTINGS_GROUPS.has(group))) {
+    sendError(ws, "UNKNOWN_SETTINGS_GROUP", `Unknown settings group: ${String(msg.group)}`, { id });
+    return;
+  }
+  const settings: Record<string, unknown>[] = [];
+  for (const entry of settingsState.values()) {
+    if (hasGroup && entry.group !== group) {
+      continue;
+    }
+    settings.push(describeSetting(entry));
+  }
+  send(ws, { type: "settingsValue", id, settings });
+}
+
+/**
+ * `setSetting` (§16.4): validate against the §16.2 whitelist + `_valueAcceptable`-equivalent type
+ * check, write through synchronously, answer with a one-entry `settingsValue` (the value read back
+ * immediately -- §16.1: writes are always synchronous here), then broadcast `settingChanged` to
+ * every authenticated connection (§16.5), including this one.
+ */
+function handleSetSetting(ws: Socket, msg: Record<string, unknown>): void {
+  const id = typeof msg.id === "string" ? msg.id : undefined;
+  if (id === undefined) {
+    sendError(ws, "BAD_MESSAGE", "setSetting requires a string id");
+    return;
+  }
+  const group = typeof msg.group === "string" ? msg.group : "";
+  const name = typeof msg.name === "string" ? msg.name : "";
+  if (group === "" || name === "" || !Object.prototype.hasOwnProperty.call(msg, "value")) {
+    sendError(ws, "BAD_MESSAGE", "setSetting requires group, name, and value", { id });
+    return;
+  }
+  const key = `${group}.${name}`;
+  const entry = settingsState.get(key);
+  if (!entry) {
+    // §16.4: "unknown group, or unknown name within a known group" -> the same SETTING_NOT_ALLOWED.
+    sendError(ws, "SETTING_NOT_ALLOWED", `Setting not in whitelist: ${key}`, { id });
+    return;
+  }
+  const value = msg.value as SettingScalar;
+  const check = settingValueAcceptable(entry, value);
+  if (!check.ok) {
+    sendError(ws, "VALUE_OUT_OF_RANGE", check.reason, { id });
+    return;
+  }
+
+  entry.value = value;
+  send(ws, { type: "settingsValue", id, settings: [describeSetting(entry)] });
+
+  const changed = { ...describeSetting(entry), type: "settingChanged", timeUs: nowUs() };
+  for (const client of authedSockets) {
+    send(client, changed);
+  }
+}
+
+/** `getLinks` (§16.7): the GLOBAL configured-links table. */
+function handleGetLinks(ws: Socket, msg: Record<string, unknown>): void {
+  const id = typeof msg.id === "string" ? msg.id : undefined;
+  if (id === undefined) {
+    sendError(ws, "BAD_MESSAGE", "getLinks requires a string id");
+    return;
+  }
+  const links = Array.from(linksState.values(), describeLink);
+  send(ws, { type: "linksValue", id, links });
+}
+
+/** `addLink` (§16.7): only serial|udp|tcp are constructible; `config.name` must be unique. Persisted immediately but not connected. */
+function handleAddLink(ws: Socket, msg: Record<string, unknown>): void {
+  const id = typeof msg.id === "string" ? msg.id : undefined;
+  if (id === undefined) {
+    sendError(ws, "BAD_MESSAGE", "addLink requires a string id");
+    return;
+  }
+  const config = (typeof msg.config === "object" && msg.config !== null ? msg.config : {}) as Record<string, unknown>;
+  const typeStr = typeof config.type === "string" ? config.type : "";
+  const name = typeof config.name === "string" ? config.name : "";
+
+  if (name === "") {
+    send(ws, makeLinkAck(id, false, name, "config.name is required"));
+    return;
+  }
+  if (linksState.has(name)) {
+    send(ws, makeLinkAck(id, false, name, `A link named "${name}" already exists`));
+    return;
+  }
+  if (!ADDABLE_LINK_TYPES.has(typeStr)) {
+    send(ws, makeLinkAck(id, false, name, `config.type must be one of serial|udp|tcp (got "${typeStr}")`));
+    return;
+  }
+
+  let entryConfig: Record<string, unknown> = {};
+  if (typeStr === "udp") {
+    entryConfig = {
+      listenPort: typeof config.listenPort === "number" ? config.listenPort : 0,
+      targetHosts: Array.isArray(config.targetHosts) ? config.targetHosts : [],
+    };
+  } else if (typeStr === "tcp") {
+    entryConfig = {
+      host: typeof config.host === "string" ? config.host : "",
+      port: typeof config.port === "number" ? config.port : 0,
+    };
+  } else if (typeStr === "serial") {
+    entryConfig = {
+      port: typeof config.port === "string" ? config.port : "",
+      baud: typeof config.baud === "number" ? config.baud : 57600,
+    };
+  }
+
+  linksState.set(name, { name, type: typeStr as MockLinkType, connected: false, autoConnect: false, config: entryConfig });
+  send(ws, makeLinkAck(id, true, name));
+}
+
+/** `removeLink` (§16.7): also disconnects first if currently connected (no-op here — the mock has no real socket to tear down). */
+function handleRemoveLink(ws: Socket, msg: Record<string, unknown>): void {
+  const id = typeof msg.id === "string" ? msg.id : undefined;
+  if (id === undefined) {
+    sendError(ws, "BAD_MESSAGE", "removeLink requires a string id");
+    return;
+  }
+  const name = typeof msg.name === "string" ? msg.name : "";
+  if (!linksState.has(name)) {
+    send(ws, makeLinkAck(id, false, name, `No link configuration named "${name}"`));
+    return;
+  }
+  linksState.delete(name);
+  send(ws, makeLinkAck(id, true, name));
+}
+
+/**
+ * `connectLink`/`disconnectLink` (§16.7): fire-and-forget -- ack "accepted" immediately (meaning
+ * "requested", not "now connected"), then flip `connected` after a short simulated settle delay so
+ * a client polling `getLinks` shortly after actually observes a transition, exercising the
+ * documented "poll after connectLink" pattern for real instead of trivially (an instant flip would
+ * make the client's poll-after-ack step untestable).
+ */
+function handleConnectLink(ws: Socket, msg: Record<string, unknown>, connect: boolean): void {
+  const id = typeof msg.id === "string" ? msg.id : undefined;
+  if (id === undefined) {
+    sendError(ws, "BAD_MESSAGE", `${connect ? "connectLink" : "disconnectLink"} requires a string id`);
+    return;
+  }
+  const name = typeof msg.name === "string" ? msg.name : "";
+  const entry = linksState.get(name);
+  if (!entry) {
+    send(ws, makeLinkAck(id, false, name, `No link configuration named "${name}"`));
+    return;
+  }
+  send(ws, makeLinkAck(id, true, name));
+  const timer = setTimeout(() => {
+    ws.data.linkTimers.delete(timer);
+    entry.connected = connect;
+  }, LINK_CONNECT_SIM_DELAY_MS);
+  ws.data.linkTimers.add(timer);
+}
+
 function handleMessage(ws: Socket, raw: string | Buffer): void {
   let msg: unknown;
   if (typeof raw === "string") {
@@ -1400,6 +1703,27 @@ function handleMessage(ws: Socket, raw: string | Buffer): void {
     case "missionClear":
       handleMissionClear(ws, parsed);
       break;
+    case "getSettings":
+      handleGetSettings(ws, parsed);
+      break;
+    case "setSetting":
+      handleSetSetting(ws, parsed);
+      break;
+    case "getLinks":
+      handleGetLinks(ws, parsed);
+      break;
+    case "addLink":
+      handleAddLink(ws, parsed);
+      break;
+    case "removeLink":
+      handleRemoveLink(ws, parsed);
+      break;
+    case "connectLink":
+      handleConnectLink(ws, parsed, true);
+      break;
+    case "disconnectLink":
+      handleConnectLink(ws, parsed, false);
+      break;
     default:
       sendError(ws, "UNKNOWN_TYPE", `unrecognized type: ${parsed.type}`, {
         ...(typeof parsed.id === "string" ? { id: parsed.id } : {}),
@@ -1423,6 +1747,7 @@ const server = Bun.serve<Session, never>({
       imageStreams: new Map(),
       commandTimers: new Set(),
       notificationTimers: new Set(),
+      linkTimers: new Set(),
     };
     if (srv.upgrade(req, { data: session })) {
       return;
@@ -1435,6 +1760,7 @@ const server = Bun.serve<Session, never>({
     },
     close(ws) {
       ws.data.closed = true;
+      authedSockets.delete(ws);
       if (ws.data.tickTimer !== null) {
         clearInterval(ws.data.tickTimer);
         ws.data.tickTimer = null;
@@ -1451,6 +1777,10 @@ const server = Bun.serve<Session, never>({
         clearTimeout(timer);
       }
       ws.data.notificationTimers.clear();
+      for (const timer of ws.data.linkTimers) {
+        clearTimeout(timer);
+      }
+      ws.data.linkTimers.clear();
     },
   },
 });

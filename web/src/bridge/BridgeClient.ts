@@ -22,9 +22,13 @@ import type {
   ClientMessage,
   CommandAck,
   CommandResponse,
+  LinksResponse,
   MissionAck,
   MissionResponse,
   Notification,
+  SettingChanged,
+  SettingsError,
+  SettingsResponse,
   Telemetry,
   ParamValue,
 } from "./types.ts";
@@ -39,6 +43,12 @@ export type MessageHandler = (message: BridgeMessage) => void;
 export type CommandResponseHandler = (message: CommandResponse) => void;
 export type ParamValueHandler = (message: ParamValue) => void;
 export type MissionResponseHandler = (message: MissionResponse) => void;
+/** PROTOCOL.md §16.1, keyed by request id — mirrors {@link MissionResponseHandler}. */
+export type SettingsResponseHandler = (message: SettingsResponse) => void;
+/** PROTOCOL.md §16.1, unsolicited push — mirrors {@link NotificationHandler}. */
+export type SettingChangedHandler = (message: SettingChanged) => void;
+/** PROTOCOL.md §16.2, keyed by request id — mirrors {@link MissionResponseHandler}. */
+export type LinksResponseHandler = (message: LinksResponse) => void;
 export type NotificationHandler = (message: Notification) => void;
 export type StateHandler = (state: ConnectionState) => void;
 export type SeqGapHandler = (gap: SeqGap) => void;
@@ -104,6 +114,9 @@ export class BridgeClient {
   private readonly commandResponseHandlers = new Set<CommandResponseHandler>();
   private readonly paramValueHandlers = new Set<ParamValueHandler>();
   private readonly missionResponseHandlers = new Set<MissionResponseHandler>();
+  private readonly settingsResponseHandlers = new Set<SettingsResponseHandler>();
+  private readonly settingChangedHandlers = new Set<SettingChangedHandler>();
+  private readonly linksResponseHandlers = new Set<LinksResponseHandler>();
   private readonly notificationHandlers = new Set<NotificationHandler>();
   private readonly binaryFrameHandlers = new Set<BinaryFrameHandler>();
   private readonly lastSeqByChannel = new Map<Channel, number>();
@@ -182,6 +195,34 @@ export class BridgeClient {
     this.missionResponseHandlers.add(callback);
     return () => {
       this.missionResponseHandlers.delete(callback);
+    };
+  }
+
+  /** Observe getSettings/setSetting responses (§16.1, keyed by request id). Returns an unsubscribe function. */
+  onSettingsResponse(callback: SettingsResponseHandler): () => void {
+    this.settingsResponseHandlers.add(callback);
+    return () => {
+      this.settingsResponseHandlers.delete(callback);
+    };
+  }
+
+  /**
+   * Observe settingChanged pushes (§16.1, keyed by nothing — pure
+   * server-push, no subscription, no request id; mirrors {@link
+   * onNotification}). Returns an unsubscribe function.
+   */
+  onSettingChanged(callback: SettingChangedHandler): () => void {
+    this.settingChangedHandlers.add(callback);
+    return () => {
+      this.settingChangedHandlers.delete(callback);
+    };
+  }
+
+  /** Observe getLinks/addLink/removeLink/connectLink/disconnectLink responses (§16.2, keyed by request id). Returns an unsubscribe function. */
+  onLinksResponse(callback: LinksResponseHandler): () => void {
+    this.linksResponseHandlers.add(callback);
+    return () => {
+      this.linksResponseHandlers.delete(callback);
     };
   }
 
@@ -427,6 +468,30 @@ export class BridgeClient {
       return;
     }
 
+    // §16.3/§16.4: getSettings/setSetting share one response shape, keyed by request id, not a channel stream.
+    if (type === "settingsValue") {
+      for (const handler of this.settingsResponseHandlers) {
+        handler(message as unknown as SettingsResponse);
+      }
+      return;
+    }
+
+    // §16.5: settingChanged is an unsolicited push (like notification/tick), not a channel stream.
+    if (type === "settingChanged") {
+      for (const handler of this.settingChangedHandlers) {
+        handler(message as unknown as SettingChanged);
+      }
+      return;
+    }
+
+    // §16.7: link management responses are keyed by request id, not a channel stream.
+    if (type === "linksValue" || type === "linkAck") {
+      for (const handler of this.linksResponseHandlers) {
+        handler(message as unknown as LinksResponse);
+      }
+      return;
+    }
+
     // Session acks aren't channel streams; the session layer sends the
     // requests fire-and-forget, so acks are informational only.
     if (type === "helloAck" || type === "subscribeAck" || type === "unsubscribeAck") {
@@ -435,19 +500,25 @@ export class BridgeClient {
     if (type === "error") {
       console.warn("[BridgeClient] bridge error:", data);
       // PROTOCOL.md §10: a request-answering error (one that echoes the request `id`, e.g.
-      // CommandChannel/MissionChannel's UNKNOWN_VEHICLE) is the *only* response a `command` or
-      // mission* request will ever get in that case — no commandAck/missionAck follows. The
-      // request-tracking UI (useCommandRequests, WaypointList) only understands the ack shapes,
-      // so translate a keyed error into a synthetic rejected ack and fan it out to both response
-      // handler sets (the id only matches whichever store is actually tracking it; the other
-      // dispatch is a harmless no-op, same as any unrecognized id already is for those reducers).
+      // CommandChannel/MissionChannel's UNKNOWN_VEHICLE, or SettingsChannel's
+      // SETTING_NOT_ALLOWED/VALUE_OUT_OF_RANGE/UNKNOWN_SETTINGS_GROUP for a bad
+      // getSettings/setSetting, §16.4) is the *only* response that request will ever get in that
+      // case — no commandAck/missionAck/settingsValue follows. The request-tracking UI
+      // (useCommandRequests, WaypointList, SettingsPanel's useSettingRequests) only understands
+      // the ack/response shapes, so translate a keyed error into synthetic rejections and fan it
+      // out to every response handler set (the id only matches whichever store is actually
+      // tracking it; the other dispatches are harmless no-ops, same as any unrecognized id already
+      // is for those reducers). `settingsValue` itself has no "rejected" variant (§16.3), so
+      // {@link SettingsError} is a client-only synthetic type that exists solely for this
+      // translation — see its doc comment in types.ts.
       // Unsolicited errors (no `id`, e.g. AUTH_REQUIRED/BAD_MESSAGE for a malformed frame) are
       // intentionally left as the console.warn above only — there is no in-flight request to
       // resolve.
       const err = message as { id?: unknown; code?: unknown; message?: unknown; vehicleId?: unknown };
       if (typeof err.id === "string" && err.id.length > 0) {
         const vehicleId = typeof err.vehicleId === "number" ? err.vehicleId : -1;
-        const reason = typeof err.message === "string" ? err.message : typeof err.code === "string" ? err.code : "error";
+        const code = typeof err.code === "string" ? err.code : "INTERNAL";
+        const reason = typeof err.message === "string" ? err.message : code;
         const commandRejection: CommandAck = { type: "commandAck", id: err.id, vehicleId, status: "rejected", reason };
         for (const handler of this.commandResponseHandlers) {
           handler(commandRejection);
@@ -455,6 +526,10 @@ export class BridgeClient {
         const missionRejection: MissionAck = { type: "missionAck", id: err.id, vehicleId, status: "rejected", reason };
         for (const handler of this.missionResponseHandlers) {
           handler(missionRejection);
+        }
+        const settingsError: SettingsError = { type: "settingsError", id: err.id, code, message: reason };
+        for (const handler of this.settingsResponseHandlers) {
+          handler(settingsError);
         }
       }
       return;

@@ -17,7 +17,7 @@
  * components (VehicleSelect) then only see a plain `onSelect(id)` callback
  * prop; they never import the store or the session directly.
  *
- * `sidePanelTab` (SidePanel's FLY/PLAN/PARAMS tab strip) is coupled to
+ * `sidePanelTab` (SidePanel's FLY/PLAN/PARAMS/SETTINGS tab strip) is coupled to
  * `mapMode` two ways — selecting FLY/PLAN also flips `mapMode`, and an
  * external `mapMode` change (e.g. WaypointList's own FLY/PLAN toggle) syncs
  * the tab back — via the pure helpers in `sidePanelSync.ts`, so the actual
@@ -40,7 +40,7 @@ export interface UiStoreState {
   /** Which map-click behavior is active. Default "fly" (click-to-goto). */
   mapMode: MapMode;
   setMapMode: (mode: MapMode) => void;
-  /** Which SidePanel tab (FLY/PLAN/PARAMS) is showing. Default "fly". */
+  /** Which SidePanel tab (FLY/PLAN/PARAMS/SETTINGS) is showing. Default "fly". */
   sidePanelTab: SidePanelTab;
   setSidePanelTab: (tab: SidePanelTab) => void;
 }

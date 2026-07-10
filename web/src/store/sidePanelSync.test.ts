@@ -15,6 +15,11 @@ test("selecting the PARAMS tab leaves mapMode untouched", () => {
   expect(mapModeForTab("params", "plan")).toBe("plan");
 });
 
+test("selecting the SETTINGS tab leaves mapMode untouched", () => {
+  expect(mapModeForTab("settings", "fly")).toBe("fly");
+  expect(mapModeForTab("settings", "plan")).toBe("plan");
+});
+
 test("an external mapMode change to fly syncs the tab to fly", () => {
   expect(tabForMapMode("fly")).toBe("fly");
 });
