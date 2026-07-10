@@ -58,8 +58,67 @@ else()
             SerialLink.h
     )
 
-    if(NOT ANDROID)
-        target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::SerialPort)
+    # Selected by QGC_ENABLE_QT_SERIALPORT (cmake/CustomOptions.cmake):
+    #   ON  (default, matches upstream) -> Qt6::SerialPort provides the
+    #                                       `<QtSerialPort/QSerialPort>` and
+    #                                       `<QtSerialPort/QSerialPortInfo>`
+    #                                       module headers every consumer
+    #                                       (SerialLink, QGCSerialPortInfo,
+    #                                       LinkManager's NMEA port,
+    #                                       GPS/GPSProvider, VehicleSetup/
+    #                                       Bootloader) already includes.
+    #   OFF (ghost-diet build)          -> portable/, a termios(2)+libudev
+    #                                       reimplementation of the same
+    #                                       QSerialPort/QSerialPortInfo class
+    #                                       names/API surface, selected via
+    #                                       include-path shadowing of the
+    #                                       `<QtSerialPort/...>` module-style
+    #                                       includes -- zero consumer-side
+    #                                       #ifdef, same pattern as
+    #                                       src/Utilities/StateMachine's
+    #                                       QGC_ENABLE_QT_STATEMACHINE port.
+    #                                       Android is untouched: its
+    #                                       `#ifdef Q_OS_ANDROID` include
+    #                                       branch (qtandroidserialport/)
+    #                                       takes priority over both.
+    if(QGC_ENABLE_QT_SERIALPORT)
+        if(NOT ANDROID)
+            target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::SerialPort)
+        endif()
+    elseif(NOT ANDROID)
+        target_sources(${CMAKE_PROJECT_NAME}
+            PRIVATE
+                portable/QGCSerialPortCompat.cc
+                portable/QGCSerialPortCompat.h
+                portable/QtSerialPort/QSerialPort
+                portable/QtSerialPort/QSerialPortInfo
+        )
+
+        # The two redirector headers are extension-less (they must be, to shadow Qt's
+        # module-style <QtSerialPort/QSerialPort> include form) -- mark them header-only
+        # so CMake never tries to guess a source language for them.
+        set_source_files_properties(
+            portable/QtSerialPort/QSerialPort
+            portable/QtSerialPort/QSerialPortInfo
+            PROPERTIES HEADER_FILE_ONLY ON
+        )
+
+        # portable/ (and its QtSerialPort/ subdir) is prepended to the include
+        # path so consumers' unqualified `#include <QtSerialPort/QSerialPort>`
+        # resolves to our redirector headers instead of Qt's module -- Qt6::
+        # SerialPort is never linked in this branch, so there is no real
+        # `QtSerialPort/QSerialPort` on the include path to shadow/conflict
+        # with. Applies tree-wide because everything shares the single
+        # ${CMAKE_PROJECT_NAME} target (same mechanism the StateMachine port
+        # uses for Helpers/ visibility).
+        target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/portable)
+
+        find_package(PkgConfig REQUIRED)
+        # GLOBAL: the imported target is created in this subdirectory's scope but consumed
+        # by the top-level ${CMAKE_PROJECT_NAME} target -- without it ninja fails with
+        # "'PkgConfig::LIBUDEV' ... missing and no known rule to make it".
+        pkg_check_modules(LIBUDEV REQUIRED IMPORTED_TARGET GLOBAL libudev)
+        target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE PkgConfig::LIBUDEV)
     endif()
 endif()
 

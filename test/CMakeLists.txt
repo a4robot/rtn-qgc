@@ -115,6 +115,12 @@ add_qgc_test(BluetoothLiveAdapterTest LABELS Integration Comms)
 add_qgc_test(BluetoothWorkerTest LABELS Unit Comms)
 add_qgc_test(LinkConfigurationTest LABELS Unit Comms RESOURCE_LOCK Settings TempFiles)
 add_qgc_test(QGCSerialPortInfoTest LABELS Unit Comms)
+# Loopback pty pair created by the test itself (posix_openpt) — deterministic, no real
+# hardware or network access, so intentionally NOT labeled Network; exercises whichever
+# serial backend QGC_ENABLE_QT_SERIALPORT selected (test/Comms/SerialPortDataPathTest.h).
+if(NOT QGC_NO_SERIAL_LINK)
+    add_qgc_test(SerialPortDataPathTest LABELS Integration Comms)
+endif()
 add_qgc_test(TCPLinkTest LABELS Integration Comms)
 add_qgc_test(UDPLinkTest LABELS Integration Comms)
 

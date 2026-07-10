@@ -1,0 +1,7 @@
+#pragma once
+
+// Include-path-shadowing redirector: with QGC_ENABLE_QT_SERIALPORT=OFF, this directory is
+// prepended to the include path (src/Comms/CMakeLists.txt) instead of Qt6::SerialPort being
+// linked, so consumers' unqualified `#include <QtSerialPort/QSerialPort>` resolves here
+// instead of to a Qt module header. See ../../QGCSerialPortCompat.h for the actual class.
+#include "../QGCSerialPortCompat.h"

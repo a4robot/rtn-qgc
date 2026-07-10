@@ -183,6 +183,35 @@ option(QGC_ENABLE_QT_WEBSOCKETS "Use Qt's QWebSocketServer/QWebSocket for the We
 option(QGC_ENABLE_QT_STATEMACHINE "Use Qt's QState/QStateMachine for QGCStateMachine (OFF uses a portable QObject-based reimplementation instead, dropping Qt6::StateMachine and transitively Qt6::Gui/Qt6::DBus)" ON)
 
 # ============================================================================
+# Serial Port Options
+# ============================================================================
+
+# src/Comms/SerialLink.{h,cc}'s serial link data path (STRANGLER_MILESTONES.md M8
+# Q8e): QSerialPort/QSerialPortInfo (Qt6::SerialPort) by default, matching upstream.
+# OFF swaps in src/Comms/portable/, a termios(2)+libudev reimplementation of the
+# narrow QSerialPort/QSerialPortInfo API surface actually used across the tree
+# (SerialLink's worker-thread data path, QGCSerialPortInfo's board/bootloader
+# detection, LinkManager's direct NMEA QSerialPort use, GPS/GPSProvider's blocking
+# PX4-GPSDrivers callback bridge, and Vehicle/VehicleSetup/Bootloader.cc's firmware
+# upload protocol — all four remaining real QSerialPort consumers besides the
+# QML-only FirmwareUpgradeController board-scan UI). Selected via include-path
+# shadowing of the `<QtSerialPort/QSerialPort>` / `<QtSerialPort/QSerialPortInfo>`
+# module-style includes (see src/Comms/CMakeLists.txt and src/Comms/portable/
+# QtSerialPort/), not per-file #ifdef: every consumer's `#include <QtSerialPort/...>`
+# resolves correctly either way with zero consumer-side changes. libserialport (the
+# obvious off-the-shelf C alternative) was considered and rejected: it's
+# autotools-only (no upstream CMakeLists, so CPM vendoring would need hand-rolled
+# glob/OBJECT-library glue anyway — see src/GPS/CMakeLists.txt's px4-gpsdrivers for
+# how much that costs) and LGPL-3.0-licensed (a new copyleft-vendoring obligation
+# this tree has otherwise avoided: IXWebSocket is BSD, PX4-GPSDrivers is BSD, the
+# StateMachine portable/ port is in-house). termios+libudev needs no new external
+# dependency — libudev.so is already the transitive backend Qt6::SerialPort itself
+# uses for enumeration on Linux, so this replaces one abstraction over the same OS
+# facility with a thinner one this tree controls directly. Default ON preserves
+# current behavior; the ghost-diet build opts out explicitly.
+option(QGC_ENABLE_QT_SERIALPORT "Use Qt's QSerialPort/QSerialPortInfo for the serial link layer (OFF uses a portable termios(2)+libudev backend instead, dropping Qt6::SerialPort)" ON)
+
+# ============================================================================
 # MAVLink Configuration
 # ============================================================================
 
