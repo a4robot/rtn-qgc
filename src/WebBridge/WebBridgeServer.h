@@ -142,6 +142,17 @@ signals:
     /// MissionChannel connects to this and answers via sendToClient().
     void missionMessageReceived(quint64 clientId, const QJsonObject &request);
 
+    /// Emitted for every authenticated client's `getSettings`/`setSetting`/`getLinks`/`addLink`/
+    /// `removeLink`/`connectLink`/`disconnectLink` message (PROTOCOL.md §16). Unlike
+    /// commandReceived()/missionMessageReceived(), no envelope validation happens here -- these
+    /// messages carry no `vehicleId` at all (§16.1: app-side, not vehicle-side), so there is
+    /// nothing channel-agnostic to check beyond `type`, which the dispatch in
+    /// _onTextMessageReceived() already used to route here. Mirrors factMessageReceived()'s
+    /// identical "no envelope validation, the channel owns all of it" division of responsibility.
+    /// @p clientId identifies the requester for reply()/replyError(). SettingsChannel connects to
+    /// this and answers via reply()/replyError().
+    void settingsMessageReceived(quint64 clientId, const QJsonObject &request);
+
     /// Emitted once a client's `hello` has been accepted and `helloAck` sent (PROTOCOL.md §1.1).
     /// @p clientId is the same stable per-connection id used by sendToClient(). NotificationChannel
     /// (§14.3) connects to this to send a one-shot per-connection welcome notification that does

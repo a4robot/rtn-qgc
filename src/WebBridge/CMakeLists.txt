@@ -19,6 +19,8 @@ qt_add_library(WebBridgeModule STATIC
     MissionChannel.h
     NotificationChannel.cc
     NotificationChannel.h
+    SettingsChannel.cc
+    SettingsChannel.h
     TelemetryChannel.cc
     TelemetryChannel.h
     WebBridge.cc

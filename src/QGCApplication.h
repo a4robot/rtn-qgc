@@ -30,6 +30,7 @@ class FactChannel;
 class ImageChannel;
 class MissionChannel;
 class NotificationChannel;
+class SettingsChannel;
 class TelemetryChannel;
 class WebBridge;
 class WebBridgeServer;
@@ -195,6 +196,7 @@ private:
     MissionChannel *_missionChannel = nullptr;      ///< §7 mission channel
     NotificationChannel *_notificationChannel = nullptr; ///< §14 announcement channel
     ImageChannel *_imageChannel = nullptr;          ///< §15 MAVLink image-protocol channel (Q8d)
+    SettingsChannel *_settingsChannel = nullptr;    ///< §16 app settings + link management channel
 #ifdef QGC_GST_STREAMING
     VideoStreamServer *_videoStreamServer = nullptr; ///< GStreamer tee tap → bridge `video` channel (§9)
     GhostVideoSource *_ghostVideoSource = nullptr;   ///< Feeds _videoStreamServer's tap from VideoSettings' configured source

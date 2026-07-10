@@ -256,6 +256,12 @@ void WebBridgeServer::_onTextMessageReceived(quint64 clientId, const QString &me
         _handleCommand(clientId, obj);
     } else if (type == QStringLiteral("missionUpload") || type == QStringLiteral("missionDownload") || type == QStringLiteral("missionClear")) {
         _handleMission(clientId, obj);
+    } else if (type == QStringLiteral("getSettings") || type == QStringLiteral("setSetting") || type == QStringLiteral("getLinks")
+               || type == QStringLiteral("addLink") || type == QStringLiteral("removeLink") || type == QStringLiteral("connectLink")
+               || type == QStringLiteral("disconnectLink")) {
+        // PROTOCOL.md §16: no envelope validation here (these messages carry no vehicleId to
+        // check) -- same division of responsibility as getParam/setParam below.
+        emit settingsMessageReceived(clientId, obj);
     } else {
         _sendError(clientId, QStringLiteral("UNKNOWN_TYPE"), QStringLiteral("Unrecognized type: %1").arg(type), false, id);
     }

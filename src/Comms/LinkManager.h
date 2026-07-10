@@ -66,6 +66,14 @@ public:
     QStringList linkTypeStrings() const;
     bool mavlinkSupportForwardingEnabled() const { return _mavlinkSupportForwardingEnabled; }
 
+    /// Read-only accessor to every configured link (connected or not), for non-QML consumers that
+    /// cannot use the QML-facing linkConfigurations Q_PROPERTY/QmlObjectListModel the way QML code
+    /// does (e.g. WebBridge's SettingsChannel, PROTOCOL.md §16.7 getLinks/removeLink/connectLink/
+    /// disconnectLink -- it needs to look configurations up by name and hand raw LinkConfiguration*
+    /// pointers to LinkManager's own CRUD methods). Symmetric with links() above, which already
+    /// exposes the analogous _rgLinks list publicly.
+    QList<SharedLinkConfigurationPtr> linkConfigurationsList() const { return _rgLinkConfigs; }
+
     void loadLinkConfigurationList();
     void saveLinkConfigurationList();
 

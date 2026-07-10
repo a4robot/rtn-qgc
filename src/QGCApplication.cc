@@ -52,6 +52,7 @@
 #include "ImageChannel.h"
 #include "MissionChannel.h"
 #include "NotificationChannel.h"
+#include "SettingsChannel.h"
 #include "TelemetryChannel.h"
 
 #include "UDPLink.h"
@@ -449,6 +450,7 @@ void QGCApplication::_initForHeadlessBoot()
         _missionChannel = new MissionChannel(_webBridge, this);
         _notificationChannel = new NotificationChannel(_webBridge, this);
         _imageChannel = new ImageChannel(_webBridge, this);
+        _settingsChannel = new SettingsChannel(_webBridge, this);
         connect(_webBridgeServer, &WebBridgeServer::snapshotRequested, _telemetryChannel, &TelemetryChannel::sendSnapshot);
         connect(_webBridgeServer, &WebBridgeServer::commandReceived, _commandChannel, &CommandChannel::handleCommand);
         connect(_commandChannel, &CommandChannel::responseReady, _webBridgeServer, &WebBridgeServer::sendToClient);
@@ -463,6 +465,14 @@ void QGCApplication::_initForHeadlessBoot()
         connect(_webBridgeServer, &WebBridgeServer::factMessageReceived, _factChannel, &FactChannel::handleMessage);
         connect(_factChannel, &FactChannel::responseReady, _webBridgeServer, &WebBridgeServer::reply);
         connect(_factChannel, &FactChannel::errorReady, _webBridgeServer, &WebBridgeServer::replyError);
+
+        // §16 settings + link management: request/response like fact (§6) above, plus one
+        // unsubscribed broadcast (settingChanged, §16.5) fanned out the same way notification
+        // (§14) is below.
+        connect(_webBridgeServer, &WebBridgeServer::settingsMessageReceived, _settingsChannel, &SettingsChannel::handleMessage);
+        connect(_settingsChannel, &SettingsChannel::responseReady, _webBridgeServer, &WebBridgeServer::reply);
+        connect(_settingsChannel, &SettingsChannel::errorReady, _webBridgeServer, &WebBridgeServer::replyError);
+        connect(_settingsChannel, &SettingsChannel::settingChangedReady, _webBridgeServer, &WebBridgeServer::broadcastAll);
 
         // Notification (§14): sourced from signals this class itself emits (below) plus
         // AudioOutput::textAnnounced() (connected inside NotificationChannel's own constructor,
@@ -497,6 +507,14 @@ void QGCApplication::_initForHeadlessBoot()
         // no retry) when no source URI is configured or GStreamer support isn't compiled in.
         _ghostVideoSource = new GhostVideoSource(_videoStreamServer, this);
         _ghostVideoSource->start();
+
+        // §16.6 live-apply: SettingsChannel stays GStreamer-free (its videoSettingChanged() signal
+        // doc comment explains why), so QGCApplication -- which already has both objects and is
+        // compiled only when QGC_GST_STREAMING is available -- makes this connection instead. Every
+        // accepted Video-group setSetting re-invokes start(), which is idempotent and always
+        // re-resolves the configured URI from scratch (see GhostVideoSource::start()'s doc
+        // comment), so this is the whole live-apply mechanism -- no new state machine needed.
+        connect(_settingsChannel, &SettingsChannel::videoSettingChanged, _ghostVideoSource, &GhostVideoSource::start);
 #endif
 
         _webBridge->start();

@@ -355,6 +355,8 @@ All protocol-level failures use one shape. When the error answers a request, `id
 | `PARAM_TIMEOUT` | Vehicle did not confirm get/set |
 | `VALUE_OUT_OF_RANGE` | setParam value outside `meta.min..max` |
 | `COMMAND_FAILED` | Internal failure sending a command (distinct from a vehicle *rejection*, which is a `commandAck`) |
+| `SETTING_NOT_ALLOWED` | `setSetting`/`getSettings` named a `(group, name)` pair outside the §16.2 whitelist |
+| `UNKNOWN_SETTINGS_GROUP` | `getSettings` named a `group` that is not `Video`/`App`/`AutoConnect` (§16.2) |
 | `INTERNAL` | Bridge-side error |
 
 `retryable` hints whether the identical request may succeed later.
@@ -544,3 +546,260 @@ Like `video`/`adsb`, `image` is out of scope for a minimal §12 M1 mock; a confo
 replies `error UNKNOWN_CHANNEL` to an `image` subscribe. `web/mock/server.ts` (beyond M1)
 implements it for local web development (a synthetic `bmp` test pattern, deterministic per
 `imageIndex` -- see its own header comment for why `bmp` rather than a real `jpeg` fixture).
+
+---
+
+## 16. `settings` (app settings + link management)
+
+Added in response to direct product feedback: the web cockpit could observe a ghost (telemetry,
+video, mission) but had no way to *configure* one ("ตัวแอปตั้งค่าอะไรไม่ได้เลย" -- "the app can't
+configure anything"). This section is two related surfaces sharing one design: request/response
+message types (no `channel`, no `subscribe` -- like `fact`, §6) plus one unsolicited broadcast
+(`settingChanged`, modeled on `notification`'s subscription-free fan-out, §14).
+
+### 16.1 App/link settings vs. `fact` (§6)
+
+`fact` (§6) reads/writes **vehicle** parameters (`ParameterManager`, onboard `PARAM_*` -- a MAVLink
+round trip to the autopilot, which is why `setParam` can time out with `PARAM_TIMEOUT`). `settings`
+reads/writes **app-side** configuration (`SettingsManager`'s `QSettings`-backed Facts, plus link
+CRUD via `LinkManager`) -- no vehicle, no MAVLink, and always synchronous:
+`SettingsFact::setRawValue()` writes through to `QSettings` immediately and readback is available
+before the call returns, unlike a vehicle `PARAM_SET`. `setSetting` therefore never times out the
+way `setParam` can.
+
+### 16.2 Settings whitelist (normative)
+
+The bridge exposes exactly the settings below -- nothing else in `SettingsManager` is reachable
+over this channel, deliberately: most of QGC's ~20 settings groups are QML-UI-only (UI scale
+percent, color palette, joystick calibration, map tile providers, ...) and meaningless to a
+headless ghost, or hold values better left off a socket that (per §1's transport table) can be
+configured to bind beyond localhost (map/geocoding API tokens). A `setSetting` naming a
+`(group, name)` pair outside this table is rejected with `SETTING_NOT_ALLOWED` (§16.4) without
+touching the underlying Fact; a `getSettings` naming an unlisted `group` is rejected with
+`UNKNOWN_SETTINGS_GROUP`. Enforcement is server-side and exhaustive -- there is no way to reach an
+un-whitelisted Fact through this channel by any combination of `group`/`name`.
+
+| `group` | `name` | Wire `type` | Notes |
+|---|---|---|---|
+| `Video` | `videoSource` | string | One of `meta.enumValues` (§16.3) -- e.g. `"UDP h.264 Video Stream"`, `"Video Stream Disabled"`. Live-apply: §16.6. |
+| `Video` | `udpUrl` | string | `host:port` for the UDP h.264/h.265/MPEG-TS sources, e.g. `"0.0.0.0:5600"`. |
+| `Video` | `rtspUrl` | string | Full `rtsp://...` URL, used when `videoSource` selects the RTSP source. |
+| `Video` | `tcpUrl` | string | `host:port` for the TCP-MPEG2 source. |
+| `Video` | `streamEnabled` | bool | Master enable. **Caveat (§16.6): advisory only in v0.1** -- does not yet gate the ghost's own receiver. |
+| `Video` | `lowLatencyMode` | bool | Passed to `VideoReceiver::setLowLatency()` on next (re)attach. |
+| `App` | `defaultMissionItemAltitude` | double (m) | Default altitude for new mission items -- consumed server-side by `MissionController`/`SurveyComplexItem`/`GeoFenceController`, and a sane default for the web `MissionLayer`'s own item creation. |
+| `App` | `offlineEditingFirmwareClass` | int | `QGCMAVLink::FirmwareClass_t` used for mission planning before any vehicle connects (`Vehicle::_offlineFirmwareTypeSettingChanged`). |
+| `App` | `offlineEditingVehicleClass` | int | `QGCMAVLink::VehicleClass_t`, same offline-editing role. |
+| `App` | `offlineEditingCruiseSpeed` | double (m/s) | Feeds `MissionFlightStatusCalculator`'s ETA math when no live vehicle is connected. |
+| `App` | `offlineEditingHoverSpeed` | double (m/s) | Same. |
+| `App` | `offlineEditingAscentSpeed` | double (m/s) | Same (`MissionFlightStatusCalculator::_calcTakeoffTime`). |
+| `App` | `offlineEditingDescentSpeed` | double (m/s) | Same (`..._calcLandTime`). |
+| `AutoConnect` | `autoConnectUDP` | bool | Whether the built-in UDP autoconnect link starts at boot / on `LinkManager::startAutoConnectedLinks()`. |
+| `AutoConnect` | `autoConnectPixhawk` | bool | Serial autoconnect to a USB-attached Pixhawk-class board. |
+| `AutoConnect` | `autoConnectSiKRadio` | bool | Serial autoconnect to a SiK radio. |
+| `AutoConnect` | `autoConnectRTKGPS` | bool | Serial autoconnect to an RTK GPS device. |
+| `AutoConnect` | `udpListenPort` | int | Port the autoconnect UDP link binds. |
+
+> **Operational note.** Flipping an `AutoConnect` flag takes effect on the *next* autoconnect scan
+> (`LinkManager`'s 1 s port/link-list timer) or the next boot for behavior that only runs once at
+> startup (`startAutoConnectedLinks()`) -- not instantaneous the way `Video` writes are (§16.6). A
+> client scripting a `settings`+`getLinks` end-to-end test involving its own explicit link (§16.7)
+> should keep `autoConnectUDP=false` for that run so the built-in autoconnect link cannot
+> race/cross-feed traffic on the port under test.
+
+### 16.3 `getSettings` / `settingsValue`
+
+```json
+{ "type": "getSettings", "id": "s-1", "group": "Video" }
+```
+
+`group` is optional; omitted, the response carries every whitelisted setting from every group. An
+unrecognized `group` -> error `UNKNOWN_SETTINGS_GROUP` (§10).
+
+```json
+{
+  "type": "settingsValue", "id": "s-1",
+  "settings": [
+    {
+      "group": "Video", "name": "videoSource", "value": "UDP h.264 Video Stream",
+      "meta": { "type": "string", "enumValues": ["RTSP Video Stream", "UDP h.264 Video Stream", "..."] }
+    },
+    { "group": "Video", "name": "udpUrl", "value": "0.0.0.0:5600", "meta": { "type": "string" } },
+    { "group": "Video", "name": "streamEnabled", "value": true, "meta": { "type": "bool" } }
+  ]
+}
+```
+
+`meta.type` ∈ `string|int|double|bool` (the Fact's cooked wire type -- coarser than §6's
+`meta.type`, since app settings never carry MAVLink param-storage width like `uint8`/`float`).
+`meta.enumValues` is present for any setting whose underlying Fact declares one -- currently
+`videoSource` (string enum, populated at runtime by `VideoSettings::_setDefaults()` from the
+platform's actually-available sources) and `App`'s `offlineEditingFirmwareClass`/
+`offlineEditingVehicleClass` (numeric enums, declared statically in `App.SettingsGroup.json`) --
+sourced live from `Fact::enumValues()` either way, so this is authoritative, not a hardcoded copy
+of this document. `setSetting` enforces membership in `meta.enumValues` for both the string and
+numeric cases (§16.4).
+
+### 16.4 `setSetting`
+
+```json
+{ "type": "setSetting", "id": "s-2", "group": "Video", "name": "streamEnabled", "value": true }
+```
+
+Response is a `settingsValue` (§16.3 shape, `settings` array with exactly the one changed entry)
+carrying the value read back immediately after the write -- always the value just set (writes are
+synchronous, §16.1), never a rejection-by-hardware the way §6.2's `setParam` readback can differ
+from the requested value. Failure modes:
+
+| Condition | Error code |
+|---|---|
+| `(group, name)` not in the §16.2 whitelist (unknown group, or unknown name within a known group) | `SETTING_NOT_ALLOWED` |
+| `value`'s JSON type doesn't match `meta.type`, or (for `videoSource`) is not one of `meta.enumValues` | `VALUE_OUT_OF_RANGE` (reusing §10's existing code -- same "value rejected by validation" semantics as §6.2) |
+
+Every *accepted* `setSetting` also triggers a `settingChanged` broadcast (§16.5) to every connected
+client, including the requester -- the requester sees its own `settingsValue` response and the
+broadcast both, response first (produced synchronously inside the same handler call that emits the
+broadcast).
+
+### 16.5 `settingChanged` (broadcast, unsubscribed)
+
+Modeled on `notification` (§14): no `subscribe` required, every authenticated client receives it,
+no `channel`/`seq`/`snapshot` envelope (§3) -- each message already carries the complete new value
+for one `(group, name)`, so a client that misses one is simply stale until the next `getSettings`
+or the next actual change, exactly like a missed `tick`.
+
+```json
+{ "type": "settingChanged", "group": "Video", "name": "streamEnabled", "value": true, "meta": { "type": "bool" }, "timeUs": 1767690008000000 }
+```
+
+Fires whenever any whitelisted Fact's value changes for *any* reason -- a `setSetting` on this
+connection, a `setSetting` from a different client, or any other in-process write to that Fact --
+not only ones this channel itself originated, so two web clients editing concurrently stay in sync
+(this is the actual multi-client ask: several browser tabs/operators should see the same ghost
+configuration without polling).
+
+### 16.6 Live-apply semantics
+
+Every whitelisted setting takes effect immediately on write -- no ghost restart required. `App` and
+`AutoConnect` writes are consumed by their existing live-`Fact::rawValueChanged` listeners
+elsewhere in QGC (`Vehicle`'s offline-editing hookups, `LinkManager`'s autoconnect scan); no new
+wiring was needed for those two groups. `Video` needed one piece of new wiring, documented here
+because it did not previously exist:
+
+`GhostVideoSource::start()` (`src/WebBridge/GhostVideoSource.cc`) is idempotent and always
+re-reads `VideoSettings`' current `videoSource`/`udpUrl`/`rtspUrl`/`tcpUrl` from scratch (see its
+own doc comment), but before this wave nothing ever called it a second time -- `QGCApplication.cc`
+invoked it exactly once at boot, so editing `VideoSettings` had no runtime effect short of a full
+process restart. `SettingsChannel` closes that gap: every accepted `setSetting` whose `group` is
+`Video` emits a Qt signal that `QGCApplication.cc` connects directly to `GhostVideoSource::start()`,
+so:
+
+- `videoSource`/`udpUrl`/`rtspUrl`/`tcpUrl` writes cause an immediate stop-and-reconnect to the
+  newly-resolved URI (`GhostVideoSource::start()`'s own "URI changed while running: stop first"
+  branch handles this without any new logic).
+- `streamEnabled`/`lowLatencyMode` writes likewise re-trigger `start()`, but **`streamEnabled` is
+  advisory only in v0.1**: `GhostVideoSource::_resolveConfiguredUri()` does not consult it, so
+  setting `streamEnabled=false` alone does not stop an active feed -- only
+  `videoSource = "Video Stream Disabled"` reliably does. This is a known gap, not a bug in this
+  wave's wiring; it is exposed on the whitelist now for forward compatibility with a later wave
+  threading it through `_resolveConfiguredUri()`.
+
+### 16.7 Link management
+
+Separate from the §16.2 whitelist model -- there is no fixed list of "allowed" links, any UDP/TCP/
+serial configuration may be added -- but the same request/response shape.
+
+#### `getLinks`
+
+```json
+{ "type": "getLinks", "id": "l-1" }
+```
+
+```json
+{
+  "type": "linksValue", "id": "l-1",
+  "links": [
+    { "name": "UDP Link (AutoConnect)", "type": "udp", "connected": true, "autoConnect": true,
+      "config": { "listenPort": 14550, "targetHosts": [] } },
+    { "name": "my-tcp-link", "type": "tcp", "connected": false, "autoConnect": false,
+      "config": { "host": "192.168.1.50", "port": 5760 } }
+  ]
+}
+```
+
+`type` ∈ `serial|udp|tcp|bluetooth|mock|logReplay|other` (mirrors `LinkConfiguration::LinkType`;
+`other` covers any value added to that enum after this document was written). `config` shape
+depends on `type`:
+
+| `type` | `config` fields |
+|---|---|
+| `serial` | `port` (device path, e.g. `/dev/ttyUSB0`), `baud` |
+| `udp` | `listenPort`, `targetHosts` (array of `"host:port"` strings, `UDPConfiguration::hostList()`) |
+| `tcp` | `host`, `port` |
+| anything else | `{}` (listing only -- see `addLink` below) |
+
+#### `addLink`
+
+```json
+{ "type": "addLink", "id": "l-2", "config": { "type": "udp", "name": "my-udp-link", "listenPort": 14560 } }
+{ "type": "addLink", "id": "l-3", "config": { "type": "tcp", "name": "my-tcp-link", "host": "192.168.1.50", "port": 5760 } }
+{ "type": "addLink", "id": "l-4", "config": { "type": "serial", "name": "my-serial-link", "port": "/dev/ttyUSB0", "baud": 57600 } }
+```
+
+`config.type` ∈ `serial|udp|tcp` only -- the three types this channel can construct end to end
+(`bluetooth`/`mock`/`logReplay` are not addable over the wire, v0.1). `config.name` is required and
+must be unique (case-sensitive) among existing link configuration names. The new configuration is
+persisted immediately (§16.8) but **not connected** -- `addLink` only creates the configuration;
+call `connectLink` (below) separately. Response:
+
+```json
+{ "type": "linkAck", "id": "l-2", "status": "accepted", "name": "my-udp-link" }
+{ "type": "linkAck", "id": "l-9", "status": "rejected", "reason": "A link named \"my-udp-link\" already exists" }
+```
+
+#### `removeLink`, `connectLink`, `disconnectLink`
+
+```json
+{ "type": "removeLink",     "id": "l-5", "name": "my-udp-link" }
+{ "type": "connectLink",    "id": "l-6", "name": "my-udp-link" }
+{ "type": "disconnectLink", "id": "l-7", "name": "my-udp-link" }
+```
+
+All three answer with a `linkAck` (`{ type, id, status, reason?, name }`); `removeLink` on a
+currently-connected link disconnects it first (`LinkManager::removeConfiguration()`'s existing
+behavior). `name` naming no existing configuration -> `status: "rejected"`, `reason: "No link
+configuration named ..."` for all three -- not a §10 error, since the request's *addressing*
+(an unknown link name), not its envelope shape, is what's wrong; consistent with §5/§7's "unknown
+target inside a well-formed request -> rejected ack" convention (contrast §3.1's `UNKNOWN_VEHICLE`,
+reserved for `vehicleId`-addressed request/response messages).
+
+**`connectLink`/`disconnectLink` are fire-and-forget, not synchronous.**
+`LinkManager::createConnectedLink()` dispatches the actual socket connect onto the link's own
+worker thread (`UDPLink`/`TCPLink`/`SerialLink` each move their I/O to a `QThread`); `status:
+"accepted"` means "the connect/disconnect was requested", not "the link is now connected". Sample
+`LinkInterface::isConnected()` via a follow-up `getLinks` to observe the transition -- v0.1 has no
+`linksChanged` broadcast (unlike `settingChanged`, §16.5): link state changes are comparatively
+rare and lower-value to push unconditionally to every client. A future wave may add one if the web
+client needs it; for now, polling `getLinks` after `connectLink` is the documented pattern (a UDP
+link's own socket setup is near-instant, so a short poll loop settles quickly in practice).
+
+### 16.8 Persistence
+
+Both surfaces are `QSettings`-backed and survive a ghost restart: whitelisted settings are
+ordinary `SettingsFact`s (the same storage `AppSettings`/`VideoSettings`/`AutoConnectSettings`
+already use for every other Fact, §16.1), and link configurations added via `addLink` are written
+by `LinkManager::saveLinkConfigurationList()` (called synchronously inside
+`endCreateConfiguration()`) and reloaded by `LinkManager::loadLinkConfigurationList()` at the next
+boot -- the same path already exercised for links added through the (QML-only, desktop) settings
+UI. **Restart-survival is not exercised by the automated conformance suite**
+(`tools/ghost/conformance/`), which runs against one continuously-running ghost process per
+invocation and has no fixture for restarting it mid-run; it is a documented manual check instead:
+`setSetting`/`addLink` against a running ghost, kill and restart the same process (same
+`--bridge-port`, matching `--bridge-token` if any, same OS user), then `getSettings`/`getLinks`
+again and confirm the values/links persisted.
+
+### 16.9 Not in the §12 M1 minimal mock scope
+
+Like `command`/`fact`/`mission`/`video`/`adsb`/`image`, `settings` is out of scope for a minimal
+§12 M1 mock; a conforming M1 mock replies `error UNKNOWN_TYPE` to every message type in this
+section.
