@@ -2,7 +2,9 @@
 
 #include <QtCore/QList>
 #include <QtCore/QObject>
+#ifdef QGC_ENABLE_QT_NETWORK
 #include <QtNetwork/QNetworkReply>
+#endif
 
 class QGeoCoordinate;
 class QNetworkAccessManager;
@@ -81,6 +83,13 @@ public:
 
 /*===========================================================================*/
 
+// TerrainOnlineQuery (direct HTTP terrain query, bypassing the tile cache) has no live
+// production caller -- its only subclass, TerrainQueryCopernicus, is never instantiated
+// (see Providers/TerrainQueryCopernicus.{cc,h}, also gated on QGC_ENABLE_QT_NETWORK). The
+// real terrain data path is TerrainOfflineQuery -> TerrainTileManager (which does its own,
+// separately-gated, network fallback on cache miss). Gating this whole class costs nothing
+// functionally either way.
+#ifdef QGC_ENABLE_QT_NETWORK
 class TerrainOnlineQuery : public TerrainQueryInterface
 {
     Q_OBJECT
@@ -97,3 +106,4 @@ protected slots:
 protected:
     QNetworkAccessManager *_networkManager = nullptr;
 };
+#endif  // QGC_ENABLE_QT_NETWORK

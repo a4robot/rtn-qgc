@@ -31,8 +31,10 @@ public:
     void addPathQuery(TerrainQueryInterface *terrainQueryInterface, const QGeoCoordinate &startPoint, const QGeoCoordinate &endPoint);
     void addCarpetQuery(TerrainQueryInterface *terrainQueryInterface, const QGeoCoordinate &swCoord, const QGeoCoordinate &neCoord, bool statsOnly);
 
+#ifdef QGC_ENABLE_QT_NETWORK
 private slots:
     void _terrainDone();
+#endif
 
 private:
     /// Returns a list of individual coordinates along the requested path spaced according to the terrain tile value spacing

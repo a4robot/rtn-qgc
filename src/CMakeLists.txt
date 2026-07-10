@@ -132,7 +132,12 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         # build by gating this like the rest of the QML-only libs above. See
         # STRANGLER_MILESTONES.md Q7d for the audit this is proving/disproving.
         $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Gui>
-        Qt6::Network
+        # Q8f: gated like the rest of the ghost-diet-only libs. QGC_ENABLE_QT_NETWORK=OFF
+        # swaps the link-layer slice of QtNetwork for src/Comms/portable/QGCNetworkCompat
+        # (include-path shadowing, see src/Comms/CMakeLists.txt) and disables the
+        # HTTP(S)-tier consumers -- see cmake/CustomOptions.cmake's QGC_ENABLE_QT_NETWORK
+        # comment for the full scope table.
+        $<$<BOOL:${QGC_ENABLE_QT_NETWORK}>:Qt6::Network>
         # Q8b: gated like the rest of the ghost-diet-only libs above. Qt6::StateMachine
         # INTERFACE-links Qt6::Gui (+ Qt6::DBus) at the Qt package level regardless of symbol
         # usage (wave-14 Q7d finding) -- src/Utilities/StateMachine/portable/ (selected by

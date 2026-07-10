@@ -28,9 +28,11 @@ public:
 
     Q_INVOKABLE void loadParameters(const QString &paramFile);
 
+#ifdef QGC_ENABLE_QT_NETWORK
 private slots:
     void _githubJsonDownloadComplete(bool success, const QString &localFile, const QString &errorMsg);
     void _paramFileDownloadComplete(bool success, const QString &localFile, const QString &errorMsg);
+#endif
 
 private:
     void _fillFrameClasses();

@@ -9,7 +9,9 @@
 #include <QtCore/QTemporaryFile>
 #include <QtCore/QUrl>
 #include <QtCore/QVariant>
+#ifdef QGC_ENABLE_QT_NETWORK
 #include <QtNetwork/QNetworkReply>
+#endif
 
 #include <chrono>
 #include <memory>
@@ -219,6 +221,10 @@ private:
 // NetworkReplyFixture - Lightweight fake QNetworkReply for helper tests
 // ============================================================================
 
+#ifdef QGC_ENABLE_QT_NETWORK
+// Q8f: QNetworkReply (the QNAM tier) does not exist in the QGC_ENABLE_QT_NETWORK=OFF
+// build -- every test that uses this fixture (QGCNetworkHelperTest's reply helpers) is
+// gated on the same flag.
 /// Fake QNetworkReply with configurable status/redirect/error/body data
 class NetworkReplyFixture final : public QNetworkReply
 {
@@ -242,6 +248,7 @@ private:
     QByteArray _body;
     qint64 _readOffset = 0;
 };
+#endif  // QGC_ENABLE_QT_NETWORK
 
 // ============================================================================
 // SingleInstanceLockFixture - RAII wrapper for RunGuard lock ownership

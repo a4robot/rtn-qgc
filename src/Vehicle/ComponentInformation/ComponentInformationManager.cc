@@ -6,7 +6,9 @@
 #include "CompInfoParam.h"
 #include "CompInfoEvents.h"
 #include "CompInfoActuators.h"
+#ifdef QGC_ENABLE_QT_NETWORK
 #include "QGCCachedFileDownload.h"
+#endif
 #include "QGCLoggingCategory.h"
 
 #include <QtCore/QStandardPaths>
@@ -16,7 +18,15 @@ QGC_LOGGING_CATEGORY(ComponentInformationManagerLog, "ComponentInformation.Compo
 ComponentInformationManager::ComponentInformationManager(Vehicle *vehicle, QObject *parent)
     : QGCStateMachine("ComponentInformationManager", vehicle, parent)
     , _requestTypeStateMachine(this, this)
+#ifdef QGC_ENABLE_QT_NETWORK
     , _cachedFileDownload(new QGCCachedFileDownload(QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QLatin1String("/QGCCompInfoFileDownloadCache"), this))
+#else
+    // No QGCCachedFileDownload without Qt6::Network -- HTTP-sourced component metadata is
+    // unavailable in this build (see cmake/CustomOptions.cmake's QGC_ENABLE_QT_NETWORK
+    // comment); ComponentInformationTranslation/RequestMetaDataTypeStateMachine treat a
+    // null _cachedFileDownload the same as a failed download.
+    , _cachedFileDownload(nullptr)
+#endif
     , _fileCache(ComponentInformationCache::defaultInstance())
     , _translation(new ComponentInformationTranslation(this, _cachedFileDownload))
 {

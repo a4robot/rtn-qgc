@@ -280,6 +280,25 @@ if(QGC_ENABLE_TILE_CACHE)
     add_compile_definitions(QGC_ENABLE_TILE_CACHE)
 endif()
 
+# Q8f (STRANGLER_MILESTONES.md M8): unlike QGC_ENABLE_QT_SERIALPORT/QGC_ENABLE_QT_STATEMACHINE
+# (pure include-path shadowing, no consumer #ifdef needed), several QGC_ENABLE_QT_NETWORK
+# consumers -- QGCNetworkHelper, Terrain, GPS/NTRIP, MAVLinkLogManager, VehicleCameraControl,
+# QtLocationPlugin's map-tile providers -- need real behavioral branching (HTTP(S) feature
+# on vs "unavailable in this build" stub), not just a type swap, so this define is needed.
+# Added at the top level (not inside src/Comms/CMakeLists.txt) because it must reach
+# QGCLocationCore too, which is a separate target from ${CMAKE_PROJECT_NAME}.
+if(QGC_ENABLE_QT_NETWORK)
+    add_compile_definitions(QGC_ENABLE_QT_NETWORK)
+elseif(QGC_ENABLE_QML)
+    # The QML map stack is inseparable from QtNetwork: Qt6::Location itself hard-depends on
+    # Qt6::Network, and the QGCLocation tile plugin (QGeoMapReplyQGC/QGeoTileFetcherQGC)
+    # uses QNetworkAccessManager directly. Mixing the real QtNetwork headers (pulled in by
+    # QtLocation) with src/Comms/portable's shadowed compat types in one binary would be an
+    # ODR violation, so this combination is rejected outright -- QGC_ENABLE_QT_NETWORK=OFF
+    # is a ghost-diet (QGC_ENABLE_QML=OFF) option only.
+    message(FATAL_ERROR "QGC_ENABLE_QT_NETWORK=OFF requires QGC_ENABLE_QML=OFF (the QML map stack hard-depends on Qt6::Network)")
+endif()
+
 # ============================================================================
 # Custom Build Subdirectory
 # ============================================================================

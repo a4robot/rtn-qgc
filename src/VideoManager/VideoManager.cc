@@ -18,7 +18,7 @@
 #include "QtMultimediaReceiver.h"
 #include "UVCReceiver.h"
 #endif
-#include <QTcpSocket>
+#include <QtNetwork/QTcpSocket>
 #include <QRegularExpression>
 #ifdef QGC_GST_STREAMING
 #include "GStreamerHelpers.h"

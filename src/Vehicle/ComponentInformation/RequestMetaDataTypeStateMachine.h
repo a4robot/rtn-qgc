@@ -70,7 +70,9 @@ private:
 private slots:
     void _ftpDownloadComplete(const QString& file, const QString& errorMsg);
     void _ftpDownloadProgress(float progress);
+#ifdef QGC_ENABLE_QT_NETWORK
     void _httpDownloadComplete(bool success, const QString& localFile, const QString& errorMsg, bool fromCache);
+#endif
     void _downloadAndTranslationComplete(QString translatedJsonTempFile, QString errorMsg);
 
 private:

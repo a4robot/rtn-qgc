@@ -413,7 +413,9 @@ protected:
     virtual QString _getLatestVersionFileUrl(Vehicle* /*vehicle*/) const { return QString(); }
 
     /// Callback to process file with latest release information
+#ifdef QGC_ENABLE_QT_NETWORK
     virtual void _versionFileDownloadFinished(const QString &remoteFile, const QString &localFile, const Vehicle *vehicle) const;
+#endif
 
     /// Returns regex QString to extract version information from text
     virtual QString _versionRegex() const { return QString(); }

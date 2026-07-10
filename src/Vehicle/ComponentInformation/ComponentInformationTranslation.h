@@ -29,8 +29,10 @@ public:
 signals:
     void downloadComplete(QString translatedJsonTempFile, QString errorMsg);
 
+#ifdef QGC_ENABLE_QT_NETWORK
 private slots:
     void onDownloadCompleted(bool success, const QString &localFile, QString errorMsg, bool fromCache);
+#endif
 private:
     QString getUrlFromSummaryJson(const QString& summaryJsonFile, const QString& locale, const QString& componentName);
 

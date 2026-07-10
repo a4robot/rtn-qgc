@@ -9,11 +9,20 @@ target_sources(${CMAKE_PROJECT_NAME}
         ComponentInformationCacheTest.h
         ComponentInformationManagerTest.cc
         ComponentInformationManagerTest.h
-        ComponentInformationTranslationTest.cc
-        ComponentInformationTranslationTest.h
         RequestMetaDataTypeStateMachineTest.cc
         RequestMetaDataTypeStateMachineTest.h
 )
+
+# Q8f: ComponentInformationTranslation's download path uses QGCCachedFileDownload, which
+# only exists with QGC_ENABLE_QT_NETWORK=ON (see src/Utilities/Network/CMakeLists.txt);
+# this test constructs one directly.
+if(QGC_ENABLE_QT_NETWORK)
+    target_sources(${CMAKE_PROJECT_NAME}
+        PRIVATE
+            ComponentInformationTranslationTest.cc
+            ComponentInformationTranslationTest.h
+    )
+endif()
 
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 

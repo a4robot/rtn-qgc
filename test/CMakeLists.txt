@@ -243,7 +243,9 @@ add_qgc_test(QmlObjectTreeModelTest LABELS Unit)
 # ----------------------------------------------------------------------------
 add_subdirectory(Terrain)
 add_qgc_test(TerrainQueryTest LABELS Integration Network)
-add_qgc_test(TerrainTileFetcherNetworkTest LABELS Integration Terrain Slow TIMEOUT 60 RESOURCE_LOCK Settings)
+if(QGC_ENABLE_QT_NETWORK) # Q8f: subject only exists with Qt6::Network
+    add_qgc_test(TerrainTileFetcherNetworkTest LABELS Integration Terrain Slow TIMEOUT 60 RESOURCE_LOCK Settings)
+endif()
 add_qgc_test(TerrainTileTest LABELS Unit)
 
 # ----------------------------------------------------------------------------
@@ -257,7 +259,9 @@ add_qgc_test(QGCArchiveModelTest LABELS Unit Utilities)
 add_qgc_test(QGCCompressionTest LABELS Unit Utilities RESOURCE_LOCK TempFiles)
 add_qgc_test(QGCStreamingDecompressionTest LABELS Unit Utilities)
 # Network
-add_qgc_test(QGCNetworkHelperTest LABELS Unit Utilities Network)
+if(QGC_ENABLE_QT_NETWORK) # Q8f: exercises the QNAM/QNetworkReply tier
+    add_qgc_test(QGCNetworkHelperTest LABELS Unit Utilities Network)
+endif()
 # Parsing
 add_qgc_test(APMDataFlashUtilityTest LABELS Unit Utilities)
 add_qgc_test(ExifUtilityTest LABELS Unit Utilities)
@@ -266,8 +270,10 @@ add_qgc_test(JsonParsingTest LABELS Unit Utilities)
 add_qgc_test(PX4ULogUtilityTest LABELS Unit Utilities)
 # FileSystem
 add_qgc_test(QGCArchiveWatcherTest LABELS Unit Utilities RESOURCE_LOCK TempFiles)
-add_qgc_test(QGCCachedFileDownloadTest LABELS Integration Network Utilities)
-add_qgc_test(QGCFileDownloadTest LABELS Integration Network Utilities)
+if(QGC_ENABLE_QT_NETWORK) # Q8f: subjects only exist with Qt6::Network
+    add_qgc_test(QGCCachedFileDownloadTest LABELS Integration Network Utilities)
+    add_qgc_test(QGCFileDownloadTest LABELS Integration Network Utilities)
+endif()
 add_qgc_test(QGCFileHelperTest LABELS Unit Utilities RESOURCE_LOCK TempFiles)
 add_qgc_test(QGCFileWatcherTest LABELS Unit Utilities)
 # Geo
@@ -352,7 +358,9 @@ add_qgc_test(Viewer3DMapProviderTest LABELS Unit Viewer3D)
 add_subdirectory(Vehicle)
 add_qgc_test(APMAirframeComponentControllerTest LABELS Integration Vehicle RESOURCE_LOCK MockLink)
 add_qgc_test(ComponentInformationCacheTest LABELS Integration Vehicle RESOURCE_LOCK TempFiles)
-add_qgc_test(ComponentInformationTranslationTest LABELS Unit Vehicle)
+if(QGC_ENABLE_QT_NETWORK) # Q8f: constructs QGCCachedFileDownload directly
+    add_qgc_test(ComponentInformationTranslationTest LABELS Unit Vehicle)
+endif()
 add_qgc_test(ComponentInformationManagerTest LABELS Integration Vehicle RESOURCE_LOCK MockLink)
 add_qgc_test(FTPControllerTest LABELS Integration Vehicle RESOURCE_LOCK MockLink TempFiles)
 add_qgc_test(FTPManagerTest LABELS Integration Vehicle RESOURCE_LOCK MockLink)

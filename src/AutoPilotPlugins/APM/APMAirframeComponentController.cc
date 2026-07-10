@@ -5,7 +5,9 @@
 #include "MultiVehicleManager.h"
 #include "ParameterManager.h"
 #include "AppMessages.h"
+#ifdef QGC_ENABLE_QT_NETWORK
 #include "QGCFileDownload.h"
+#endif
 #include "QGCLoggingCategory.h"
 #include "Vehicle.h"
 
@@ -122,6 +124,12 @@ void APMAirframeComponentController::_loadParametersFromDownloadFile(const QStri
 
 void APMAirframeComponentController::loadParameters(const QString &paramFile)
 {
+#ifndef QGC_ENABLE_QT_NETWORK
+    // No QGCFileDownload without Qt6::Network -- the ArduPilot Frame_params github
+    // download is unavailable in this build (see cmake/CustomOptions.cmake's
+    // QGC_ENABLE_QT_NETWORK comment). QML-only feature (airframe setup UI) anyway.
+    qCWarning(APMAirframeComponentControllerLog) << "Frame param file download unavailable in this build (QGC_ENABLE_QT_NETWORK=OFF):" << paramFile;
+#else
     qgcSetWaitCursor();
 
     QGCFileDownload *const downloader = new QGCFileDownload(this);
@@ -133,8 +141,10 @@ void APMAirframeComponentController::loadParameters(const QString &paramFile)
         qgcRestoreCursor();
         downloader->deleteLater();
     }
+#endif  // QGC_ENABLE_QT_NETWORK
 }
 
+#ifdef QGC_ENABLE_QT_NETWORK
 void APMAirframeComponentController::_githubJsonDownloadComplete(bool success, const QString &localFile, const QString &errorMsg)
 {
     if (success) {
@@ -179,6 +189,7 @@ void APMAirframeComponentController::_paramFileDownloadComplete(bool success, co
         qgcRestoreCursor();
     }
 }
+#endif  // QGC_ENABLE_QT_NETWORK
 
 /*===========================================================================*/
 

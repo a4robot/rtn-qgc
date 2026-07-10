@@ -224,7 +224,9 @@ protected slots:
     virtual void    _requestParamUpdates    ();
     virtual void    _requestCaptureStatus   ();
     virtual void    _requestStorageInfo     ();
+#ifdef QGC_ENABLE_QT_NETWORK
     virtual void    _downloadFinished       ();
+#endif
     virtual void    _mavCommandResult       (int vehicleId, int component, int command, int result, int failureCode);
     virtual void    _dataReady              (QByteArray data);
     virtual void    _streamInfoTimeout      ();

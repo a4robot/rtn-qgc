@@ -12,7 +12,15 @@ target_sources(${CMAKE_PROJECT_NAME}
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Core)
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_subdirectory(NTRIP)
+# Q8f (STRANGLER_MILESTONES.md M8): NTRIP is an HTTP(S) client (caster source-table +
+# correction stream over Ntrip1/2, often behind Basic Auth and sometimes TLS) with no
+# in-tree portable replacement (see cmake/CustomOptions.cmake's QGC_ENABLE_QT_NETWORK
+# comment) -- only built when QGC_ENABLE_QT_NETWORK=ON. QmlControls/QGroundControlQmlGlobal
+# (the QML-facing singleton exposing NTRIPManager) degrades its ntripManager property to
+# nullptr in that case.
+if(QGC_ENABLE_QT_NETWORK)
+    add_subdirectory(NTRIP)
+endif()
 
 # Everything below uses QSerialPort or spawns a serial-attached GPS process.
 if(QGC_NO_SERIAL_LINK)

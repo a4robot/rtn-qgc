@@ -39,6 +39,74 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_
 # Uncomment to enable Qt socket debugging
 # target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE QABSTRACTSOCKET_DEBUG)
 
+# ----------------------------------------------------------------------------
+# Network Link Layer (Q8f, STRANGLER_MILESTONES.md M8)
+# ----------------------------------------------------------------------------
+# Selected by QGC_ENABLE_QT_NETWORK (cmake/CustomOptions.cmake):
+#   ON  (default, matches upstream) -> Qt6::Network provides the `<QtNetwork/...>` module
+#                                       headers every consumer (UDPLink, TCPLink,
+#                                       UdpIODevice, LinkManager's NMEA UDP socket,
+#                                       ADSBTCPLink, VideoManager's Viewpro TCP command
+#                                       socket, MAVLinkSigningKeys' QPasswordDigestor use,
+#                                       QGCApplication's --bridge-host QHostAddress)
+#                                       already includes.
+#   OFF (ghost-diet build)          -> portable/, a POSIX-socket + QtCore-HMAC
+#                                       reimplementation of the same narrow API surface,
+#                                       selected via include-path shadowing of the
+#                                       `<QtNetwork/...>` module-style includes -- zero
+#                                       consumer-side #ifdef, same pattern as
+#                                       QGC_ENABLE_QT_SERIALPORT/QGC_ENABLE_QT_STATEMACHINE.
+#                                       See cmake/CustomOptions.cmake's QGC_ENABLE_QT_NETWORK
+#                                       comment for what is (and, deliberately, is not)
+#                                       covered by this port.
+if(QGC_ENABLE_QT_NETWORK)
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Network)
+else()
+    target_sources(${CMAKE_PROJECT_NAME}
+        PRIVATE
+            portable/QGCNetworkCompat.cc
+            portable/QGCNetworkCompat.h
+            portable/QtNetwork/QAbstractSocket
+            portable/QtNetwork/QHostAddress
+            portable/QtNetwork/QHostInfo
+            portable/QtNetwork/QNetworkDatagram
+            portable/QtNetwork/QNetworkInterface
+            portable/QtNetwork/QNetworkProxy
+            portable/QtNetwork/QPasswordDigestor
+            portable/QtNetwork/QTcpServer
+            portable/QtNetwork/QTcpSocket
+            portable/QtNetwork/QUdpSocket
+    )
+
+    # The redirector headers are extension-less (they must be, to shadow Qt's module-style
+    # <QtNetwork/QUdpSocket> include form) -- mark them header-only so CMake never tries to
+    # guess a source language for them.
+    set_source_files_properties(
+        portable/QtNetwork/QAbstractSocket
+        portable/QtNetwork/QHostAddress
+        portable/QtNetwork/QHostInfo
+        portable/QtNetwork/QNetworkDatagram
+        portable/QtNetwork/QNetworkInterface
+        portable/QtNetwork/QNetworkProxy
+        portable/QtNetwork/QPasswordDigestor
+        portable/QtNetwork/QTcpServer
+        portable/QtNetwork/QTcpSocket
+        portable/QtNetwork/QUdpSocket
+        PROPERTIES HEADER_FILE_ONLY ON
+    )
+
+    # portable/ is prepended to the include path so consumers' unqualified
+    # `#include <QtNetwork/QUdpSocket>` resolves to our redirector headers instead of Qt's
+    # module -- Qt6::Network is never linked in this branch, so there is no real
+    # `QtNetwork/QUdpSocket` on the include path to shadow/conflict with. Applies tree-wide
+    # because everything shares the single ${CMAKE_PROJECT_NAME} target (same mechanism the
+    # SerialPort/StateMachine ports use). Shares the directory with the QGC_ENABLE_QT_SERIALPORT
+    # port (portable/QtSerialPort/) -- adding it here unconditionally would be harmless (an
+    # empty QtNetwork/ subdir shadows nothing when ON), but it's only actually needed, so it's
+    # only added, in this branch.
+    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/portable)
+endif()
+
 # ============================================================================
 # Optional Communication Features
 # ============================================================================

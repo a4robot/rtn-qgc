@@ -6,15 +6,19 @@
 #include <QtCore/QString>
 #include <QtCore/QUrl>
 #include <QtCore/QVariant>
+#ifdef QGC_ENABLE_QT_NETWORK
 #include <QtNetwork/QHttpPart>
 #include <QtNetwork/QNetworkReply>
 #include <QtNetwork/QNetworkRequest>
 #include <QtNetwork/QSslCertificate>
 #include <QtNetwork/QSslConfiguration>
 #include <QtNetwork/QSslKey>
+#endif
 
 class QIODevice;
+#ifdef QGC_ENABLE_QT_NETWORK
 class QNetworkAccessManager;
+#endif
 
 /// Network utility functions for HTTP requests, URL handling, and connectivity
 /// All functions are stateless and thread-safe
@@ -229,6 +233,7 @@ QString urlFileName(const QUrl& url);
 /// Get URL without query string and fragment
 QUrl urlWithoutQuery(const QUrl& url);
 
+#ifdef QGC_ENABLE_QT_NETWORK
 // ============================================================================
 // Request Configuration
 // ============================================================================
@@ -267,10 +272,12 @@ void setJsonHeaders(QNetworkRequest& request);
 
 /// Set form data content headers
 void setFormHeaders(QNetworkRequest& request);
+#endif  // QGC_ENABLE_QT_NETWORK
 
 /// Get the default User-Agent string for QGC
 QString defaultUserAgent();
 
+#ifdef QGC_ENABLE_QT_NETWORK
 // ============================================================================
 // Authentication Helpers
 // ============================================================================
@@ -290,11 +297,13 @@ void setBasicAuth(QNetworkRequest& request, const QString& username, const QStri
 /// @param request Request to modify
 /// @param token The bearer token (without "Bearer " prefix)
 void setBearerToken(QNetworkRequest& request, const QString& token);
+#endif  // QGC_ENABLE_QT_NETWORK
 
 /// Create Basic Auth credentials string from username and password
 /// @return Base64-encoded "username:password" string
 QString createBasicAuthCredentials(const QString& username, const QString& password);
 
+#ifdef QGC_ENABLE_QT_NETWORK
 // ============================================================================
 // Multipart Form Data Helpers
 // ============================================================================
@@ -356,6 +365,7 @@ QList<QSslCertificate> loadCaCertificates(const QString& filePath, QString* erro
 bool loadClientCertAndKey(const QString& certPath, const QString& keyPath,
                           QSslCertificate& certOut, QSslKey& keyOut,
                           QString* errorOut = nullptr);
+#endif  // QGC_ENABLE_QT_NETWORK
 
 // ============================================================================
 // JSON Response Helpers
@@ -367,17 +377,20 @@ bool loadClientCertAndKey(const QString& certPath, const QString& keyPath,
 /// @return Parsed JSON document (null if parsing failed)
 QJsonDocument parseJson(const QByteArray& data, QJsonParseError* error = nullptr);
 
+#ifdef QGC_ENABLE_QT_NETWORK
 /// Parse JSON from network reply
 /// @param reply Network reply to read from
 /// @param error Optional pointer to receive parse error details
 /// @return Parsed JSON document (null if parsing failed or reply has error)
 QJsonDocument parseJsonReply(QNetworkReply* reply, QJsonParseError* error = nullptr);
+#endif  // QGC_ENABLE_QT_NETWORK
 
 /// Check if data appears to be valid JSON (quick check)
 /// @param data Data to check
 /// @return true if data starts with { or [
 bool looksLikeJson(const QByteArray& data);
 
+#ifdef QGC_ENABLE_QT_NETWORK
 // ============================================================================
 // Network Reply Helpers
 // ============================================================================
@@ -408,6 +421,7 @@ qint64 contentLength(const QNetworkReply* reply);
 
 /// Check if response is JSON based on Content-Type
 bool isJsonResponse(const QNetworkReply* reply);
+#endif  // QGC_ENABLE_QT_NETWORK
 
 // ============================================================================
 // Network Availability
@@ -442,6 +456,7 @@ ConnectionType connectionType();
 /// Get human-readable name for connection type
 QString connectionTypeName(ConnectionType type);
 
+#ifdef QGC_ENABLE_QT_NETWORK
 // ============================================================================
 // SSL/TLS Helpers
 // ============================================================================
@@ -459,20 +474,24 @@ bool isSslAvailable();
 
 /// Get SSL library version string
 QString sslVersion();
+#endif  // QGC_ENABLE_QT_NETWORK
 
 // ============================================================================
 // Network Access Manager Helpers
 // ============================================================================
 
 /// Initialize network proxy support (call once at application startup)
-/// Enables system proxy configuration for all network requests
+/// Enables system proxy configuration for all network requests. No-op when
+/// QGC_ENABLE_QT_NETWORK is OFF (no QNetworkAccessManager/proxy machinery exists).
 void initializeProxySupport();
 
+#ifdef QGC_ENABLE_QT_NETWORK
 /// Create a network access manager with recommended settings
 /// Caller takes ownership of the returned pointer
 QNetworkAccessManager* createNetworkManager(QObject* parent = nullptr);
 
 /// Set up default proxy configuration on a network manager
 void configureProxy(QNetworkAccessManager* manager);
+#endif  // QGC_ENABLE_QT_NETWORK
 
 }  // namespace QGCNetworkHelper

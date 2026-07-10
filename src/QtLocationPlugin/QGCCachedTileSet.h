@@ -6,7 +6,9 @@
 #include <QtCore/QObject>
 #include <QtCore/QQueue>
 #include <QtCore/QString>
+#ifdef QGC_ENABLE_QT_NETWORK
 #include <QtNetwork/QNetworkReply>
+#endif
 
 struct QGCTile;
 class QGCMapEngineManager;
@@ -134,8 +136,10 @@ signals:
 
 private slots:
     void _tileListFetched(const QQueue<QGCTile*> &tiles);
+#ifdef QGC_ENABLE_QT_NETWORK
     void _networkReplyFinished();
     void _networkReplyError(QNetworkReply::NetworkError error);
+#endif
 
 private:
     void _prepareDownload();
@@ -167,11 +171,16 @@ private:
     bool _cancelPending = false;
     QDateTime _creationDate;
 
+#ifdef QGC_ENABLE_QT_NETWORK
+    // Q8f: the whole tile-download machinery needs QNetworkAccessManager -- see
+    // cmake/CustomOptions.cmake's QGC_ENABLE_QT_NETWORK comment. The set's
+    // count/size/name bookkeeping (what the cache DB enumeration uses) stays.
     QHash<QString, QNetworkReply*> _replies;
     QMutex _repliesMutex;
+    QNetworkAccessManager *_networkManager = nullptr;
+#endif
     QQueue<QGCTile*> _tilesToDownload;
     QGCMapEngineManager *_manager = nullptr;
-    QNetworkAccessManager *_networkManager = nullptr;
 
     static constexpr uint32_t kTileBatchSize = 256;
 };

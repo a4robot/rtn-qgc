@@ -2,7 +2,9 @@
 #include "TerrainTileManager.h"
 #include "QGCLoggingCategory.h"
 
+#ifdef QGC_ENABLE_QT_NETWORK
 #include <QtNetwork/QNetworkAccessManager>
+#endif
 #include <QtPositioning/QGeoCoordinate>
 
 #include "QGCNetworkHelper.h"
@@ -111,6 +113,7 @@ void TerrainOfflineQuery::requestCarpetHeights(const QGeoCoordinate &swCoord, co
 
 /*===========================================================================*/
 
+#ifdef QGC_ENABLE_QT_NETWORK
 TerrainOnlineQuery::TerrainOnlineQuery(QObject *parent)
     : TerrainQueryInterface(parent)
     , _networkManager(new QNetworkAccessManager(this))
@@ -170,3 +173,4 @@ void TerrainOnlineQuery::_sslErrors(const QList<QSslError> &errors)
         }
     }
 }
+#endif  // QGC_ENABLE_QT_NETWORK

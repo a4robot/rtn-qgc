@@ -6,7 +6,9 @@
 #include <QtCore/QStringList>
 #include <QtCore/QStringView>
 #include <QtCore/QUrl>
+#ifdef QGC_ENABLE_QT_NETWORK
 #include <QtNetwork/QNetworkRequest>
+#endif
 
 #include <memory>
 
@@ -24,11 +26,15 @@ public:
     static QUrl getTileURL(QStringView type, int x, int y, int zoom);
     static QUrl getTileURL(int qtMapId, int x, int y, int zoom);
 
+#ifdef QGC_ENABLE_QT_NETWORK
     /// Builds a fully configured tile-fetch QNetworkRequest (headers, referrer, token,
     /// cache/redirect attributes) for the given map provider/tile coordinate.
     /// Location-free: does not depend on QtLocation/QGeoTileSpec. Shared by the
     /// QtLocation tile fetcher (QGeoTileFetcherQGC) and the Terrain tile fetcher.
+    /// Q8f: QGC_ENABLE_QT_NETWORK=OFF removes every tile-fetch path (TerrainTileFetcher,
+    /// QGCCachedTileSet, the QML map plugin), so this request builder goes with them.
     static QNetworkRequest getTileNetworkRequest(int qtMapId, int x, int y, int zoom);
+#endif
 
     /* Note: QNetworkAccessManager queues the requests it receives. The number of requests executed in parallel is dependent on the protocol.
      * Currently, for the HTTP protocol on desktop platforms, 6 requests are executed in parallel for one host/port combination. */

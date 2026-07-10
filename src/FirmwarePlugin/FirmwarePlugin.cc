@@ -8,7 +8,9 @@
 #include "AppMessages.h"
 #include "QGCApplication.h"
 #include "QGCCameraManager.h"
+#ifdef QGC_ENABLE_QT_NETWORK
 #include "QGCFileDownload.h"
+#endif
 #include "QGCLoggingCategory.h"
 #include "Vehicle.h"
 #include "VehicleLinkManager.h"
@@ -303,6 +305,7 @@ MavlinkCameraControlInterface *FirmwarePlugin::createCameraControl(const mavlink
 
 void FirmwarePlugin::checkIfIsLatestStable(Vehicle *vehicle) const
 {
+#ifdef QGC_ENABLE_QT_NETWORK
     // This is required as mocklink uses a hardcoded firmware version
     if (QGC::runningUnitTests()) {
         qCDebug(FirmwarePluginLog) << "Skipping version check";
@@ -324,8 +327,15 @@ void FirmwarePlugin::checkIfIsLatestStable(Vehicle *vehicle) const
     if (!downloader->start(versionFile)) {
         downloader->deleteLater();
     }
+#else
+    // No QGCFileDownload without Qt6::Network -- "is this the latest stable firmware?"
+    // notification is unavailable in this build (see cmake/CustomOptions.cmake's
+    // QGC_ENABLE_QT_NETWORK comment). The connect flow itself does not depend on this check.
+    Q_UNUSED(vehicle);
+#endif  // QGC_ENABLE_QT_NETWORK
 }
 
+#ifdef QGC_ENABLE_QT_NETWORK
 void FirmwarePlugin::_versionFileDownloadFinished(const QString &remoteFile, const QString &localFile, const Vehicle *vehicle) const
 {
     qCDebug(FirmwarePluginLog) << "Download complete" << remoteFile << localFile;
@@ -362,6 +372,7 @@ void FirmwarePlugin::_versionFileDownloadFinished(const QString &remoteFile, con
         QGC::showAppMessage(tr("Vehicle is not running latest stable firmware! Running %1, latest stable is %2.").arg(currentVersionNumber, version));
     }
 }
+#endif  // QGC_ENABLE_QT_NETWORK
 
 int FirmwarePlugin::versionCompare(const Vehicle *vehicle, int major, int minor, int patch) const
 {

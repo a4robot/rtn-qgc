@@ -2,7 +2,9 @@
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
+#ifdef QGC_ENABLE_QT_NETWORK
 #include <QtNetwork/QNetworkRequest>
+#endif
 #include <QtTest/QSignalSpy>
 
 #include "AppSettings.h"
@@ -280,6 +282,7 @@ int SignalSpyFixture::emissionCount(const char* signalName) const
 // NetworkReplyFixture Implementation
 // ============================================================================
 
+#ifdef QGC_ENABLE_QT_NETWORK
 NetworkReplyFixture::NetworkReplyFixture(const QUrl& url, QObject* parent) : QNetworkReply(parent)
 {
     setUrl(url);
@@ -351,6 +354,7 @@ qint64 NetworkReplyFixture::readData(char* data, qint64 maxSize)
     _readOffset += toCopy;
     return toCopy;
 }
+#endif  // QGC_ENABLE_QT_NETWORK
 
 // ============================================================================
 // SingleInstanceLockFixture Implementation

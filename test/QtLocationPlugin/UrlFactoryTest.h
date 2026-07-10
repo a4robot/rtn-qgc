@@ -44,11 +44,15 @@ private slots:
     void _testGetMapProviderValid();
     void _testGetMapProviderInvalid();
 
+#ifdef QGC_ENABLE_QT_NETWORK
     // --- getTileNetworkRequest (Wave 16 / Q8f characterization) ---
     // Pins the exact request shape TerrainTileFetcher and QGeoTileFetcherQGC
-    // rely on today, ahead of a QNetworkAccessManager replacement.
+    // rely on today. Q8f resolution: rather than replace QNetworkAccessManager, the
+    // OFF build removes every tile-fetch path (see cmake/CustomOptions.cmake's
+    // QGC_ENABLE_QT_NETWORK comment) -- these pins keep guarding the ON config.
     void _testGetTileNetworkRequestUrlMatchesGetTileURL();
     void _testGetTileNetworkRequestHeaders();
     void _testGetTileNetworkRequestAttributes();
     void _testGetTileNetworkRequestInvalidMapId();
+#endif
 };

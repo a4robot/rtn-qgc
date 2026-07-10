@@ -20,13 +20,17 @@
 #include "MissionCommandTree.h"
 #include "QGCQmlCompat.h"
 
+#ifdef QGC_ENABLE_QT_NETWORK
 #include <QtNetwork/QNetworkAccessManager>
+#endif
 #include <QtCore/QDir>
 
 #include <algorithm>
 #include <QtCore/QSettings>
 #include <QtCore/QXmlStreamReader>
+#ifdef QGC_ENABLE_QT_NETWORK
 #include <QtNetwork/QNetworkReply>
+#endif
 
 #include "QGCNetworkHelper.h"
 #include "QGCLoggingCategory.h"
@@ -270,8 +274,10 @@ VehicleCameraControl::~VehicleCameraControl()
     _cameraSettingsTimer.stop();
     _storageInfoTimer.stop();
 
+#ifdef QGC_ENABLE_QT_NETWORK
     delete _netManager;
     _netManager = nullptr;
+#endif
 }
 
 void VehicleCameraControl::_initWhenReady()
@@ -310,8 +316,10 @@ void VehicleCameraControl::_initWhenReady()
 
     emit infoChanged();
 
+#ifdef QGC_ENABLE_QT_NETWORK
     delete _netManager;
     _netManager = nullptr;
+#endif
 }
 
 bool VehicleCameraControl::capturesVideo() const
@@ -2304,6 +2312,7 @@ void VehicleCameraControl::_handleDefinitionFile(const QString &url)
 
 void VehicleCameraControl::_httpRequest(const QString &url)
 {
+#ifdef QGC_ENABLE_QT_NETWORK
     qCDebug(VehicleCameraControlLog) << "Request camera definition:" << url;
     if(!_netManager) {
         _netManager = new QNetworkAccessManager(this);
@@ -2316,8 +2325,17 @@ void VehicleCameraControl::_httpRequest(const QString &url)
     request.setSslConfiguration(conf);
     QNetworkReply* reply = _netManager->get(request);
     connect(reply, &QNetworkReply::finished,  this, &VehicleCameraControl::_downloadFinished);
+#else
+    // No QNetworkAccessManager without Qt6::Network -- HTTP-hosted camera definition
+    // download is unavailable in this build (see cmake/CustomOptions.cmake's
+    // QGC_ENABLE_QT_NETWORK comment). Same "empty data" contract _downloadFinished()
+    // produces for a real HTTP error, so callers' existing failure path handles this.
+    qCWarning(VehicleCameraControlLog) << "Camera definition HTTP download unavailable in this build (QGC_ENABLE_QT_NETWORK=OFF):" << url;
+    emit dataReady(QByteArray());
+#endif  // QGC_ENABLE_QT_NETWORK
 }
 
+#ifdef QGC_ENABLE_QT_NETWORK
 void VehicleCameraControl::_downloadFinished()
 {
     QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
@@ -2340,6 +2358,7 @@ void VehicleCameraControl::_downloadFinished()
     emit dataReady(data);
     //reply->deleteLater();
 }
+#endif  // QGC_ENABLE_QT_NETWORK
 
 void VehicleCameraControl::_ftpDownloadComplete(const QString& fileName, const QString& errorMsg)
 {

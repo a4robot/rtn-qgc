@@ -16,6 +16,7 @@
 
 QGC_LOGGING_CATEGORY(QGCMapUrlEngineLog, "QtLocationPlugin.QGCMapUrlEngine")
 
+#ifdef QGC_ENABLE_QT_NETWORK
 namespace {
 #if defined Q_OS_MACOS
 constexpr const char *kTileFetchUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.5; rv:125.0) Gecko/20100101 Firefox/125.0";
@@ -30,6 +31,7 @@ constexpr const char *kTileFetchUserAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:
 constexpr const char *kTileFetchUserAgent = "Qt Location based application";
 #endif
 }
+#endif  // QGC_ENABLE_QT_NETWORK (kTileFetchUserAgent only feeds getTileNetworkRequest below)
 
 const QList<SharedMapProvider> UrlFactory::_providers = {
 #ifndef QGC_NO_GOOGLE_MAPS
@@ -128,6 +130,7 @@ QUrl UrlFactory::getTileURL(QStringView type, int x, int y, int zoom)
     return QUrl();
 }
 
+#ifdef QGC_ENABLE_QT_NETWORK
 QNetworkRequest UrlFactory::getTileNetworkRequest(int qtMapId, int x, int y, int zoom)
 {
     const SharedMapProvider mapProvider = getMapProviderFromQtMapId(qtMapId);
@@ -163,6 +166,7 @@ QNetworkRequest UrlFactory::getTileNetworkRequest(int qtMapId, int x, int y, int
 
     return request;
 }
+#endif  // QGC_ENABLE_QT_NETWORK
 
 quint32 UrlFactory::averageSizeForType(QStringView type)
 {

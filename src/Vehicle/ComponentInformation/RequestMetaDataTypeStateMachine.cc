@@ -7,7 +7,9 @@
 #include "FTPManager.h"
 #include "QGCCompression.h"
 #include "CompInfoGeneral.h"
+#ifdef QGC_ENABLE_QT_NETWORK
 #include "QGCCachedFileDownload.h"
+#endif
 #include "QGCLoggingCategory.h"
 
 // State types included via QGCStateMachine.h in header
@@ -510,6 +512,7 @@ void RequestMetaDataTypeStateMachine::_requestFile(const QString& cacheFileTag, 
             completeCurrentState();
         }
     } else {
+#ifdef QGC_ENABLE_QT_NETWORK
         if (trackMetadataSource) {
             _metadataSource = MetadataSource::HTTP;
             _metadataUri = uri;
@@ -524,6 +527,14 @@ void RequestMetaDataTypeStateMachine::_requestFile(const QString& cacheFileTag, 
                        this, &RequestMetaDataTypeStateMachine::_httpDownloadComplete);
             completeCurrentState();
         }
+#else
+        // No QGCCachedFileDownload without Qt6::Network -- HTTP-sourced component metadata
+        // is unavailable in this build (see cmake/CustomOptions.cmake's
+        // QGC_ENABLE_QT_NETWORK comment); MAVLink-FTP-sourced metadata (the branch above)
+        // is unaffected. Same graceful-skip behavior as a failed download.
+        qCWarning(RequestMetaDataTypeStateMachineLog) << "HTTP component metadata download unavailable in this build (QGC_ENABLE_QT_NETWORK=OFF)";
+        completeCurrentState();
+#endif  // QGC_ENABLE_QT_NETWORK
     }
 }
 
@@ -577,6 +588,7 @@ void RequestMetaDataTypeStateMachine::_ftpDownloadProgress(float progress)
     }
 }
 
+#ifdef QGC_ENABLE_QT_NETWORK
 void RequestMetaDataTypeStateMachine::_httpDownloadComplete(bool success, const QString& localFile, const QString& errorMsg, bool fromCache)
 {
     qCDebug(RequestMetaDataTypeStateMachineLog) << "_httpDownloadComplete success:localFile:errorMsg:fromCache"
@@ -599,6 +611,7 @@ void RequestMetaDataTypeStateMachine::_httpDownloadComplete(bool success, const 
         _activeSkippableState->complete();
     }
 }
+#endif  // QGC_ENABLE_QT_NETWORK
 
 bool RequestMetaDataTypeStateMachine::_uriIsMAVLinkFTP(const QString& uri)
 {

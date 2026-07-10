@@ -1,7 +1,9 @@
 #include "TerrainTileManager.h"
 #include "TerrainTile.h"
 #include "TerrainTileCopernicus.h"
+#ifdef QGC_ENABLE_QT_NETWORK
 #include "TerrainTileFetcher.h"
+#endif
 #include "QGCMapUrlEngine.h"
 #include "MapProvider.h"
 #include "SettingsManager.h"
@@ -9,7 +11,9 @@
 #include "QGCLoggingCategory.h"
 #include "QGCGeo.h"
 
+#ifdef QGC_ENABLE_QT_NETWORK
 #include <QtNetwork/QNetworkAccessManager>
+#endif
 
 #include <limits>
 
@@ -30,11 +34,21 @@ TerrainTileManager *TerrainTileManager::instance()
 
 TerrainTileManager::TerrainTileManager(QObject *parent)
     : QObject(parent)
+#ifdef QGC_ENABLE_QT_NETWORK
     , _networkManager(new QNetworkAccessManager(this))
+#else
+    // No QNetworkAccessManager without Qt6::Network -- terrain tiles not already in the
+    // local cache are unavailable in this build (see cmake/CustomOptions.cmake's
+    // QGC_ENABLE_QT_NETWORK comment); getAltitudesForCoordinates() degrades cache misses
+    // to an explicit error instead of a network fetch.
+    , _networkManager(nullptr)
+#endif
 {
     qCDebug(TerrainTileManagerLog) << this;
 
+#ifdef QGC_ENABLE_QT_NETWORK
     QGCNetworkHelper::configureProxy(_networkManager);
+#endif
 }
 
 TerrainTileManager::~TerrainTileManager()
@@ -69,6 +83,7 @@ bool TerrainTileManager::getAltitudesForCoordinates(const QList<QGeoCoordinate> 
                 qCDebug(TerrainTileManagerLog) << "returning elevation from tile cache" << elevation;
             }
             altitudes.push_back(elevation);
+#ifdef QGC_ENABLE_QT_NETWORK
         } else if (_state != TerrainQuery::State::Downloading) {
             const int x = provider->long2tileX(coordinate.longitude(), 1);
             const int y = provider->lat2tileY(coordinate.latitude(), 1);
@@ -81,6 +96,17 @@ bool TerrainTileManager::getAltitudesForCoordinates(const QList<QGeoCoordinate> 
                 fetcher->deleteLater();
             }
             return false;
+#else
+        } else if (false) {
+            // No TerrainTileFetcher without Qt6::Network (see cmake/CustomOptions.cmake's
+            // QGC_ENABLE_QT_NETWORK comment) -- unreachable; cache misses always take the
+            // "else" branch below instead of starting a network fetch. A tile not already in
+            // the local cache is therefore permanently unavailable (this returns false, same
+            // as the "fetch already in flight" case, rather than a fetch that would eventually
+            // complete) -- documented capability loss, not a crash or a hang for any one caller
+            // since nothing here loops waiting on _state.
+            return false;
+#endif  // QGC_ENABLE_QT_NETWORK
         } else {
             return false;
         }
@@ -275,6 +301,7 @@ void TerrainTileManager::_tileFailed()
     _requestQueue.clear();
 }
 
+#ifdef QGC_ENABLE_QT_NETWORK
 void TerrainTileManager::_terrainDone()
 {
     _state = TerrainQuery::State::Idle;
@@ -360,6 +387,7 @@ void TerrainTileManager::_terrainDone()
         _requestQueue.removeAt(i);
     }
 }
+#endif  // QGC_ENABLE_QT_NETWORK
 
 void TerrainTileManager::_cacheTile(const QByteArray &data, const QString &hash)
 {

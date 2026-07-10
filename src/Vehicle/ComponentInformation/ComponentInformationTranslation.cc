@@ -1,5 +1,7 @@
 #include "ComponentInformationTranslation.h"
+#ifdef QGC_ENABLE_QT_NETWORK
 #include "QGCCachedFileDownload.h"
+#endif
 #include "JsonParsing.h"
 #include "QGCCompression.h"
 #include "QGCLoggingCategory.h"
@@ -35,6 +37,7 @@ bool ComponentInformationTranslation::downloadAndTranslate(const QString& summar
         return false;
     }
 
+#ifdef QGC_ENABLE_QT_NETWORK
     // Download file
     connect(_cachedFileDownload, &QGCCachedFileDownload::finished, this, &ComponentInformationTranslation::onDownloadCompleted);
     if (!_cachedFileDownload->download(url, maxCacheAgeSec)) {
@@ -43,6 +46,14 @@ bool ComponentInformationTranslation::downloadAndTranslate(const QString& summar
         return false;
     }
     return true;
+#else
+    // No QGCCachedFileDownload without Qt6::Network -- translation download is unavailable
+    // in this build (see cmake/CustomOptions.cmake's QGC_ENABLE_QT_NETWORK comment).
+    Q_UNUSED(url);
+    Q_UNUSED(maxCacheAgeSec);
+    qCWarning(ComponentInformationTranslationLog) << "Metadata translation unavailable in this build (QGC_ENABLE_QT_NETWORK=OFF)";
+    return false;
+#endif  // QGC_ENABLE_QT_NETWORK
 }
 
 QString ComponentInformationTranslation::getUrlFromSummaryJson(const QString &summaryJsonFile, const QString &locale, const QString &componentName)
@@ -69,6 +80,7 @@ QString ComponentInformationTranslation::getUrlFromSummaryJson(const QString &su
     return url;
 }
 
+#ifdef QGC_ENABLE_QT_NETWORK
 void ComponentInformationTranslation::onDownloadCompleted(bool success, const QString &localFile, QString errorMsg, [[maybe_unused]] bool fromCache)
 {
     disconnect(_cachedFileDownload, &QGCCachedFileDownload::finished, this, &ComponentInformationTranslation::onDownloadCompleted);
@@ -101,6 +113,7 @@ void ComponentInformationTranslation::onDownloadCompleted(bool success, const QS
 
     emit downloadComplete(translatedJsonFilename, errorMsg);
 }
+#endif  // QGC_ENABLE_QT_NETWORK
 
 QString ComponentInformationTranslation::translateJsonUsingTS(const QString &toTranslateJsonFile, const QString &tsFile)
 {

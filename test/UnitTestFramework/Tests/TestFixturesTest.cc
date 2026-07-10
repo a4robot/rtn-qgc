@@ -6,7 +6,9 @@
 #include <QtCore/QJsonObject>
 #include <QtCore/QTimer>
 #include <QtCore/QUuid>
+#ifdef QGC_ENABLE_QT_NETWORK
 #include <QtNetwork/QNetworkRequest>
+#endif
 #include <QtTest/QSignalSpy>
 #include <QtTest/QTest>
 
@@ -197,6 +199,9 @@ void TestFixturesTest::_testTempDirFixtureCreateFile()
 
 void TestFixturesTest::_testNetworkReplyFixture()
 {
+#ifndef QGC_ENABLE_QT_NETWORK
+    QSKIP("NetworkReplyFixture (QNetworkReply) does not exist with QGC_ENABLE_QT_NETWORK=OFF");
+#else
     const QByteArray body = R"({"ok":true})";
     NetworkReplyFixture reply(QUrl(QStringLiteral("https://example.com/api/v1/source")));
     reply.setHttpStatus(302);
@@ -211,6 +216,7 @@ void TestFixturesTest::_testNetworkReplyFixture()
     QCOMPARE(reply.header(QNetworkRequest::ContentTypeHeader).toString(), QStringLiteral("application/json"));
     QCOMPARE(reply.header(QNetworkRequest::ContentLengthHeader).toLongLong(), static_cast<qint64>(body.size()));
     QCOMPARE(reply.readAll(), body);
+#endif  // QGC_ENABLE_QT_NETWORK
 }
 
 void TestFixturesTest::_testSingleInstanceLockFixture()

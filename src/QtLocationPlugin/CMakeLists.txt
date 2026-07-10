@@ -69,7 +69,13 @@ target_link_libraries(QGCLocationCore
         $<$<BOOL:${QGC_ENABLE_QML}>:Qt6::Qml>
     PUBLIC
         Qt6::Core
-        Qt6::Network
+        # Q8f: QGCLocationCore's only QtNetwork users are UrlFactory::getTileNetworkRequest
+        # (QGCMapUrlEngine) and QGCCachedTileSet's bulk-download machinery -- both
+        # `#ifdef QGC_ENABLE_QT_NETWORK`-gated in source, so the OFF build compiles this
+        # target without Qt6::Network entirely (see cmake/CustomOptions.cmake's
+        # QGC_ENABLE_QT_NETWORK comment). The provider URL/hash/tile-count logic (what
+        # the headless terrain math needs) is network-free either way.
+        $<$<BOOL:${QGC_ENABLE_QT_NETWORK}>:Qt6::Network>
         Qt6::QmlIntegration
 )
 
@@ -94,7 +100,9 @@ target_precompile_headers(QGCLocationCore PRIVATE
     <QtCore/QString>
     <QtCore/QStringList>
     <QtCore/QVariant>
-    <QtNetwork/QNetworkRequest>
+    # Q8f: no QtNetwork headers exist in the OFF config (this target doesn't get the
+    # src/Comms/portable include shadow -- its network usage is #ifdef-gated instead).
+    "$<$<BOOL:${QGC_ENABLE_QT_NETWORK}>:<QtNetwork/QNetworkRequest$<ANGLE-R>>"
     <QtPositioning/QGeoCoordinate>
 )
 

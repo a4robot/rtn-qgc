@@ -5,18 +5,30 @@
 #include <QtCore/QIODevice>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QUrlQuery>
+#ifdef QGC_ENABLE_QT_NETWORK
 #include <QtNetwork/QHttpPart>
 #include <QtNetwork/QNetworkAccessManager>
 #include <QtNetwork/QNetworkInformation>
 #include <QtNetwork/QNetworkProxy>
 #include <QtNetwork/QNetworkProxyFactory>
 #include <QtNetwork/QSslSocket>
+#endif
 
 #include "QGCCompression.h"
 #include "QGCLoggingCategory.h"
 
 #ifndef QGC_NO_BLUETOOTH_LINK
 #include <QtBluetooth/QBluetoothLocalDevice>
+#endif
+
+#ifndef QGC_ENABLE_QT_NETWORK
+// isNetworkEthernet()'s ghost-diet fallback: no QNetworkInformation backend available
+// without Qt6::Network, so read the default route's interface name from /proc/net/route
+// (Linux-only -- matches this build's other portable/ compat pieces) and classify it via
+// /sys/class/net/<iface>/type (ARPHRD_ETHER == 1). Best-effort, matches
+// isNetworkEthernet()'s existing "assume no/unknown on any lookup failure" behavior.
+#include <QtCore/QFile>
+#include <QtCore/QTextStream>
 #endif
 
 QGC_LOGGING_CATEGORY(QGCNetworkHelperLog, "Utilities.QGCNetworkHelper")
@@ -369,6 +381,7 @@ QUrl urlWithoutQuery(const QUrl& url)
     return result;
 }
 
+#ifdef QGC_ENABLE_QT_NETWORK
 // ============================================================================
 // Request Configuration
 // ============================================================================
@@ -449,6 +462,7 @@ void setFormHeaders(QNetworkRequest& request)
 {
     request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/x-www-form-urlencoded"));
 }
+#endif  // QGC_ENABLE_QT_NETWORK
 
 QString defaultUserAgent()
 {
@@ -462,6 +476,7 @@ QString defaultUserAgent()
     return userAgent;
 }
 
+#ifdef QGC_ENABLE_QT_NETWORK
 // ============================================================================
 // Authentication Helpers
 // ============================================================================
@@ -480,6 +495,7 @@ void setBearerToken(QNetworkRequest& request, const QString& token)
 {
     request.setRawHeader("Authorization", ("Bearer " + token).toUtf8());
 }
+#endif  // QGC_ENABLE_QT_NETWORK
 
 QString createBasicAuthCredentials(const QString& username, const QString& password)
 {
@@ -487,6 +503,27 @@ QString createBasicAuthCredentials(const QString& username, const QString& passw
     return QString::fromLatin1(credentials.toUtf8().toBase64());
 }
 
+// ============================================================================
+// JSON Response Helpers
+// ============================================================================
+
+QJsonDocument parseJson(const QByteArray& data, QJsonParseError* error)
+{
+    QJsonParseError localError;
+    QJsonParseError* errorPtr = (error != nullptr) ? error : &localError;
+
+    QJsonDocument doc = QJsonDocument::fromJson(data, errorPtr);
+
+    if (errorPtr->error != QJsonParseError::NoError) {
+        qCWarning(QGCNetworkHelperLog) << "JSON parse error:" << errorPtr->errorString() << "at offset"
+                                       << errorPtr->offset;
+        return {};
+    }
+
+    return doc;
+}
+
+#ifdef QGC_ENABLE_QT_NETWORK
 // ============================================================================
 // Multipart Form Data Helpers
 // ============================================================================
@@ -577,26 +614,6 @@ bool loadClientCertAndKey(const QString& certPath, const QString& keyPath,
     return true;
 }
 
-// ============================================================================
-// JSON Response Helpers
-// ============================================================================
-
-QJsonDocument parseJson(const QByteArray& data, QJsonParseError* error)
-{
-    QJsonParseError localError;
-    QJsonParseError* errorPtr = (error != nullptr) ? error : &localError;
-
-    QJsonDocument doc = QJsonDocument::fromJson(data, errorPtr);
-
-    if (errorPtr->error != QJsonParseError::NoError) {
-        qCWarning(QGCNetworkHelperLog) << "JSON parse error:" << errorPtr->errorString() << "at offset"
-                                       << errorPtr->offset;
-        return {};
-    }
-
-    return doc;
-}
-
 QJsonDocument parseJsonReply(QNetworkReply* reply, QJsonParseError* error)
 {
     if (reply == nullptr) {
@@ -618,6 +635,7 @@ QJsonDocument parseJsonReply(QNetworkReply* reply, QJsonParseError* error)
 
     return parseJson(reply->readAll(), error);
 }
+#endif  // QGC_ENABLE_QT_NETWORK
 
 bool looksLikeJson(const QByteArray& data)
 {
@@ -637,6 +655,7 @@ bool looksLikeJson(const QByteArray& data)
     return false;
 }
 
+#ifdef QGC_ENABLE_QT_NETWORK
 // ============================================================================
 // Network Reply Helpers
 // ============================================================================
@@ -732,11 +751,13 @@ bool isJsonResponse(const QNetworkReply* reply)
     return type.contains(QLatin1String("application/json"), Qt::CaseInsensitive) ||
            type.contains(QLatin1String("+json"), Qt::CaseInsensitive);
 }
+#endif  // QGC_ENABLE_QT_NETWORK
 
 // ============================================================================
 // Network Availability
 // ============================================================================
 
+#ifdef QGC_ENABLE_QT_NETWORK
 bool isNetworkAvailable()
 {
     if (!QNetworkInformation::loadDefaultBackend()) {
@@ -791,6 +812,53 @@ bool isNetworkEthernet()
 
     return netInfo->transportMedium() == QNetworkInformation::TransportMedium::Ethernet;
 }
+#else  // !QGC_ENABLE_QT_NETWORK
+bool isNetworkAvailable()
+{
+    return true;  // Same "assume available if we can't check" fallback as the Qt path.
+}
+
+bool isInternetAvailable()
+{
+    return false;  // No reachability backend without Qt6::Network -- conservative default.
+}
+
+bool isNetworkEthernet()
+{
+    // Best-effort Linux-only default-route lookup -- see this file's top-of-file comment.
+    QFile routeFile(QStringLiteral("/proc/net/route"));
+    if (!routeFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return false;
+    }
+
+    QTextStream stream(&routeFile);
+    QString iface;
+    bool first = true;
+    while (!stream.atEnd()) {
+        const QString line = stream.readLine();
+        if (first) {
+            first = false;
+            continue;  // header line
+        }
+        const QStringList fields = line.split('\t', Qt::SkipEmptyParts);
+        // Fields: Iface Destination Gateway Flags ... -- default route has Destination 00000000.
+        if (fields.size() > 1 && fields.at(1) == QLatin1String("00000000")) {
+            iface = fields.at(0);
+            break;
+        }
+    }
+    if (iface.isEmpty()) {
+        return false;
+    }
+
+    QFile typeFile(QStringLiteral("/sys/class/net/%1/type").arg(iface));
+    if (!typeFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return false;
+    }
+    const int arphrdType = typeFile.readAll().trimmed().toInt();
+    return arphrdType == 1;  // ARPHRD_ETHER
+}
+#endif  // QGC_ENABLE_QT_NETWORK
 
 bool isBluetoothAvailable()
 {
@@ -802,6 +870,7 @@ bool isBluetoothAvailable()
 #endif
 }
 
+#ifdef QGC_ENABLE_QT_NETWORK
 ConnectionType connectionType()
 {
     if (!QNetworkInformation::loadDefaultBackend()) {
@@ -830,6 +899,12 @@ ConnectionType connectionType()
             return ConnectionType::Unknown;
     }
 }
+#else  // !QGC_ENABLE_QT_NETWORK
+ConnectionType connectionType()
+{
+    return isNetworkEthernet() ? ConnectionType::Ethernet : ConnectionType::Unknown;
+}
+#endif  // QGC_ENABLE_QT_NETWORK
 
 QString connectionTypeName(ConnectionType type)
 {
@@ -850,6 +925,7 @@ QString connectionTypeName(ConnectionType type)
     }
 }
 
+#ifdef QGC_ENABLE_QT_NETWORK
 // ============================================================================
 // SSL/TLS Helpers
 // ============================================================================
@@ -895,11 +971,13 @@ QString sslVersion()
 {
     return QSslSocket::sslLibraryVersionString();
 }
+#endif  // QGC_ENABLE_QT_NETWORK
 
 // ============================================================================
 // Network Access Manager Helpers
 // ============================================================================
 
+#ifdef QGC_ENABLE_QT_NETWORK
 void initializeProxySupport()
 {
     QNetworkProxyFactory::setUseSystemConfiguration(true);
@@ -924,5 +1002,12 @@ void configureProxy(QNetworkAccessManager* manager)
     manager->setProxy(proxy);
 #endif
 }
+#else  // !QGC_ENABLE_QT_NETWORK
+void initializeProxySupport()
+{
+    // No QNetworkAccessManager/proxy machinery without Qt6::Network -- see
+    // cmake/CustomOptions.cmake's QGC_ENABLE_QT_NETWORK comment.
+}
+#endif  // QGC_ENABLE_QT_NETWORK
 
 }  // namespace QGCNetworkHelper

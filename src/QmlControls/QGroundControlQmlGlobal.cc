@@ -11,7 +11,9 @@
 #include "QGCMapEngineManager.h"
 #include "ADSBVehicleManager.h"
 #include "AudioOutput.h"
+#ifdef QGC_ENABLE_QT_NETWORK
 #include "NTRIPManager.h"
+#endif
 #include "MAVLinkSigningKeys.h"
 #include "MissionCommandTree.h"
 #include "VideoManager.h"
@@ -45,7 +47,12 @@ QGroundControlQmlGlobal::QGroundControlQmlGlobal(QObject *parent)
     : QObject(parent)
     , _mapEngineManager(QGCMapEngineManager::instance())
     , _adsbVehicleManager(ADSBVehicleManager::instance())
+#ifdef QGC_ENABLE_QT_NETWORK
+    // Q8f: NTRIPManager (and the ntripManager property/member, gated in the header with
+    // it) only exists with Qt6::Network -- see cmake/CustomOptions.cmake's
+    // QGC_ENABLE_QT_NETWORK comment.
     , _ntripManager(NTRIPManager::instance())
+#endif
     , _qgcPositionManager(QGCPositionManager::instance())
     , _missionCommandTree(MissionCommandTree::instance())
     , _mavlinkSigningKeys(MAVLinkSigningKeys::instance())

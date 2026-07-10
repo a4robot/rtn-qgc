@@ -211,6 +211,31 @@ option(QGC_ENABLE_QT_STATEMACHINE "Use Qt's QState/QStateMachine for QGCStateMac
 # current behavior; the ghost-diet build opts out explicitly.
 option(QGC_ENABLE_QT_SERIALPORT "Use Qt's QSerialPort/QSerialPortInfo for the serial link layer (OFF uses a portable termios(2)+libudev backend instead, dropping Qt6::SerialPort)" ON)
 
+# ----------------------------------------------------------------------------
+# Q8f (STRANGLER_MILESTONES.md M8, wave 18): QGC_ENABLE_QT_NETWORK -- the final ghost-diet
+# cut. OFF replaces the link-layer/value-type slice of QtNetwork (QHostAddress,
+# QAbstractSocket, QUdpSocket, QTcpSocket, QNetworkDatagram, QHostInfo,
+# QNetworkInterface::allAddresses(), the QNetworkProxy::NoProxy no-op, and
+# QPasswordDigestor::deriveKeyPbkdf2()) with an in-house POSIX-socket + QtCore-HMAC
+# reimplementation (src/Comms/portable/QGCNetworkCompat.{h,cc}), selected via the same
+# include-path-shadowing pattern as QGC_ENABLE_QT_SERIALPORT/QGC_ENABLE_QT_STATEMACHINE.
+# No new dependency: PBKDF2 is built on QMessageAuthenticationCode, which has always lived
+# in QtCore (HMAC is not a QtNetwork-only primitive), avoiding an OpenSSL vendoring
+# decision the build image can't currently satisfy (no openssl-dev/pkgconfig).
+#
+# NOT ported this wave, deliberately (see STRANGLER_MILESTONES.md's Q8f writeup for the
+# full audit table): the HTTP(S)-heavy consumers -- Terrain tile fetch, QtLocationPlugin's
+# map-tile providers/cache fetcher, GPS/NTRIP, QGCFileDownload/QGCCachedFileDownload,
+# MAVLinkLogManager's upload path, VehicleCameraControl's definition-XML download --
+# need a real async HTTP client plus TLS (production tile/NTRIP/log-upload endpoints are
+# https://), which is a materially different and much larger undertaking than the socket
+# link layer. Those consumers are `#ifdef`-gated on this same flag and degrade to a
+# documented "unavailable in this build" stub when OFF; their Qt-based (ON) code paths are
+# completely untouched, so nothing here risks TerrainTileFetcherNetworkTest or
+# UrlFactoryTest, both of which build and run only against the unmodified ON path.
+# Default ON preserves current behavior; the ghost-diet build opts out explicitly.
+option(QGC_ENABLE_QT_NETWORK "Use Qt's QUdpSocket/QTcpSocket/QHostAddress/QPasswordDigestor for the link layer, MAVLink signing key derivation, and HTTP(S)-heavy subsystems (Terrain, NTRIP, tile cache, log upload) (OFF uses a portable POSIX-socket + QtCore-HMAC backend for the link layer/signing, dropping Qt6::Network, and disables the HTTP(S)-heavy subsystems)" ON)
+
 # ============================================================================
 # MAVLink Configuration
 # ============================================================================

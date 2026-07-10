@@ -30,7 +30,9 @@ class VideoManager2;
 class QmlObjectListModel;
 
 Q_MOC_INCLUDE("ADSBVehicleManager.h")
+#ifdef QGC_ENABLE_QT_NETWORK
 Q_MOC_INCLUDE("NTRIPManager.h")
+#endif
 Q_MOC_INCLUDE("FactGroup.h")
 Q_MOC_INCLUDE("LinkManager.h")
 Q_MOC_INCLUDE("MAVLinkSigningKeys.h")
@@ -77,7 +79,12 @@ public:
     Q_PROPERTY(VideoManager2*       videoManager2           READ    videoManager2           CONSTANT)
     Q_PROPERTY(SettingsManager*     settingsManager         READ    settingsManager         CONSTANT)
     Q_PROPERTY(ADSBVehicleManager*  adsbVehicleManager      READ    adsbVehicleManager      CONSTANT)
+#ifdef QGC_ENABLE_QT_NETWORK
+    // Q8f: NTRIPManager (an HTTP(S)/TLS client) is only built with Qt6::Network -- see
+    // src/GPS/CMakeLists.txt. moc needs the complete type for the property metatype, so
+    // the property is gated with its subject rather than degraded to nullptr.
     Q_PROPERTY(NTRIPManager*        ntripManager            READ    ntripManager            CONSTANT)
+#endif
     Q_PROPERTY(QGCCorePlugin*       corePlugin              READ    corePlugin              CONSTANT)
     Q_PROPERTY(MissionCommandTree*  missionCommandTree      READ    missionCommandTree      CONSTANT)
     Q_PROPERTY(MAVLinkSigningKeys*   mavlinkSigningKeys      READ    mavlinkSigningKeys      CONSTANT)
@@ -184,7 +191,9 @@ public:
     FactGroup*              gpsRtkFactGroup     ()  { return _gpsRtkFactGroup; }
 #endif
     ADSBVehicleManager*     adsbVehicleManager  ()  { return _adsbVehicleManager; }
+#ifdef QGC_ENABLE_QT_NETWORK
     NTRIPManager*           ntripManager        ()  { return _ntripManager; }
+#endif
     QmlUnitsConversion*     unitsConversion     ()  { return &_unitsConversion; }
     static QGeoCoordinate   flightMapPosition   ()  { return _coord; }
     static double           flightMapZoom       ()  { return _zoom; }
@@ -238,7 +247,9 @@ signals:
 private:
     QGCMapEngineManager*    _mapEngineManager       = nullptr;
     ADSBVehicleManager*     _adsbVehicleManager     = nullptr;
+#ifdef QGC_ENABLE_QT_NETWORK
     NTRIPManager*           _ntripManager           = nullptr;
+#endif
     QGCPositionManager*     _qgcPositionManager     = nullptr;
     MissionCommandTree*     _missionCommandTree     = nullptr;
     MAVLinkSigningKeys*     _mavlinkSigningKeys     = nullptr;

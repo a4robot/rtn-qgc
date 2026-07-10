@@ -2,7 +2,9 @@
 
 #include <QtCore/QFile>
 #include <QtCore/QObject>
+#ifdef QGC_ENABLE_QT_NETWORK
 #include <QtNetwork/QHttpPart>
+#endif
 #include <QtQmlIntegration/QtQmlIntegration>
 
 class QmlObjectListModel;
@@ -184,16 +186,20 @@ signals:
     void windSpeedChanged();
 
 private slots:
+#ifdef QGC_ENABLE_QT_NETWORK
     void _uploadFinished();
     void _dataAvailable();
     void _uploadProgress(qint64 bytesSent, qint64 bytesTotal);
+#endif
     void _mavlinkLogData(Vehicle *vehicle, uint8_t target_system, uint8_t target_component, uint16_t sequence, uint8_t first_message, const QByteArray &data, bool acked);
     void _armedChanged(bool armed);
     void _mavCommandResult(int vehicleId, int component, int command, int result, int failureCode);
 
 private:
     bool _sendLog(const QString &logFile);
+#ifdef QGC_ENABLE_QT_NETWORK
     bool _processUploadResponse(int http_code, const QByteArray &data);
+#endif
     bool _createNewLog();
     int  _getFirstSelected() const;
     void _insertNewLog(MAVLinkLogFiles *newLog);
@@ -201,7 +207,9 @@ private:
     void _discardLog();
     QString _makeFilename(const QString &baseName) const;
 
+#ifdef QGC_ENABLE_QT_NETWORK
     static QHttpPart _createFormPart(QStringView name, QStringView value);
+#endif
 
     Vehicle *_vehicle = nullptr;
     QNetworkAccessManager *_networkManager = nullptr;

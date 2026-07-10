@@ -10,7 +10,9 @@
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>
 #include <QtCore/QSettings>
+#ifdef QGC_ENABLE_QT_NETWORK
 #include <QtNetwork/QNetworkReply>
+#endif
 
 #include "QGCNetworkHelper.h"
 
@@ -280,14 +282,23 @@ bool MAVLinkLogProcessor::processStreamData(uint16_t sequence, uint8_t first_mes
 MAVLinkLogManager::MAVLinkLogManager(Vehicle *vehicle, QObject *parent)
     : QObject(parent)
     , _vehicle(vehicle)
+#ifdef QGC_ENABLE_QT_NETWORK
     , _networkManager(new QNetworkAccessManager(this))
+#else
+    // No QNetworkAccessManager without Qt6::Network -- log upload is unavailable in this
+    // build (see cmake/CustomOptions.cmake's QGC_ENABLE_QT_NETWORK comment); local log
+    // record/list/delete is unaffected.
+    , _networkManager(nullptr)
+#endif
     , _logFiles(new QmlObjectListModel(this))
     , _ulogExtension(QStringLiteral(".") + SettingsManager::instance()->appSettings()->logFileExtension)
     , _logPath(SettingsManager::instance()->appSettings()->logSavePath())
 {
     qCDebug(MAVLinkLogManagerLog) << this;
 
+#ifdef QGC_ENABLE_QT_NETWORK
     QGCNetworkHelper::configureProxy(_networkManager);
+#endif
 
     QSettings settings;
     settings.beginGroup(kMAVLinkLogGroup);
@@ -624,6 +635,7 @@ void MAVLinkLogManager::stopLogging()
     emit logRunningChanged();
 }
 
+#ifdef QGC_ENABLE_QT_NETWORK
 QHttpPart MAVLinkLogManager::_createFormPart(QStringView name, QStringView value)
 {
     QHttpPart formPart;
@@ -631,9 +643,17 @@ QHttpPart MAVLinkLogManager::_createFormPart(QStringView name, QStringView value
     formPart.setBody(value.toUtf8());
     return formPart;
 }
+#endif  // QGC_ENABLE_QT_NETWORK
 
 bool MAVLinkLogManager::_sendLog(const QString &logFile)
 {
+#ifndef QGC_ENABLE_QT_NETWORK
+    // No QNetworkAccessManager without Qt6::Network -- log upload is unavailable in this
+    // build (see cmake/CustomOptions.cmake's QGC_ENABLE_QT_NETWORK comment).
+    Q_UNUSED(logFile);
+    qCWarning(MAVLinkLogManagerLog) << "Log upload unavailable in this build (QGC_ENABLE_QT_NETWORK=OFF)";
+    return false;
+#else
     QString defaultDescription = _description;
     if (_description.isEmpty()) {
         qCWarning(MAVLinkLogManagerLog) << "Log description missing. Using defaults.";
@@ -722,8 +742,10 @@ bool MAVLinkLogManager::_sendLog(const QString &logFile)
     qCDebug(MAVLinkLogManagerLog) << "Log" << fi.baseName() << "Uploading." << fi.size() << "bytes.";
 
     return true;
+#endif  // QGC_ENABLE_QT_NETWORK
 }
 
+#ifdef QGC_ENABLE_QT_NETWORK
 bool MAVLinkLogManager::_processUploadResponse(int http_code, const QByteArray &data)
 {
     qCDebug(MAVLinkLogManagerLog) << "Uploaded response:" << QString::fromUtf8(data);
@@ -791,6 +813,7 @@ void MAVLinkLogManager::_uploadProgress(qint64 bytesSent, qint64 bytesTotal)
 
     qCDebug(MAVLinkLogManagerLog) << bytesSent << "of" << bytesTotal;
 }
+#endif  // QGC_ENABLE_QT_NETWORK
 
 void MAVLinkLogManager::_mavlinkLogData(Vehicle* /*vehicle*/, uint8_t /*target_system*/, uint8_t /*target_component*/, uint16_t sequence, uint8_t first_message, const QByteArray &data, bool /*acked*/)
 {

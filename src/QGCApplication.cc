@@ -35,7 +35,9 @@
 #include "PositionManager.h"
 #include "QGCCommandLineParser.h"
 #include "QGCCorePlugin.h"
+#ifdef QGC_ENABLE_QT_NETWORK
 #include "QGCFileDownload.h"
+#endif
 #ifdef QGC_ENABLE_QML
 #include "ColoredSvgImageProvider.h"
 #include "QGCImageProvider.h"
@@ -673,6 +675,7 @@ void QGCApplication::qmlAttemptWindowClose()
 
 void QGCApplication::_checkForNewVersion()
 {
+#ifdef QGC_ENABLE_QT_NETWORK
     if (_runningUnitTests) {
         return;
     }
@@ -690,8 +693,10 @@ void QGCApplication::_checkForNewVersion()
             download->deleteLater();
         }
     }
+#endif  // QGC_ENABLE_QT_NETWORK
 }
 
+#ifdef QGC_ENABLE_QT_NETWORK
 void QGCApplication::_qgcCurrentStableVersionDownloadComplete(bool success, const QString &localFile, const QString &errorMsg)
 {
     if (success) {
@@ -717,6 +722,7 @@ void QGCApplication::_qgcCurrentStableVersionDownloadComplete(bool success, cons
 
     sender()->deleteLater();
 }
+#endif  // QGC_ENABLE_QT_NETWORK
 
 bool QGCApplication::_parseVersionText(const QString &versionString, int &majorVersion, int &minorVersion, int &buildVersion)
 {

@@ -309,7 +309,10 @@ void UrlFactoryTest::_testGetMapProviderInvalid()
 }
 
 // --- getTileNetworkRequest (Wave 16 / Q8f characterization) ---
+// Q8f: getTileNetworkRequest only exists with QGC_ENABLE_QT_NETWORK=ON (every tile-fetch
+// path goes with the flag); the URL/hash/provider tests above run in both configs.
 
+#ifdef QGC_ENABLE_QT_NETWORK
 void UrlFactoryTest::_testGetTileNetworkRequestUrlMatchesGetTileURL()
 {
     const int id = UrlFactory::getQtMapIdFromProviderType(kBingRoad);
@@ -371,5 +374,6 @@ void UrlFactoryTest::_testGetTileNetworkRequestInvalidMapId()
     const QNetworkRequest request = UrlFactory::getTileNetworkRequest(-1, 0, 0, 1);
     QVERIFY(request.url().isEmpty());
 }
+#endif  // QGC_ENABLE_QT_NETWORK
 
 UT_REGISTER_TEST(UrlFactoryTest, TestLabel::Unit)

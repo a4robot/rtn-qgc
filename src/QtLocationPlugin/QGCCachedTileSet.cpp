@@ -94,6 +94,7 @@ void QGCCachedTileSet::_tileListFetched(const QQueue<QGCTile*> &tiles)
         return;
     }
 
+#ifdef QGC_ENABLE_QT_NETWORK
     if (!_networkManager) {
         _networkManager = new QNetworkAccessManager(this);
         QGCNetworkHelper::configureProxy(_networkManager);
@@ -101,6 +102,17 @@ void QGCCachedTileSet::_tileListFetched(const QQueue<QGCTile*> &tiles)
 
     _tilesToDownload.append(tiles);
     _prepareDownload();
+#else
+    // No QNetworkAccessManager without Qt6::Network -- tile-set download is unavailable
+    // in this build (see cmake/CustomOptions.cmake's QGC_ENABLE_QT_NETWORK comment).
+    // Count the batch as errored and finish, same terminal state a fully-failed batch
+    // reaches on the Qt path.
+    qCWarning(QGCCachedTileSetLog) << "Tile download unavailable in this build (QGC_ENABLE_QT_NETWORK=OFF)";
+    setErrorCount(_errorCount + tiles.size());
+    qDeleteAll(tiles);
+    _noMoreTiles = true;
+    _doneWithDownload();
+#endif  // QGC_ENABLE_QT_NETWORK
 }
 
 void QGCCachedTileSet::_doneWithDownload()
@@ -135,6 +147,7 @@ void QGCCachedTileSet::_prepareDownload()
         return;
     }
 
+#ifdef QGC_ENABLE_QT_NETWORK
     for (qsizetype i = _replies.count(); i < UrlFactory::concurrentDownloads(_type); i++) {
         if (_tilesToDownload.isEmpty()) {
             break;
@@ -166,8 +179,10 @@ void QGCCachedTileSet::_prepareDownload()
             createDownloadTask();
         }
     }
+#endif  // QGC_ENABLE_QT_NETWORK (with it OFF, _tileListFetched never queues tiles, so only the empty branch above runs)
 }
 
+#ifdef QGC_ENABLE_QT_NETWORK
 void QGCCachedTileSet::_networkReplyFinished()
 {
     QNetworkReply* const reply = qobject_cast<QNetworkReply*>(QObject::sender());
@@ -285,6 +300,7 @@ void QGCCachedTileSet::_networkReplyError(QNetworkReply::NetworkError error)
 
     _prepareDownload();
 }
+#endif  // QGC_ENABLE_QT_NETWORK
 
 void QGCCachedTileSet::setSelected(bool sel)
 {
