@@ -24,7 +24,7 @@ import { fractionFromDelta, fractionFromHoldElapsed, HOLD_MS, shouldConfirm } fr
 import "./slider.css";
 
 /** Must match the thumb width baked into slider.css (`.slider-thumb`). */
-const THUMB_SIZE_PX = 28;
+const THUMB_SIZE_PX = 44;
 /** Duration of the "snap back to start" animation after a release/cancel. */
 const SNAP_BACK_MS = 200;
 
