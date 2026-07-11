@@ -62,7 +62,9 @@
 
 .slider-label {
   position: absolute;
-  inset: 0;
+  /* Left inset clears the resting arrow thumb so labels never start
+     underneath it on compact rows. */
+  inset: 0 8px 0 38px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -75,31 +77,65 @@
   white-space: nowrap;
 }
 
-/* Thumb stays a round pill (not chamfered) — usability first: a circular
-   grab handle reads unambiguously as draggable, which matters more here
-   than corner-cut consistency. The glow supplies the Ingress look instead. */
+/* Thumb: an Ingress-style right-pointing arrow block — angular like the
+   rest of the scanner chrome, and the arrow shape doubles as the "slide
+   this way" affordance (a stronger directional cue than a round pill).
+   box-shadow doesn't follow clip-path, so the glow comes from a
+   drop-shadow filter, which does. */
 .slider-thumb {
   position: absolute;
   top: 2px;
   left: 0;
-  width: 28px;
+  width: 34px;
   height: 26px;
-  border-radius: 13px;
+  clip-path: polygon(0% 0%, 68% 0%, 100% 50%, 68% 100%, 0% 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--slider-accent);
+  padding-right: 8px; /* optically center the glyph in the arrow body */
+  background: linear-gradient(
+    135deg,
+    var(--slider-accent),
+    color-mix(in srgb, var(--slider-accent) 70%, #ffffff 12%)
+  );
   color: var(--bg, #0a1216);
   font-weight: 700;
   cursor: grab;
   touch-action: none;
   will-change: left;
-  box-shadow: 0 0 10px var(--accent-glow, var(--slider-accent));
+  filter: drop-shadow(0 0 6px var(--accent-glow, var(--slider-accent)));
 }
 
 .slider-root--danger .slider-thumb {
-  background: var(--slider-danger);
-  box-shadow: 0 0 10px var(--slider-danger);
+  background: linear-gradient(
+    135deg,
+    var(--slider-danger),
+    color-mix(in srgb, var(--slider-danger) 70%, #ffffff 12%)
+  );
+  filter: drop-shadow(0 0 6px var(--slider-danger));
+}
+
+/* Faint repeating chevron texture across the track — the scanner's
+   "slide onward" cue; sits under the fill so it dims as the thumb
+   advances. */
+.slider-track::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    115deg,
+    transparent 0 10px,
+    color-mix(in srgb, var(--slider-accent) 10%, transparent) 10px 12px
+  );
+  pointer-events: none;
+}
+
+.slider-root--danger .slider-track::after {
+  background-image: repeating-linear-gradient(
+    115deg,
+    transparent 0 10px,
+    color-mix(in srgb, var(--slider-danger) 10%, transparent) 10px 12px
+  );
 }
 
 .slider-thumb--snapping {
