@@ -76,3 +76,36 @@
   border-color: var(--fg-dim);
   color: var(--fg-dim);
 }
+
+/* 2D/3D terrain toggle — own control group, styled to match the dark shell
+   rather than maplibre's default light control chrome. Extra
+   `.maplibregl-ctrl-group` qualifier bumps specificity above maplibre's own
+   `.maplibregl-ctrl-group { background: #fff }` rule regardless of CSS
+   source order in the bundle. */
+.core-map-3d-ctrl.maplibregl-ctrl-group {
+  background: rgba(22, 27, 34, 0.9);
+}
+
+.core-map-3d-ctrl .core-map-3d-btn {
+  width: 29px;
+  height: 29px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--fg-dim, #8b949e);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.core-map-3d-ctrl .core-map-3d-btn:hover {
+  color: var(--fg, #e6edf3);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.core-map-3d-ctrl .core-map-3d-btn--active {
+  color: var(--accent, #2f81f7);
+}
