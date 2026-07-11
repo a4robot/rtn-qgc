@@ -1,0 +1,38 @@
+/* Right-edge floating instrument column (QGC's FlyViewInstrumentPanel) —
+   stacks the existing Attitude horizon above the existing Instruments strip,
+   re-flowed vertically via a scoped override so neither component's own
+   markup/logic needs to change (instruments.css's `.instrument-strip` stays
+   the shared horizontal-strip default everywhere else it's used). */
+
+.instrument-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 15rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.instrument-column .attitude {
+  padding: 0.3rem 0.3rem 0.5rem;
+}
+
+.instrument-column .instrument-strip {
+  flex-direction: column;
+  align-items: stretch;
+  overflow: visible;
+  padding: 0;
+  gap: 0.35rem;
+}
+
+.instrument-column .instrument-cell {
+  min-width: 0;
+}
+
+.instrument-column .instrument-cell--heading {
+  min-width: 0;
+}

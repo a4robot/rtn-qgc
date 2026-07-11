@@ -16,41 +16,6 @@
   overflow: auto;
 }
 
-.waypoint-list-mode-toggle {
-  display: flex;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  overflow: hidden;
-  flex: none;
-}
-
-.waypoint-list-mode-btn {
-  flex: 1;
-  padding: 0.4rem 0.6rem;
-  border: none;
-  background: var(--bg);
-  color: var(--fg-dim);
-  font: inherit;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.waypoint-list-mode-btn + .waypoint-list-mode-btn {
-  border-left: 1px solid var(--border);
-}
-
-.waypoint-list-mode-btn:hover {
-  color: var(--fg);
-}
-
-.waypoint-list-mode-btn--active {
-  background: rgba(47, 129, 247, 0.15);
-  color: var(--accent);
-}
-
 .waypoint-list-status {
   padding: 0.3rem 0.5rem;
   border-radius: 4px;

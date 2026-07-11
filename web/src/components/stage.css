@@ -1,0 +1,99 @@
+/* Cockpit stage layout — the area below the toolbar. The map fills it as a
+ * full-viewport background; video floats over it as a small bottom-left PiP
+ * (QGC's signature interaction: click the PiP to swap it with the
+ * fullscreen slot). Both the map and video containers persist for the whole
+ * app lifetime — only their `.stage-slot--full`/`.stage-slot--pip` class
+ * swaps, so the single maplibre instance is never remounted (it would lose
+ * every layer). CoreMap's own ResizeObserver (observing its container's
+ * border box) already reacts to the class swap's size change, so no manual
+ * `map.resize()` call is needed here.
+ *
+ * The instrument column, image card, and guided-actions strip float over
+ * the map on top of whichever slot is fullscreen; the plan/overlay drawers
+ * stack above those.
+ */
+
+.gcs-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.stage-slot {
+  position: absolute;
+  overflow: hidden;
+}
+
+.stage-slot--full {
+  inset: 0;
+  z-index: 1;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  cursor: default;
+}
+
+.stage-slot--pip {
+  left: 1rem;
+  bottom: 1rem;
+  width: 320px;
+  max-width: 40vw;
+  aspect-ratio: 16 / 9;
+  z-index: 6;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: left 0.15s ease;
+}
+
+.stage-slot--pip:hover {
+  border-color: var(--accent);
+}
+
+/* The Plan drawer (plan-drawer.css, width 22rem) anchors to the same left
+   edge as the PiP/image-card — shift both clear of it while it's open so
+   they don't overlap it (see PlanDrawer.tsx / App.tsx's `planOpen`). */
+.stage-slot--pip.stage-shift-right,
+.image-card-float.stage-shift-right {
+  left: calc(22rem + 1rem);
+}
+
+.instrument-column-float {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 8;
+}
+
+.image-card-float {
+  position: absolute;
+  left: 1rem;
+  bottom: calc(180px + 1.75rem);
+  z-index: 8;
+  width: 320px;
+  max-width: 40vw;
+  transition: left 0.15s ease;
+}
+
+.guided-strip {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 8;
+  width: 22rem;
+  max-width: calc(100vw - 2rem);
+  max-height: 45vh;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  overflow: auto;
+}
+
+.guided-strip .actions-panel {
+  height: auto;
+}

@@ -1,29 +1,29 @@
 /**
- * Plan-mode side panel, PROTOCOL.md §7 — mode toggle (FLY/PLAN, drives
- * `uiStore.mapMode`, which in turn switches GotoOnClick vs. WaypointAdder on
- * the map) plus the draft mission editor: per-item seq/coords/altitude with
- * remove, "Load from vehicle" (seeds the draft from the on-vehicle mission
- * already mirrored in missionStore — no bridge round-trip), "Upload"
- * (`missionUpload`, §7.2) and "Clear vehicle" (`missionClear`, §7.2), both
- * tracked via `client.onMissionResponse` and keyed by request id, mirroring
- * `useCommandRequests`'s ack-tracking pattern for the command channel (§5).
+ * Plan-mode panel, PROTOCOL.md §7 — the draft mission editor: per-item
+ * seq/coords/altitude with remove, "Load from vehicle" (seeds the draft from
+ * the on-vehicle mission already mirrored in missionStore — no bridge
+ * round-trip), "Upload" (`missionUpload`, §7.2) and "Clear vehicle"
+ * (`missionClear`, §7.2), both tracked via `client.onMissionResponse` and
+ * keyed by request id, mirroring `useCommandRequests`'s ack-tracking pattern
+ * for the command channel (§5).
  *
  * Only one mission request (upload or clear) is tracked at a time — both
  * buttons are disabled while either is in flight, since overlapping
  * upload/clear calls against the same vehicle mission would race.
+ *
+ * The FLY/PLAN map-click-mode toggle that used to live here now lives in the
+ * top toolbar (`TopToolbar`'s view switcher) — this component only mounts
+ * while that toolbar already has "plan" selected (see `PlanDrawer.tsx`), so
+ * a second in-panel toggle would be redundant. `uiStore.mapMode` is still
+ * the thing that actually switches `GotoOnClick`/`WaypointAdder` on the map;
+ * this component just no longer has its own control for it.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { BridgeClient } from "../../bridge/BridgeClient.ts";
 import type { MissionItem } from "../../bridge/types.ts";
-import {
-  useMapMode,
-  useMission,
-  usePlanItems,
-  usePlanStore,
-  useUiStore,
-} from "../../store/index.ts";
+import { useMission, usePlanItems, usePlanStore } from "../../store/index.ts";
 import "./WaypointList.css";
 
 /** How long an accepted upload/clear's confirmation stays visible before clearing. */
@@ -115,9 +115,6 @@ export interface WaypointListProps {
 }
 
 export function WaypointList({ client, vehicleId }: WaypointListProps) {
-  const mapMode = useMapMode();
-  const setMapMode = useUiStore((state) => state.setMapMode);
-
   const items = usePlanItems();
   const removeItem = usePlanStore((state) => state.removeItem);
   const updateItemAlt = usePlanStore((state) => state.updateItemAlt);
@@ -142,25 +139,6 @@ export function WaypointList({ client, vehicleId }: WaypointListProps) {
 
   return (
     <div className="waypoint-list" aria-label="Mission plan">
-      <div className="waypoint-list-mode-toggle" role="group" aria-label="Map mode">
-        <button
-          type="button"
-          className={`waypoint-list-mode-btn${mapMode === "fly" ? " waypoint-list-mode-btn--active" : ""}`}
-          aria-pressed={mapMode === "fly"}
-          onClick={() => setMapMode("fly")}
-        >
-          FLY
-        </button>
-        <button
-          type="button"
-          className={`waypoint-list-mode-btn${mapMode === "plan" ? " waypoint-list-mode-btn--active" : ""}`}
-          aria-pressed={mapMode === "plan"}
-          onClick={() => setMapMode("plan")}
-        >
-          PLAN
-        </button>
-      </div>
-
       {request && (
         <div className={`waypoint-list-status waypoint-list-status--${request.phase}`} role="status">
           {request.kind === "upload" ? (

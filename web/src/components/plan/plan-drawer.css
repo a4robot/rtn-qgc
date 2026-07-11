@@ -1,0 +1,52 @@
+/* Plan-mode left drawer over the map (QGC's Plan view mission list) — see
+   PlanDrawer.tsx. */
+
+.plan-drawer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 15;
+  width: 22rem;
+  max-width: 85vw;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+}
+
+.plan-drawer-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.plan-drawer-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-dim);
+}
+
+.plan-drawer-close {
+  border: none;
+  background: transparent;
+  color: var(--fg-dim);
+  font-size: 0.9rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.plan-drawer-close:hover {
+  color: var(--fg);
+}
+
+.plan-drawer-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}

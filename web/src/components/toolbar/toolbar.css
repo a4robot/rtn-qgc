@@ -1,0 +1,198 @@
+/* Top toolbar — QGC FlyViewToolBar equivalent: left = view switcher (FLY/PLAN)
+   + vehicle indicator chips, right = notifications, vehicle selector, and the
+   gear menu that opens the PARAMS/SETTINGS overlay drawer. Fixed height bar
+   above `.gcs-stage` (the full-viewport map + floating panels). */
+
+.gcs-toolbar {
+  --status-ok: #3fb950;
+  --status-warn: #d29922;
+  --status-critical: #f85149;
+
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  height: 3rem;
+  padding: 0 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  overflow-x: auto;
+}
+
+.gcs-toolbar-section {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.gcs-toolbar-brand {
+  flex: none;
+  margin: 0 0.25rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.toolbar-view-switch {
+  display: flex;
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.toolbar-view-btn {
+  padding: 0.35rem 0.75rem;
+  border: none;
+  background: var(--bg);
+  color: var(--fg-dim);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.toolbar-view-btn + .toolbar-view-btn {
+  border-left: 1px solid var(--border);
+}
+
+.toolbar-view-btn:hover {
+  color: var(--fg);
+}
+
+.toolbar-view-btn--active {
+  background: rgba(47, 129, 247, 0.18);
+  color: var(--accent);
+}
+
+.toolbar-indicators {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.toolbar-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg-dim);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.toolbar-chip--mode {
+  color: var(--accent);
+  border-color: rgba(47, 129, 247, 0.4);
+}
+
+.toolbar-chip--armed {
+  color: var(--status-critical);
+  border-color: rgba(248, 81, 73, 0.5);
+  font-weight: 700;
+}
+
+.toolbar-chip--disarmed {
+  color: var(--fg-dim);
+}
+
+.toolbar-chip--ok {
+  color: var(--status-ok);
+  border-color: rgba(63, 185, 80, 0.4);
+}
+
+.toolbar-chip--warn {
+  color: var(--status-warn);
+  border-color: rgba(210, 153, 34, 0.4);
+}
+
+.toolbar-chip--critical {
+  color: var(--status-critical);
+  border-color: rgba(248, 81, 73, 0.4);
+}
+
+.toolbar-chip--conn-connected {
+  color: var(--status-ok);
+  border-color: rgba(63, 185, 80, 0.4);
+}
+
+.toolbar-chip--conn-connecting,
+.toolbar-chip--conn-reconnecting {
+  color: var(--status-warn);
+  border-color: rgba(210, 153, 34, 0.4);
+}
+
+.toolbar-chip--conn-disconnected {
+  color: var(--fg-dim);
+}
+
+.toolbar-menu {
+  position: relative;
+  flex: none;
+}
+
+.toolbar-menu-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.toolbar-menu-button:hover,
+.toolbar-menu-button--active {
+  border-color: var(--accent);
+}
+
+.toolbar-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-width: 9rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.toolbar-menu-item {
+  padding: 0.5rem 0.75rem;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.toolbar-menu-item:hover,
+.toolbar-menu-item--active {
+  background: rgba(47, 129, 247, 0.15);
+  color: var(--accent);
+}

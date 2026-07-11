@@ -1,0 +1,50 @@
+/* Single-visible-stream video stage used inside the map/video PiP swap
+   (App.tsx's `.stage-slot`). Both streams stay decoding (VideoPlayer mounted
+   for each) so switching the visible one is instant; only the active pane is
+   shown via `visibility` (not unmounted) — see VideoStage.tsx. */
+
+.video-stage {
+  position: absolute;
+  inset: 0;
+}
+
+.video-stage-pane {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+}
+
+.video-stage-pane--active {
+  visibility: visible;
+  z-index: 1;
+}
+
+.video-stage-switcher {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  z-index: 3;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.video-stage-switch-btn {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: rgba(13, 17, 23, 0.75);
+  color: var(--fg-dim);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.video-stage-switch-btn:hover {
+  color: var(--fg);
+}
+
+.video-stage-switch-btn--active {
+  border-color: var(--accent);
+  color: var(--accent);
+}

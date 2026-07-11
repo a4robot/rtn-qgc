@@ -1,0 +1,51 @@
+/* Collapsible floating card wrapping ImagePanel (§15) — unobtrusive, tucked
+   above the video PiP. See ImageCard.tsx. */
+
+.image-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.image-card-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.35rem 0.6rem;
+  border: none;
+  background: transparent;
+  color: var(--fg-dim);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.image-card-toggle:hover {
+  color: var(--fg);
+}
+
+.image-card--collapsed .image-card-toggle {
+  border-bottom: none;
+}
+
+.image-card:not(.image-card--collapsed) .image-card-toggle {
+  border-bottom: 1px solid var(--border);
+}
+
+.image-card-body {
+  padding: 0.4rem;
+}
+
+.image-card-body .image-panel {
+  border: none;
+  padding: 0;
+}

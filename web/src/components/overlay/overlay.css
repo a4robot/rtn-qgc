@@ -1,0 +1,78 @@
+/* PARAMS/SETTINGS overlay drawer (opened from the toolbar's gear menu) — a
+   right-side panel over the map with a dim backdrop, QGC's "separate page"
+   treatment adapted to a drawer per the layout brief. See OverlayDrawer.tsx. */
+
+.overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.overlay-drawer {
+  width: 26rem;
+  max-width: 92vw;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.45);
+}
+
+.overlay-drawer-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+
+.overlay-drawer-tabs {
+  display: flex;
+}
+
+.overlay-drawer-tab {
+  padding: 0.6rem 0.9rem;
+  border: none;
+  background: transparent;
+  color: var(--fg-dim);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.overlay-drawer-tab:hover {
+  color: var(--fg);
+}
+
+.overlay-drawer-tab--active {
+  color: var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.overlay-drawer-close {
+  flex: none;
+  margin-right: 0.6rem;
+  border: none;
+  background: transparent;
+  color: var(--fg-dim);
+  font-size: 0.9rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.overlay-drawer-close:hover {
+  color: var(--fg);
+}
+
+.overlay-drawer-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
