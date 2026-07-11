@@ -12,9 +12,18 @@
   max-width: calc(100vw - 2rem);
   padding: 0.5rem;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg-panel);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  clip-path: polygon(
+    var(--chamfer-lg) 0%,
+    calc(100% - var(--chamfer-lg)) 0%,
+    100% var(--chamfer-lg),
+    100% calc(100% - var(--chamfer-lg)),
+    calc(100% - var(--chamfer-lg)) 100%,
+    var(--chamfer-lg) 100%,
+    0% calc(100% - var(--chamfer-lg)),
+    0% var(--chamfer-lg)
+  );
+  background: var(--bg-panel-a);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .instrument-column .attitude {

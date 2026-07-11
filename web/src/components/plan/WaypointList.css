@@ -2,10 +2,6 @@
    actions. Follows actions.css's local status-variable + button conventions. */
 
 .waypoint-list {
-  --status-ok: #3fb950;
-  --status-warn: #d29922;
-  --status-critical: #f85149;
-
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -25,20 +21,20 @@
 }
 
 .waypoint-list-status--pending {
-  border: 1px solid rgba(47, 129, 247, 0.4);
-  background: rgba(47, 129, 247, 0.12);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent);
 }
 
 .waypoint-list-status--accepted {
-  border: 1px solid rgba(63, 185, 80, 0.4);
-  background: rgba(63, 185, 80, 0.12);
+  border: 1px solid color-mix(in srgb, var(--status-ok) 40%, transparent);
+  background: color-mix(in srgb, var(--status-ok) 12%, transparent);
   color: var(--status-ok);
 }
 
 .waypoint-list-status--rejected {
-  border: 1px solid rgba(248, 81, 73, 0.4);
-  background: rgba(248, 81, 73, 0.12);
+  border: 1px solid color-mix(in srgb, var(--status-critical) 40%, transparent);
+  background: color-mix(in srgb, var(--status-critical) 12%, transparent);
   color: var(--status-critical);
 }
 
@@ -65,7 +61,16 @@
   gap: 0.5rem;
   padding: 0.35rem 0.5rem;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  clip-path: polygon(
+    var(--chamfer-sm) 0%,
+    calc(100% - var(--chamfer-sm)) 0%,
+    100% var(--chamfer-sm),
+    100% calc(100% - var(--chamfer-sm)),
+    calc(100% - var(--chamfer-sm)) 100%,
+    var(--chamfer-sm) 100%,
+    0% calc(100% - var(--chamfer-sm)),
+    0% var(--chamfer-sm)
+  );
   background: var(--bg);
 }
 
@@ -140,7 +145,16 @@
 .waypoint-list-action {
   padding: 0.5rem 0.6rem;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  clip-path: polygon(
+    var(--chamfer-md) 0%,
+    calc(100% - var(--chamfer-md)) 0%,
+    100% var(--chamfer-md),
+    100% calc(100% - var(--chamfer-md)),
+    calc(100% - var(--chamfer-md)) 100%,
+    var(--chamfer-md) 100%,
+    0% calc(100% - var(--chamfer-md)),
+    0% var(--chamfer-md)
+  );
   background: var(--bg);
   color: var(--fg);
   font-size: 0.78rem;
@@ -148,7 +162,7 @@
   letter-spacing: 0.03em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
 }
 
 .waypoint-list-action:disabled {
@@ -158,14 +172,15 @@
 
 .waypoint-list-action:not(:disabled):hover {
   border-color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
 }
 
 .waypoint-list-action--accent {
   color: var(--accent);
-  border-color: rgba(47, 129, 247, 0.4);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 .waypoint-list-action--critical {
   color: var(--status-critical);
-  border-color: rgba(248, 81, 73, 0.4);
+  border-color: color-mix(in srgb, var(--status-critical) 40%, transparent);
 }

@@ -60,7 +60,7 @@
 }
 
 .video-player-badge {
-  background: rgba(13, 17, 23, 0.7);
+  background: color-mix(in srgb, var(--bg) 75%, transparent);
   border: 1px solid var(--border);
   color: var(--fg-dim);
   font-size: 0.7rem;
@@ -76,6 +76,7 @@
 }
 
 .video-player-badge-error {
-  color: #f85149;
-  border-color: #f85149;
+  color: var(--status-critical);
+  border-color: var(--status-critical);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--status-critical) 50%, transparent);
 }

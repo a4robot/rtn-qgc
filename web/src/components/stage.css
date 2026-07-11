@@ -42,15 +42,25 @@
   max-width: 40vw;
   aspect-ratio: 16 / 9;
   z-index: 6;
-  border-radius: 10px;
+  clip-path: polygon(
+    var(--chamfer-lg) 0%,
+    calc(100% - var(--chamfer-lg)) 0%,
+    100% var(--chamfer-lg),
+    100% calc(100% - var(--chamfer-lg)),
+    calc(100% - var(--chamfer-lg)) 100%,
+    var(--chamfer-lg) 100%,
+    0% calc(100% - var(--chamfer-lg)),
+    0% var(--chamfer-lg)
+  );
   border: 1px solid var(--border);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
   cursor: pointer;
-  transition: left 0.15s ease;
+  transition: left 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .stage-slot--pip:hover {
   border-color: var(--accent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), 0 0 14px var(--accent-glow);
 }
 
 /* The Plan drawer (plan-drawer.css, width 22rem) anchors to the same left
@@ -87,10 +97,19 @@
   width: 22rem;
   max-width: calc(100vw - 2rem);
   max-height: 45vh;
-  background: var(--bg-panel);
+  background: var(--bg-panel-a);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  clip-path: polygon(
+    var(--chamfer-lg) 0%,
+    calc(100% - var(--chamfer-lg)) 0%,
+    100% var(--chamfer-lg),
+    100% calc(100% - var(--chamfer-lg)),
+    calc(100% - var(--chamfer-lg)) 100%,
+    var(--chamfer-lg) 100%,
+    0% calc(100% - var(--chamfer-lg)),
+    0% var(--chamfer-lg)
+  );
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px color-mix(in srgb, var(--accent) 15%, transparent);
   overflow: auto;
 }
 

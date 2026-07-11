@@ -1,10 +1,73 @@
+/* ==========================================================================
+ * Ingress scanner theme
+ * --------------------------------------------------------------------------
+ * Palette sampled directly from a reference Ingress (Niantic) portal-scan
+ * screenshot — background/cyan/green/magenta/red hues pulled via pixel
+ * sampling, then tuned for UI legibility. Single source of truth: every
+ * component CSS file should reference these vars rather than hardcoding hex
+ * literals (a few status-color trios used to be re-declared locally per
+ * component — those are gone now that --status-* lives here).
+ *
+ *   --bg              #0a1216   near-black, blue-teal tinted shell background
+ *   --bg-panel        #0f1c22   panel/drawer base (paired with --bg-panel-a
+ *                                for the "translucent dark panel" look)
+ *   --bg-panel-a       rgba(15,28,34,0.86)   translucent panel fill
+ *   --border          #1b3941   resting hairline border (dim cyan-teal, not
+ *                                the glow itself — see --accent-glow for the
+ *                                luminous active/focus treatment)
+ *   --fg              #eaf6f8   headline text (near-white, faint cyan cast)
+ *   --fg-dim          #6f95a0   secondary/label text (muted cyan-gray)
+ *   --accent          #12e0ea   glowing cyan — primary accent, borders,
+ *                                active states
+ *   --accent-glow      rgba(18,224,234,0.55)   cyan box/text-shadow glow
+ *   --secondary        #cc3ddf   magenta/purple — badges, secondary accents
+ *   --status-ok        #12d46a   vivid green — positive/energy
+ *   --status-warn      #ffb020   amber — warnings, kept high-legibility
+ *   --status-critical  #ff3b46   Ingress alert red — reserved for alerts,
+ *                                must stay the single most attention-grabbing
+ *                                color in the UI
+ *
+ * Chamfered "cut corner" geometry (buttons/cards/drawers/toasts) is driven
+ * by --chamfer-sm/-md/-lg so the cut scales consistently with element size;
+ * see the .ingress-chamfer utility below (most components inline the same
+ * polygon directly against these vars rather than taking the extra class).
+ * ========================================================================== */
 :root {
-  --bg: #0d1117;
-  --bg-panel: #161b22;
-  --border: #30363d;
-  --fg: #e6edf3;
-  --fg-dim: #8b949e;
-  --accent: #2f81f7;
+  --bg: #0a1216;
+  --bg-panel: #0f1c22;
+  --bg-panel-a: rgba(15, 28, 34, 0.86);
+  --border: #1b3941;
+  --fg: #eaf6f8;
+  --fg-dim: #6f95a0;
+  --accent: #12e0ea;
+  --accent-glow: rgba(18, 224, 234, 0.55);
+  --secondary: #cc3ddf;
+  --status-ok: #12d46a;
+  --status-warn: #ffb020;
+  --status-critical: #ff3b46;
+
+  /* Chamfer (cut-corner) sizes — small for chips/icon buttons, medium for
+     buttons/sliders, large for drawers/cards/panels. */
+  --chamfer-sm: 4px;
+  --chamfer-md: 8px;
+  --chamfer-lg: 14px;
+}
+
+/* Shared chamfer utility (available for markup that can take an extra
+   class); most existing components inline the equivalent clip-path
+   directly against --chamfer-sm/-md/-lg to avoid touching every .tsx. */
+.ingress-chamfer {
+  --chamfer: var(--chamfer-md);
+  clip-path: polygon(
+    var(--chamfer) 0%,
+    calc(100% - var(--chamfer)) 0%,
+    100% var(--chamfer),
+    100% calc(100% - var(--chamfer)),
+    calc(100% - var(--chamfer)) 100%,
+    var(--chamfer) 100%,
+    0% calc(100% - var(--chamfer)),
+    0% var(--chamfer)
+  );
 }
 
 * {

@@ -11,15 +11,26 @@
   justify-content: flex-end;
 }
 
+/* Right-docked drawer: mirror image of plan-drawer.css — only chamfer the
+   free (left) edge's corners; the right edge sits flush against the
+   viewport edge. */
 .overlay-drawer {
   width: 26rem;
   max-width: 92vw;
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--bg-panel);
+  clip-path: polygon(
+    var(--chamfer-lg) 0%,
+    100% 0%,
+    100% 100%,
+    var(--chamfer-lg) 100%,
+    0% calc(100% - var(--chamfer-lg)),
+    0% var(--chamfer-lg)
+  );
+  background: var(--bg-panel-a);
   border-left: 1px solid var(--border);
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.45);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5), inset 1px 0 0 color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .overlay-drawer-header {
@@ -53,7 +64,8 @@
 
 .overlay-drawer-tab--active {
   color: var(--accent);
-  box-shadow: inset 0 -2px 0 var(--accent);
+  text-shadow: 0 0 6px var(--accent-glow);
+  box-shadow: inset 0 -2px 0 var(--accent), inset 0 -4px 8px -2px var(--accent-glow);
 }
 
 .overlay-drawer-close {
@@ -68,7 +80,8 @@
 }
 
 .overlay-drawer-close:hover {
-  color: var(--fg);
+  color: var(--accent);
+  text-shadow: 0 0 6px var(--accent-glow);
 }
 
 .overlay-drawer-body {

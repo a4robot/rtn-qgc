@@ -39,8 +39,15 @@ function isSpatialItem(item: MissionItem): boolean {
   return SPATIAL_NAV_COMMANDS.has(item.command) && (item.lat !== 0 || item.lon !== 0);
 }
 
-const WAYPOINT_COLOR = "#d29922"; // --status-warn — distinct from the vehicle trail's blue/red
-const CURRENT_COLOR = "#3fb950"; // --status-ok — highlights the item currently being flown to
+// These render on the maplibre canvas, which carries the Ingress dark-map
+// CSS filter (invert/hue-rotate/saturate — see map/map.css). That filter
+// pushes plain --status-warn/--status-ok through hue-rotate and lands on a
+// muddy olive/teal, not amber/green, so the base hexes here are chosen by
+// running the *same* filter pipeline backwards: each is a base color that,
+// once the map's filter is applied, reads on-screen as a vivid amber-orange
+// (waypoint) / green (current) — see the design notes in map/map.css.
+const WAYPOINT_COLOR = "#ff3300"; // -> vivid orange-amber once the map filter runs
+const CURRENT_COLOR = "#22f922"; // -> vivid green once the map filter runs
 
 function emptyLineData(): FeatureCollection<LineString> {
   return {
@@ -151,6 +158,11 @@ export function MissionLayer({ map, vehicleId }: MissionLayerProps) {
           paint: {
             "circle-radius": ["case", ["get", "current"], 8, 6],
             "circle-color": ["case", ["get", "current"], CURRENT_COLOR, WAYPOINT_COLOR],
+            // Dark stroke + dark label text (below) both sit on the same
+            // filtered canvas as the marker fill, so the map filter inverts
+            // them to light gray too — that's *wanted* here, it keeps the
+            // ring/seq-number legible against the (also-filtered) marker
+            // fill without needing separate compensated constants.
             "circle-stroke-color": "rgba(13,17,23,0.85)",
             "circle-stroke-width": 1.5,
           },

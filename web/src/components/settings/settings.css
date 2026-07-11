@@ -51,6 +51,15 @@
   border-radius: 4px;
   font: inherit;
   font-size: 0.85rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.settings-field select:focus-visible,
+.settings-field input[type="text"]:focus-visible,
+.settings-field input[type="number"]:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 8px var(--accent-glow);
 }
 
 .settings-field select:disabled,
@@ -74,7 +83,7 @@
 }
 
 .settings-field-error {
-  color: #f85149;
+  color: var(--status-critical);
   font-size: 0.75rem;
 }
 
@@ -98,7 +107,16 @@
   gap: 0.5rem;
   padding: 0.5rem 0.6rem;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  clip-path: polygon(
+    var(--chamfer-sm) 0%,
+    calc(100% - var(--chamfer-sm)) 0%,
+    100% var(--chamfer-sm),
+    100% calc(100% - var(--chamfer-sm)),
+    calc(100% - var(--chamfer-sm)) 100%,
+    var(--chamfer-sm) 100%,
+    0% calc(100% - var(--chamfer-sm)),
+    0% var(--chamfer-sm)
+  );
   background: var(--bg);
 }
 
@@ -119,15 +137,17 @@
 }
 
 .settings-link-status--connected {
-  background: #3fb950;
+  background: var(--status-ok);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--status-ok) 70%, transparent);
 }
 
 .settings-link-status--connecting {
-  background: #d29922;
+  background: var(--status-warn);
 }
 
 .settings-link-status--error {
-  background: #f85149;
+  background: var(--status-critical);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--status-critical) 70%, transparent);
 }
 
 .settings-link-name {
@@ -171,14 +191,25 @@
   border: 1px solid var(--border);
   color: var(--fg);
   padding: 0.25rem 0.6rem;
-  border-radius: 4px;
+  clip-path: polygon(
+    var(--chamfer-sm) 0%,
+    calc(100% - var(--chamfer-sm)) 0%,
+    100% var(--chamfer-sm),
+    100% calc(100% - var(--chamfer-sm)),
+    calc(100% - var(--chamfer-sm)) 100%,
+    var(--chamfer-sm) 100%,
+    0% calc(100% - var(--chamfer-sm)),
+    0% var(--chamfer-sm)
+  );
   font-size: 0.78rem;
   cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .settings-link-actions button:hover:not(:disabled) {
   border-color: var(--accent);
   color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
 }
 
 .settings-link-actions button:disabled {
@@ -187,8 +218,9 @@
 }
 
 .settings-link-remove:hover:not(:disabled) {
-  border-color: #f85149 !important;
-  color: #f85149 !important;
+  border-color: var(--status-critical) !important;
+  color: var(--status-critical) !important;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--status-critical) 55%, transparent) !important;
 }
 
 .settings-add-link {
@@ -231,12 +263,27 @@
 .settings-add-link-submit {
   align-self: flex-start;
   background: var(--accent);
-  color: #fff;
+  color: var(--bg);
   border: none;
   padding: 0.35rem 0.9rem;
-  border-radius: 4px;
+  clip-path: polygon(
+    var(--chamfer-sm) 0%,
+    calc(100% - var(--chamfer-sm)) 0%,
+    100% var(--chamfer-sm),
+    100% calc(100% - var(--chamfer-sm)),
+    calc(100% - var(--chamfer-sm)) 100%,
+    var(--chamfer-sm) 100%,
+    0% calc(100% - var(--chamfer-sm)),
+    0% var(--chamfer-sm)
+  );
   cursor: pointer;
   font-size: 0.82rem;
+  font-weight: 600;
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.settings-add-link-submit:disabled {
+  box-shadow: none;
 }
 
 .settings-add-link-submit:disabled {

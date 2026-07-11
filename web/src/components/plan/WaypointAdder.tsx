@@ -31,7 +31,14 @@ export interface WaypointAdderProps {
   vehicleId: number;
 }
 
-const DRAFT_COLOR = "#58a6ff"; // distinct from MissionLayer's on-vehicle amber (#d29922)
+// Renders on the maplibre canvas, which carries the Ingress dark-map CSS
+// filter (see map/map.css) — like MissionLayer's WAYPOINT_COLOR/
+// CURRENT_COLOR, this is a base hex chosen so it lands on a vivid color
+// *after* that filter runs, not the color it visually is here. Picked from
+// the Ingress secondary/magenta family so a draft mission reads as a
+// distinct "editing" accent against MissionLayer's on-vehicle amber-orange
+// and the vehicle trail's blue/red.
+const DRAFT_COLOR = "#e620e6"; // -> vivid magenta once the map filter runs
 
 function emptyLineData(): FeatureCollection<LineString> {
   return {

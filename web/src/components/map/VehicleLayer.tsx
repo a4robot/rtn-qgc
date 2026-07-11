@@ -18,8 +18,22 @@ const TRAIL_MAX_POINTS = 500;
 /** Minimum movement (meters) before a follow re-center is triggered. */
 const FOLLOW_THRESHOLD_M = 3;
 
-const ARMED_COLOR = "#f85149"; // alert red, matches GitHub-dark-style alert accents used elsewhere in the theme
-const DISARMED_COLOR = "#2f81f7"; // --accent
+// Mirrors app.css's --status-critical/--accent. Can't reference the CSS
+// vars directly: below, these feed both the marker icon's SVG `fill`
+// attribute *and* a maplibre GL `line-color` paint property (the trail) —
+// maplibre parses paint colors with its own color parser rather than the
+// browser's CSSOM, so `var(...)` would never resolve there, and both use
+// sites share these constants.
+//
+// Only the marker icon is exempt from the Ingress dark-map canvas filter
+// (see map/map.css) — it's a DOM overlay (maplibregl.Marker), not part of
+// the filtered `.maplibregl-canvas`, so it always shows this true color.
+// The trail *is* a GL layer drawn onto that same canvas, so it does get
+// filtered — checked against the filter recipe, #ff3b46/#12e0ea still land
+// on a clearly-visible orange-red/blue post-filter, so no compensation
+// needed there (unlike MissionLayer's waypoint/current colors).
+const ARMED_COLOR = "#ff3b46"; // --status-critical
+const DISARMED_COLOR = "#12e0ea"; // --accent
 
 /** Haversine distance in meters between two [lon, lat] points. */
 function distanceMeters(a: [number, number], b: [number, number]): number {
@@ -51,7 +65,7 @@ function createMarkerElement(): { el: HTMLDivElement; path: SVGPathElement } {
     <svg width="28" height="28" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M12 2 L19 20 L12 16 L5 20 Z"
-        stroke="rgba(13,17,23,0.85)"
+        stroke="rgba(10,18,22,0.85)"
         stroke-width="1.5"
         stroke-linejoin="round"
       />

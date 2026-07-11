@@ -2,10 +2,6 @@
    (see components/telemetry/status.css, components/plan/WaypointList.css). */
 
 .notif-toast-stack {
-  --status-ok: #3fb950;
-  --status-warn: #d29922;
-  --status-critical: #f85149;
-
   position: fixed;
   top: 3.5rem;
   right: 1rem;
@@ -23,14 +19,23 @@
   align-items: baseline;
   gap: 0.5rem;
   padding: 0.55rem 0.75rem;
-  border-radius: 6px;
+  clip-path: polygon(
+    var(--chamfer-md) 0%,
+    calc(100% - var(--chamfer-md)) 0%,
+    100% var(--chamfer-md),
+    100% calc(100% - var(--chamfer-md)),
+    calc(100% - var(--chamfer-md)) 100%,
+    var(--chamfer-md) 100%,
+    0% calc(100% - var(--chamfer-md)),
+    0% var(--chamfer-md)
+  );
   border: 1px solid var(--border);
-  background: var(--bg-panel);
+  background: var(--bg-panel-a);
   color: var(--fg);
   font: inherit;
   text-align: left;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   animation: notif-toast-in 0.15s ease-out;
 }
 
@@ -60,34 +65,49 @@
 }
 
 .notif-toast--info {
-  border-color: rgba(47, 129, 247, 0.5);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
 }
 .notif-toast--info .notif-toast-severity {
   color: var(--accent);
 }
 
 .notif-toast--warning {
-  border-color: rgba(210, 153, 34, 0.5);
+  border-color: color-mix(in srgb, var(--status-warn) 55%, transparent);
 }
 .notif-toast--warning .notif-toast-severity {
   color: var(--status-warn);
 }
 
+/* Critical is the loudest element in the UI by design (§3 of the theme
+   brief) — solid red border, filled red tint, and a red glow that outranks
+   every other box-shadow in the app. */
 .notif-toast--critical {
   border-color: var(--status-critical);
-  background: rgba(248, 81, 73, 0.12);
+  background: color-mix(in srgb, var(--status-critical) 18%, var(--bg-panel));
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4),
+    0 0 16px color-mix(in srgb, var(--status-critical) 65%, transparent);
+  animation: notif-toast-in 0.15s ease-out, notif-toast-critical-pulse 1.6s ease-in-out infinite;
 }
 .notif-toast--critical .notif-toast-severity {
   color: var(--status-critical);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--status-critical) 70%, transparent);
+}
+
+@keyframes notif-toast-critical-pulse {
+  0%,
+  100% {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4),
+      0 0 16px color-mix(in srgb, var(--status-critical) 65%, transparent);
+  }
+  50% {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4),
+      0 0 26px color-mix(in srgb, var(--status-critical) 90%, transparent);
+  }
 }
 
 /* --- header bell + mute button --- */
 
 .notif-bell-group {
-  --status-ok: #3fb950;
-  --status-warn: #d29922;
-  --status-critical: #f85149;
-
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -101,18 +121,28 @@
   justify-content: center;
   width: 1.9rem;
   height: 1.9rem;
-  border-radius: 6px;
+  clip-path: polygon(
+    var(--chamfer-sm) 0%,
+    calc(100% - var(--chamfer-sm)) 0%,
+    100% var(--chamfer-sm),
+    100% calc(100% - var(--chamfer-sm)),
+    calc(100% - var(--chamfer-sm)) 100%,
+    var(--chamfer-sm) 100%,
+    0% calc(100% - var(--chamfer-sm)),
+    0% var(--chamfer-sm)
+  );
   border: 1px solid var(--border);
   background: transparent;
   color: var(--fg);
   font-size: 0.95rem;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .notif-mute-button:hover,
 .notif-bell-button:hover {
   border-color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
 }
 
 .notif-mute-button--muted {
@@ -132,11 +162,12 @@
   padding: 0 0.25rem;
   border-radius: 999px;
   background: var(--status-critical);
-  color: #fff;
+  color: var(--fg);
   font-size: 0.62rem;
   font-weight: 700;
   line-height: 1.05rem;
   text-align: center;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--status-critical) 70%, transparent);
 }
 
 .notif-bell-dropdown {
@@ -148,9 +179,18 @@
   max-height: 20rem;
   overflow-y: auto;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-panel);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  clip-path: polygon(
+    var(--chamfer-md) 0%,
+    calc(100% - var(--chamfer-md)) 0%,
+    100% var(--chamfer-md),
+    100% calc(100% - var(--chamfer-md)),
+    calc(100% - var(--chamfer-md)) 100%,
+    var(--chamfer-md) 100%,
+    0% calc(100% - var(--chamfer-md)),
+    0% var(--chamfer-md)
+  );
+  background: var(--bg-panel-a);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .notif-bell-empty {

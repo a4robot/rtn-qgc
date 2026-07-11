@@ -1,8 +1,4 @@
 .instrument-strip {
-  --instrument-ok: #3fb950;
-  --instrument-warn: #d29922;
-  --instrument-critical: #f85149;
-
   display: flex;
   align-items: stretch;
   gap: 0.5rem;
@@ -30,7 +26,16 @@
   gap: 0.2rem;
   padding: 0.4rem 0.7rem;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  clip-path: polygon(
+    var(--chamfer-sm) 0%,
+    calc(100% - var(--chamfer-sm)) 0%,
+    100% var(--chamfer-sm),
+    100% calc(100% - var(--chamfer-sm)),
+    calc(100% - var(--chamfer-sm)) 100%,
+    var(--chamfer-sm) 100%,
+    0% calc(100% - var(--chamfer-sm)),
+    0% var(--chamfer-sm)
+  );
   background: var(--bg);
   min-width: 5.5rem;
   flex: 1 1 0;
@@ -65,17 +70,17 @@
 }
 
 .instrument-value--ok {
-  color: var(--instrument-ok);
+  color: var(--status-ok);
   font-weight: 600;
 }
 
 .instrument-value--warn {
-  color: var(--instrument-warn);
+  color: var(--status-warn);
   font-weight: 600;
 }
 
 .instrument-value--critical {
-  color: var(--instrument-critical);
+  color: var(--status-critical);
   font-weight: 600;
 }
 

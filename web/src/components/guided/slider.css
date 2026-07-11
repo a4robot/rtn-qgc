@@ -6,21 +6,21 @@
  */
 
 .slider-root {
-  --slider-accent: var(--accent, #2f81f7);
-  --slider-danger: var(--status-critical, #f85149);
+  --slider-accent: var(--accent, #12e0ea);
+  --slider-danger: var(--status-critical, #ff3b46);
+  --slider-chamfer: var(--chamfer-md, 8px);
 
   display: block;
   width: 100%;
   outline: none;
-  border-radius: 16px;
 }
 
 .slider-root:focus-visible .slider-track {
-  box-shadow: 0 0 0 2px var(--slider-accent);
+  box-shadow: 0 0 0 2px var(--slider-accent), 0 0 10px var(--accent-glow, var(--slider-accent));
 }
 
 .slider-root--danger:focus-visible .slider-track {
-  box-shadow: 0 0 0 2px var(--slider-danger);
+  box-shadow: 0 0 0 2px var(--slider-danger), 0 0 10px var(--slider-danger);
 }
 
 .slider-root--disabled {
@@ -31,9 +31,18 @@
 .slider-track {
   position: relative;
   height: 32px;
-  border-radius: 16px;
-  border: 1px solid var(--border, #30363d);
-  background: var(--bg, #0d1117);
+  clip-path: polygon(
+    var(--slider-chamfer) 0%,
+    calc(100% - var(--slider-chamfer)) 0%,
+    100% var(--slider-chamfer),
+    100% calc(100% - var(--slider-chamfer)),
+    calc(100% - var(--slider-chamfer)) 100%,
+    var(--slider-chamfer) 100%,
+    0% calc(100% - var(--slider-chamfer)),
+    0% var(--slider-chamfer)
+  );
+  border: 1px solid var(--border, #1b3941);
+  background: var(--bg, #0a1216);
   overflow: hidden;
   user-select: none;
   touch-action: none;
@@ -61,11 +70,14 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--fg-dim, #8b949e);
+  color: var(--fg-dim, #6f95a0);
   pointer-events: none;
   white-space: nowrap;
 }
 
+/* Thumb stays a round pill (not chamfered) — usability first: a circular
+   grab handle reads unambiguously as draggable, which matters more here
+   than corner-cut consistency. The glow supplies the Ingress look instead. */
 .slider-thumb {
   position: absolute;
   top: 2px;
@@ -77,15 +89,17 @@
   align-items: center;
   justify-content: center;
   background: var(--slider-accent);
-  color: #0d1117;
+  color: var(--bg, #0a1216);
   font-weight: 700;
   cursor: grab;
   touch-action: none;
   will-change: left;
+  box-shadow: 0 0 10px var(--accent-glow, var(--slider-accent));
 }
 
 .slider-root--danger .slider-thumb {
   background: var(--slider-danger);
+  box-shadow: 0 0 10px var(--slider-danger);
 }
 
 .slider-thumb--snapping {

@@ -8,15 +8,72 @@
   background: var(--bg);
 }
 
+/* Ingress-mode dark map treatment (always on for this theme) — the classic
+ * "invert the whole canvas" trick, tuned against real OSM raster colors:
+ *
+ *   invert(90%)      flips light OSM tiles dark without fully crushing
+ *                     contrast to pure black/white (a full 100% invert
+ *                     makes white road fill and off-white land background
+ *                     collapse to the same near-black, killing road edges).
+ *   hue-rotate(200deg) invert() rotates hue by ~180° for saturated colors
+ *                     (red<->cyan, blue<->yellow, green<->magenta) — this
+ *                     rotates it back so water/parks/roads keep recognizable
+ *                     hues instead of landing on their complements, then
+ *                     nudges the whole result ~20° further so the palette
+ *                     reads cyan/blue-tinted (Ingress) rather than neutral.
+ *   brightness/contrast tuned so light-gray road casings clear the dark
+ *                     land/water fill (a few points of separation is enough
+ *                     to read as a road at cockpit zoom levels).
+ *   saturate(1.4)     recovers vividness the invert+rotate pass flattens.
+ *
+ * CoreMap.tsx keeps the underlying maplibre style close to plain OSM colors
+ * (no pre-dimming) so this filter has real chroma to work with; MissionLayer
+ * (map/MissionLayer.tsx)'s waypoint/current colors are pre-compensated base
+ * hues chosen so they land on a vivid orange/green *after* this exact filter
+ * — the vehicle marker (map/VehicleLayer.tsx) is a DOM overlay outside the
+ * canvas, so it's untouched by this and keeps its true red/cyan color.
+ */
 .core-map .maplibregl-canvas {
   outline: none;
+  filter: invert(90%) hue-rotate(200deg) brightness(1.05) contrast(0.9) saturate(1.4);
 }
 
 .core-map .maplibregl-ctrl-attrib {
-  background: rgba(13, 17, 23, 0.7);
+  background: color-mix(in srgb, var(--bg) 75%, transparent);
   color: var(--fg-dim);
 }
 
 .core-map .maplibregl-ctrl-attrib a {
+  color: var(--fg-dim);
+}
+
+/* maplibre's default nav/scale controls are light-themed (white squares) —
+   retheme them to match rather than leaving a jarring light patch on the
+   dark map. */
+.core-map .maplibregl-ctrl-group {
+  background: var(--bg-panel-a);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.core-map .maplibregl-ctrl-group button {
+  background: transparent;
+}
+
+.core-map .maplibregl-ctrl-group button:not(:disabled):hover {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.core-map .maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--border);
+}
+
+.core-map .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.6);
+}
+
+.core-map .maplibregl-ctrl-scale {
+  background: color-mix(in srgb, var(--bg) 75%, transparent);
+  border-color: var(--fg-dim);
   color: var(--fg-dim);
 }

@@ -1,8 +1,9 @@
-/* Click-to-goto candidate marker + confirm popover. Distinct accent (violet)
-   from the vehicle marker's red/blue so the two are never confused. */
+/* Click-to-goto candidate marker + confirm popover. Distinct accent
+   (Ingress magenta/secondary) from the vehicle marker's red/cyan so the two
+   are never confused. */
 
 .goto-marker {
-  --goto-accent: #bc8cff;
+  --goto-accent: var(--secondary, #cc3ddf);
   width: 32px;
   height: 32px;
   display: flex;
@@ -13,7 +14,7 @@
 }
 
 .goto-marker-ring {
-  fill: rgba(188, 140, 255, 0.12);
+  fill: color-mix(in srgb, var(--goto-accent) 12%, transparent);
   stroke: var(--goto-accent);
   stroke-width: 2;
   stroke-dasharray: 4 3;
@@ -52,16 +53,25 @@
 
 /* Popover chrome overrides — maplibre's default popup styling is light-themed. */
 .maplibregl-popup.goto-popup .maplibregl-popup-content {
-  background: var(--bg-panel, #161b22);
-  color: var(--fg, #e6edf3);
-  border: 1px solid var(--border, #30363d);
-  border-radius: 6px;
+  background: var(--bg-panel-a, #0f1c22);
+  color: var(--fg, #eaf6f8);
+  border: 1px solid var(--border, #1b3941);
+  clip-path: polygon(
+    var(--chamfer-md, 8px) 0%,
+    calc(100% - var(--chamfer-md, 8px)) 0%,
+    100% var(--chamfer-md, 8px),
+    100% calc(100% - var(--chamfer-md, 8px)),
+    calc(100% - var(--chamfer-md, 8px)) 100%,
+    var(--chamfer-md, 8px) 100%,
+    0% calc(100% - var(--chamfer-md, 8px)),
+    0% var(--chamfer-md, 8px)
+  );
   padding: 0.6rem 0.7rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), 0 0 0 1px color-mix(in srgb, var(--goto-accent, var(--secondary)) 25%, transparent);
 }
 
 .maplibregl-popup.goto-popup .maplibregl-popup-tip {
-  border-top-color: var(--border, #30363d);
+  border-top-color: var(--border, #1b3941);
 }
 
 .goto-popover {
@@ -74,7 +84,7 @@
 
 .goto-popover-coords {
   font-variant-numeric: tabular-nums;
-  color: var(--fg-dim, #8b949e);
+  color: var(--fg-dim, #6f95a0);
   letter-spacing: 0.02em;
 }
 
@@ -83,16 +93,16 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  color: var(--fg-dim, #8b949e);
+  color: var(--fg-dim, #6f95a0);
 }
 
 .goto-popover-alt-input {
   width: 4.5rem;
   padding: 0.2rem 0.35rem;
   border-radius: 3px;
-  border: 1px solid var(--border, #30363d);
-  background: var(--bg, #0d1117);
-  color: var(--fg, #e6edf3);
+  border: 1px solid var(--border, #1b3941);
+  background: var(--bg, #0a1216);
+  color: var(--fg, #eaf6f8);
   font-variant-numeric: tabular-nums;
   font-size: 0.8rem;
 }
@@ -110,10 +120,19 @@
 .goto-popover-cancel {
   flex: 1;
   padding: 0.35rem 0.5rem;
-  border-radius: 4px;
-  border: 1px solid var(--border, #30363d);
-  background: var(--bg, #0d1117);
-  color: var(--fg, #e6edf3);
+  clip-path: polygon(
+    var(--chamfer-sm, 4px) 0%,
+    calc(100% - var(--chamfer-sm, 4px)) 0%,
+    100% var(--chamfer-sm, 4px),
+    100% calc(100% - var(--chamfer-sm, 4px)),
+    calc(100% - var(--chamfer-sm, 4px)) 100%,
+    var(--chamfer-sm, 4px) 100%,
+    0% calc(100% - var(--chamfer-sm, 4px)),
+    0% var(--chamfer-sm, 4px)
+  );
+  border: 1px solid var(--border, #1b3941);
+  background: var(--bg, #0a1216);
+  color: var(--fg, #eaf6f8);
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -122,8 +141,8 @@
 }
 
 .goto-popover-go {
-  color: #bc8cff;
-  border-color: rgba(188, 140, 255, 0.45);
+  color: var(--secondary, #cc3ddf);
+  border-color: color-mix(in srgb, var(--secondary, #cc3ddf) 45%, transparent);
 }
 
 .goto-popover-go:disabled,
@@ -133,11 +152,12 @@
 }
 
 .goto-popover-go:not(:disabled):hover {
-  border-color: #bc8cff;
+  border-color: var(--secondary, #cc3ddf);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--secondary, #cc3ddf) 55%, transparent);
 }
 
 .goto-popover-cancel:not(:disabled):hover {
-  border-color: var(--fg-dim, #8b949e);
+  border-color: var(--fg-dim, #6f95a0);
 }
 
 .goto-popover-status {
@@ -146,6 +166,6 @@
 }
 
 .goto-popover-status--error {
-  color: var(--status-critical, #f85149);
+  color: var(--status-critical, #ff3b46);
   font-weight: 500;
 }

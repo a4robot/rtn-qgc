@@ -1,6 +1,9 @@
 /* Plan-mode left drawer over the map (QGC's Plan view mission list) — see
    PlanDrawer.tsx. */
 
+/* Left-docked drawer: only chamfer the free (right) edge's corners — the
+   left edge sits flush against the viewport edge, so cutting it would just
+   look like a rendering gap rather than a deliberate notch. */
 .plan-drawer {
   position: absolute;
   top: 0;
@@ -11,9 +14,17 @@
   max-width: 85vw;
   display: flex;
   flex-direction: column;
-  background: var(--bg-panel);
+  clip-path: polygon(
+    0% 0%,
+    calc(100% - var(--chamfer-lg)) 0%,
+    100% var(--chamfer-lg),
+    100% calc(100% - var(--chamfer-lg)),
+    calc(100% - var(--chamfer-lg)) 100%,
+    0% 100%
+  );
+  background: var(--bg-panel-a);
   border-right: 1px solid var(--border);
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.45), inset -1px 0 0 color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .plan-drawer-header {
@@ -43,7 +54,8 @@
 }
 
 .plan-drawer-close:hover {
-  color: var(--fg);
+  color: var(--accent);
+  text-shadow: 0 0 6px var(--accent-glow);
 }
 
 .plan-drawer-body {

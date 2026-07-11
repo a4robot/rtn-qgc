@@ -16,7 +16,7 @@
 .param-table-header h2 {
   margin: 0;
   font-size: 1.2rem;
-  color: #fff;
+  color: var(--fg);
 }
 
 .param-fetch-form {
@@ -25,33 +25,46 @@
 }
 
 .param-fetch-form input {
-  background: #2a2a2a;
-  border: 1px solid #444;
-  color: #fff;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--fg);
   padding: 4px 8px;
   border-radius: 4px;
 }
 
 .btn-fetch, .btn-edit, .btn-cancel, .btn-save {
-  background: #0078d7;
-  color: #fff;
+  background: var(--accent);
+  color: var(--bg);
   border: none;
   padding: 4px 12px;
-  border-radius: 4px;
+  clip-path: polygon(
+    var(--chamfer-sm) 0%,
+    calc(100% - var(--chamfer-sm)) 0%,
+    100% var(--chamfer-sm),
+    100% calc(100% - var(--chamfer-sm)),
+    calc(100% - var(--chamfer-sm)) 100%,
+    var(--chamfer-sm) 100%,
+    0% calc(100% - var(--chamfer-sm)),
+    0% var(--chamfer-sm)
+  );
   cursor: pointer;
   font-size: 0.9rem;
+  font-weight: 600;
+  transition: box-shadow 0.15s ease, background 0.15s ease;
 }
 
 .btn-fetch:hover, .btn-edit:hover, .btn-save:hover {
-  background: #005a9e;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
 }
 
 .btn-cancel {
-  background: #444;
+  background: var(--border);
+  color: var(--fg);
 }
 
 .btn-cancel:hover {
-  background: #333;
+  background: color-mix(in srgb, var(--border) 70%, var(--fg-dim));
 }
 
 .btn-fetch:disabled,
@@ -60,13 +73,14 @@
 .btn-save:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .table-wrapper {
   flex: 1;
   overflow: auto;
-  background: #1e1e1e;
-  border: 1px solid #333;
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: 4px;
 }
 
@@ -74,18 +88,18 @@
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  color: #ccc;
+  color: var(--fg-dim);
   font-size: 0.9rem;
 }
 
 .param-table th, .param-table td {
   padding: 8px 12px;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--border);
 }
 
 .param-table th {
-  background: #252526;
-  color: #fff;
+  background: var(--bg-panel);
+  color: var(--fg);
   font-weight: 600;
   position: sticky;
   top: 0;
@@ -94,7 +108,7 @@
 .param-empty {
   text-align: center;
   padding: 24px !important;
-  color: #888;
+  color: var(--fg-dim);
 }
 
 .param-modal-overlay {
@@ -103,7 +117,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.65);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -111,16 +125,21 @@
 }
 
 .param-modal {
-  --status-ok: #3fb950;
-  --status-warn: #d29922;
-  --status-critical: #f85149;
-
-  background: #1e1e1e;
-  border: 1px solid #444;
-  border-radius: 8px;
+  background: var(--bg-panel-a);
+  border: 1px solid var(--border);
+  clip-path: polygon(
+    var(--chamfer-lg) 0%,
+    calc(100% - var(--chamfer-lg)) 0%,
+    100% var(--chamfer-lg),
+    100% calc(100% - var(--chamfer-lg)),
+    calc(100% - var(--chamfer-lg)) 100%,
+    var(--chamfer-lg) 100%,
+    0% calc(100% - var(--chamfer-lg)),
+    0% var(--chamfer-lg)
+  );
   width: 400px;
   max-width: 90vw;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.55), 0 0 0 1px color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 .param-modal-header {
@@ -128,19 +147,19 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--border);
 }
 
 .param-modal-header h3 {
   margin: 0;
-  color: #fff;
+  color: var(--fg);
   font-size: 1.1rem;
 }
 
 .param-close-btn {
   background: transparent;
   border: none;
-  color: #aaa;
+  color: var(--fg-dim);
   font-size: 1.5rem;
   cursor: pointer;
   padding: 0;
@@ -148,7 +167,8 @@
 }
 
 .param-close-btn:hover {
-  color: #fff;
+  color: var(--accent);
+  text-shadow: 0 0 6px var(--accent-glow);
 }
 
 .param-modal-body {
@@ -157,7 +177,7 @@
 
 .param-edit-path {
   margin: 0 0 12px;
-  color: #777;
+  color: var(--fg-dim);
   font-size: 0.8rem;
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   word-break: break-all;
@@ -170,15 +190,15 @@
 }
 
 .param-field label {
-  color: #aaa;
+  color: var(--fg-dim);
   margin-bottom: 6px;
   font-size: 0.9rem;
 }
 
 .param-field input {
-  background: #2a2a2a;
-  border: 1px solid #444;
-  color: #fff;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--fg);
   padding: 8px;
   border-radius: 4px;
   font-size: 1rem;
@@ -190,22 +210,23 @@
 }
 
 .param-field input.param-input-invalid {
-  border-color: var(--status-critical, #f85149);
+  border-color: var(--status-critical);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--status-critical) 45%, transparent);
 }
 
 .param-edit-error {
   margin: 6px 0 0;
-  color: var(--status-critical, #f85149);
+  color: var(--status-critical);
   font-size: 0.85rem;
 }
 
 .param-meta {
-  background: #252526;
+  background: var(--bg);
   padding: 12px;
   border-radius: 4px;
   margin-bottom: 24px;
   font-size: 0.85rem;
-  color: #999;
+  color: var(--fg-dim);
 }
 
 .param-meta p {
@@ -213,7 +234,7 @@
 }
 
 .param-meta strong {
-  color: #ccc;
+  color: var(--fg);
 }
 
 .param-modal-footer {
@@ -221,5 +242,5 @@
   justify-content: flex-end;
   gap: 12px;
   padding-top: 16px;
-  border-top: 1px solid #333;
+  border-top: 1px solid var(--border);
 }

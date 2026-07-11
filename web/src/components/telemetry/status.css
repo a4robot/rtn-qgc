@@ -1,8 +1,4 @@
 .status-panel {
-  --status-ok: #3fb950;
-  --status-warn: #d29922;
-  --status-critical: #f85149;
-
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   align-content: start;
@@ -34,7 +30,16 @@
   gap: 0.25rem;
   padding: 0.5rem 0.6rem;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  clip-path: polygon(
+    var(--chamfer-sm) 0%,
+    calc(100% - var(--chamfer-sm)) 0%,
+    100% var(--chamfer-sm),
+    100% calc(100% - var(--chamfer-sm)),
+    calc(100% - var(--chamfer-sm)) 100%,
+    var(--chamfer-sm) 100%,
+    0% calc(100% - var(--chamfer-sm)),
+    0% var(--chamfer-sm)
+  );
   background: var(--bg);
   min-width: 0;
 }
@@ -125,31 +130,32 @@
 }
 
 .status-chip--mode {
-  background: rgba(47, 129, 247, 0.15);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
   color: var(--accent);
-  border: 1px solid rgba(47, 129, 247, 0.4);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 .status-chip--armed {
-  background: rgba(248, 81, 73, 0.15);
+  background: color-mix(in srgb, var(--status-critical) 16%, transparent);
   color: var(--status-critical);
-  border: 1px solid rgba(248, 81, 73, 0.5);
+  border: 1px solid var(--status-critical);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--status-critical) 50%, transparent);
 }
 
 .status-chip--disarmed {
-  background: rgba(139, 148, 158, 0.12);
+  background: color-mix(in srgb, var(--fg-dim) 12%, transparent);
   color: var(--fg-dim);
   border: 1px solid var(--border);
 }
 
 .status-chip--connected {
-  background: rgba(63, 185, 80, 0.15);
+  background: color-mix(in srgb, var(--status-ok) 15%, transparent);
   color: var(--status-ok);
-  border: 1px solid rgba(63, 185, 80, 0.4);
+  border: 1px solid color-mix(in srgb, var(--status-ok) 40%, transparent);
 }
 
 .status-chip--disconnected {
-  background: rgba(139, 148, 158, 0.12);
+  background: color-mix(in srgb, var(--fg-dim) 12%, transparent);
   color: var(--fg-dim);
   border: 1px solid var(--border);
 }

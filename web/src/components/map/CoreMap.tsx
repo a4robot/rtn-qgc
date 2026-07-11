@@ -9,8 +9,12 @@ const DEFAULT_CENTER: [number, number] = [100.9034, 12.6634];
 const DEFAULT_ZOOM = 16;
 
 /**
- * Key-free raster style: OSM tiles over a dark background, with the raster
- * dimmed/desaturated slightly so it doesn't clash with the dark UI shell.
+ * Key-free raster style: plain OSM tiles, left close to their normal light
+ * colors — the dark, cyan-tinted "Ingress" look is applied afterwards as a
+ * CSS filter on the rendered canvas (see map.css's `.core-map
+ * .maplibregl-canvas` invert/hue-rotate recipe), not baked in here. The
+ * background layer's color is the OSM land tone so canvas gaps blend with
+ * the tiles once the same filter runs over both.
  */
 const OSM_DARK_STYLE: StyleSpecification = {
   version: 8,
@@ -28,16 +32,12 @@ const OSM_DARK_STYLE: StyleSpecification = {
     {
       id: "background",
       type: "background",
-      paint: { "background-color": "#0d1117" },
+      paint: { "background-color": "#f2efe9" },
     },
     {
       id: "osm",
       type: "raster",
       source: "osm",
-      paint: {
-        "raster-brightness-max": 0.8,
-        "raster-saturation": -0.3,
-      },
     },
   ],
 };

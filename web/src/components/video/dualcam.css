@@ -24,10 +24,6 @@
 }
 
 .dualcam-pane {
-  --status-ok: #3fb950;
-  --status-warn: #d29922;
-  --status-critical: #f85149;
-
   position: relative;
   min-width: 0;
   min-height: 0;
@@ -38,6 +34,7 @@
 
 .dualcam-pane--active {
   border-color: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow);
 }
 
 .dualcam-pane-label {
@@ -45,7 +42,7 @@
   bottom: 0.4rem;
   left: 0.4rem;
   z-index: 2;
-  background: rgba(13, 17, 23, 0.7);
+  background: color-mix(in srgb, var(--bg) 75%, transparent);
   border: 1px solid var(--border);
   color: var(--fg-dim);
   font-size: 0.7rem;
@@ -67,25 +64,26 @@
   letter-spacing: 0.05em;
   padding: 0.15rem 0.4rem;
   border-radius: 2px;
-  background: rgba(13, 17, 23, 0.7);
+  background: color-mix(in srgb, var(--bg) 75%, transparent);
   border: 1px solid var(--border);
   pointer-events: none;
   white-space: nowrap;
 }
 
 .latency-chip--good {
-  color: var(--status-ok, #3fb950);
-  border-color: var(--status-ok, #3fb950);
+  color: var(--status-ok, #12d46a);
+  border-color: var(--status-ok, #12d46a);
 }
 
 .latency-chip--warn {
-  color: var(--status-warn, #d29922);
-  border-color: var(--status-warn, #d29922);
+  color: var(--status-warn, #ffb020);
+  border-color: var(--status-warn, #ffb020);
 }
 
 .latency-chip--bad {
-  color: var(--status-critical, #f85149);
-  border-color: var(--status-critical, #f85149);
+  color: var(--status-critical, #ff3b46);
+  border-color: var(--status-critical, #ff3b46);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--status-critical) 50%, transparent);
 }
 
 .latency-chip--unknown {
