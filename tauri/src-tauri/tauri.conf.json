@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "RTN QGroundControl",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.a4robotics.rtnqgc",
   "build": {
     "devUrl": "http://localhost:3000",
@@ -27,7 +27,11 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["appimage", "deb", "nsis"],
+    "targets": [
+      "appimage",
+      "deb",
+      "nsis"
+    ],
     "publisher": "A4 Robotics",
     "homepage": "https://github.com/a4robot/rtn-qgc",
     "icon": [
