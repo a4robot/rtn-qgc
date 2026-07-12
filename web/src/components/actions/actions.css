@@ -264,31 +264,11 @@
   border-color: var(--accent);
 }
 
-/* Confirm mode: the armed button fills solid in its tone color and
-   pulses; every other button dims — one glance answers "which one did I
-   press?". */
-.actions-grid--confirming .actions-button:not(.actions-button--confirming) {
-  opacity: 0.35;
-}
-
+/* The action whose confirm row is armed: gold border + glow (Recursion
+   gold from the Ingress token set) — bright against both the red and
+   teal button tones, so the pressed one reads at a glance without
+   restyling the rest of the grid. */
 .actions-button--confirming {
-  border-color: transparent;
-  background: var(--status-critical);
-  color: var(--bg);
-  font-weight: 800;
-  animation: actions-confirm-pulse 1s ease-in-out infinite;
-}
-
-.actions-button--accent.actions-button--confirming {
-  background: var(--accent);
-}
-
-@keyframes actions-confirm-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 4px var(--accent-glow, var(--accent));
-  }
-  50% {
-    box-shadow: 0 0 16px var(--accent-glow, var(--accent));
-  }
+  border-color: var(--ingress-recursion, #fbd150);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--ingress-recursion, #fbd150) 65%, transparent);
 }
