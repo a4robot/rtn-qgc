@@ -111,7 +111,7 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
           Not connected — command not sent
         </div>
       )}
-      <div className="actions-grid">
+      <div className={`actions-grid${confirming ? " actions-grid--confirming" : ""}`}>
         {armed ? (
           <ActionButton
             label="DISARM"

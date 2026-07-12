@@ -264,8 +264,31 @@
   border-color: var(--accent);
 }
 
-/* The action whose confirm row is armed glows so the pairing is obvious. */
+/* Confirm mode: the armed button fills solid in its tone color and
+   pulses; every other button dims — one glance answers "which one did I
+   press?". */
+.actions-grid--confirming .actions-button:not(.actions-button--confirming) {
+  opacity: 0.35;
+}
+
 .actions-button--confirming {
-  border-color: var(--accent);
-  box-shadow: 0 0 8px var(--accent-glow, var(--accent));
+  border-color: transparent;
+  background: var(--status-critical);
+  color: var(--bg);
+  font-weight: 800;
+  animation: actions-confirm-pulse 1s ease-in-out infinite;
+}
+
+.actions-button--accent.actions-button--confirming {
+  background: var(--accent);
+}
+
+@keyframes actions-confirm-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 4px var(--accent-glow, var(--accent));
+  }
+  50% {
+    box-shadow: 0 0 16px var(--accent-glow, var(--accent));
+  }
 }
