@@ -33,17 +33,54 @@
  * polygon directly against these vars rather than taking the extra class).
  * ========================================================================== */
 :root {
+  /* ------------------------------------------------------------------
+     Authentic Ingress color tokens (from vegito, RGB straight from the
+     game): medal tiers, badge accents, anomaly + faction colors. These
+     are the palette's source of truth; the semantic vars below map onto
+     them.
+     ------------------------------------------------------------------ */
+  --ingress-onyx: #646261;            /* 100/98/97 */
+  --ingress-onyx-mid: #393836;        /* 57/56/54 */
+  --ingress-onyx-deep: #000000;       /* 0/0/0 */
+  --ingress-platinum: #cbcbcb;        /* 203/203/203 */
+  --ingress-platinum-mid: #707070;    /* 112/112/112 */
+  --ingress-platinum-deep: #282828;   /* 40/40/40 */
+  --ingress-gold: #ffe092;            /* 255/224/146 */
+  --ingress-gold-deep: #6d4d28;       /* 109/77/40 */
+  --ingress-silver: #a1b8be;          /* 161/184/190 */
+  --ingress-silver-deep: #394142;     /* 57/65/66 */
+  --ingress-bronze: #e39d7b;          /* 227/157/123 */
+  --ingress-bronze-deep: #49200b;     /* 73/32/11 */
+  --ingress-teal: #51d4cd;            /* 81/212/205 — Connector link */
+  --ingress-red: #ffb7b2;             /* 255/183/178 — Purifier burst */
+  --ingress-red-mid: #fd9d97;         /* 253/157/151 */
+  --ingress-purple: #988eb1;          /* 152/142/177 — Guardian fist */
+  --ingress-purple-mid: #9283b6;      /* 146/131/182 */
+  --ingress-recursion: #fbd150;       /* 251/209/80 */
+  --ingress-recursion-deep: #b4932b;  /* 180/147/43 */
+  --ingress-interitus: #ff8248;       /* 255/130/72 */
+  --ingress-interitus-deep: #c17234;  /* 193/114/52 */
+  --ingress-initio: #79aea7;          /* 121/174/167 */
+  --ingress-enlightened: #02bf02;     /* 2/191/2 */
+  --ingress-resistance: #0492d0;      /* 4/146/208 */
+
   --bg: #0a1216;
   --bg-panel: #0f1c22;
   --bg-panel-a: rgba(15, 28, 34, 0.86);
-  --border: #1b3941;
+  --border: var(--ingress-silver-deep);
   --fg: #eaf6f8;
-  --fg-dim: #6f95a0;
-  --accent: #12e0ea;
-  --accent-glow: rgba(18, 224, 234, 0.55);
-  --secondary: #cc3ddf;
-  --status-ok: #12d46a;
-  --status-warn: #ffb020;
+  --fg-dim: color-mix(in srgb, var(--ingress-silver) 78%, var(--bg));
+  /* Accent = the Connector-link teal (authentic UI line color). */
+  --accent: var(--ingress-teal);
+  --accent-glow: rgba(81, 212, 205, 0.55);
+  /* Secondary = Guardian purple. */
+  --secondary: var(--ingress-purple-mid);
+  /* ok = Enlightened green; warn = Recursion gold; critical stays a
+     high-contrast alert red (the Purifier tokens are soft pinks — kept
+     available above for badges/soft highlights, but too gentle for the
+     one color that must shout). */
+  --status-ok: var(--ingress-enlightened);
+  --status-warn: var(--ingress-recursion);
   --status-critical: #ff3b46;
 
   /* Chamfer (cut-corner) sizes — small for chips/icon buttons, medium for
