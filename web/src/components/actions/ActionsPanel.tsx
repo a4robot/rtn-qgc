@@ -2,12 +2,16 @@
  * Actions panel — guided-action command buttons (arm/disarm/takeoff/land/
  * rtl/pause) with ack/progress feedback, PROTOCOL.md §5.
  *
- * Each button sends a `command` through the bridge client and tracks its
- * lifecycle (pending -> accepted|rejected, plus streamed progress) via
- * `useCommandRequests`. Destructive actions (arm, disarm-while-armed,
- * takeoff, land, rtl) require a slide-to-confirm gesture (`Slider`, see
- * ../guided/Slider.tsx) instead of a plain click; PAUSE is non-destructive
- * and stays a plain button.
+ * Interaction model (QGC-style, two steps): every action is a plain
+ * button; pressing a destructive one (arm, disarm-while-armed, takeoff,
+ * land, rtl) arms a SINGLE slide-to-confirm row for that action instead
+ * of dispatching. Sliding confirms and sends; ✕ / Escape / pressing
+ * another action / a timeout cancels. One slider at a time keeps the
+ * strip compact — a stack of always-visible sliders read as clutter.
+ * PAUSE is non-destructive and dispatches on click.
+ *
+ * Each dispatch tracks its lifecycle (pending -> accepted|rejected, plus
+ * streamed progress) via `useCommandRequests`.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -21,6 +25,9 @@ import "./actions.css";
 
 /** How long the "not connected" note stays visible after a dropped send. */
 const NOT_CONNECTED_NOTE_MS = 2500;
+
+/** An armed-but-unconfirmed action auto-cancels after this long. */
+const CONFIRM_TIMEOUT_MS = 8000;
 
 const DEFAULT_TAKEOFF_ALT_M = 20;
 
@@ -36,6 +43,8 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
 
   const [altitude, setAltitude] = useState(DEFAULT_TAKEOFF_ALT_M);
   const [notConnectedNote, setNotConnectedNote] = useState(false);
+  /** The destructive action awaiting its slide confirmation, if any. */
+  const [confirming, setConfirming] = useState<CommandAction | null>(null);
 
   // Auto-clear the "not connected" note.
   useEffect(() => {
@@ -45,6 +54,24 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
     const timer = setTimeout(() => setNotConnectedNote(false), NOT_CONNECTED_NOTE_MS);
     return () => clearTimeout(timer);
   }, [notConnectedNote]);
+
+  // Auto-cancel a stale confirm row; Escape cancels immediately.
+  useEffect(() => {
+    if (!confirming) {
+      return;
+    }
+    const timer = setTimeout(() => setConfirming(null), CONFIRM_TIMEOUT_MS);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setConfirming(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [confirming]);
 
   const ready = Boolean(vehicle) && connectionState === "connected";
 
@@ -57,6 +84,15 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
     },
     [send, vehicleId],
   );
+
+  /** Confirmed destructive dispatch — params resolved at confirm time. */
+  const confirmPending = useCallback(() => {
+    if (!confirming) {
+      return;
+    }
+    dispatchCommand(confirming, confirming === "takeoff" ? { alt: altitude } : {});
+    setConfirming(null);
+  }, [confirming, dispatchCommand, altitude]);
 
   if (!vehicle) {
     return (
@@ -79,19 +115,20 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
         {armed ? (
           <ActionButton
             label="DISARM"
-            danger
+            tone="critical"
             disabled={!ready}
+            active={confirming === "disarm"}
             request={latestRequestForAction(requests, "disarm")}
-            onClick={() => dispatchCommand("disarm")}
+            onClick={() => setConfirming("disarm")}
           />
         ) : (
           <ActionButton
             label="ARM"
             tone="critical"
-            danger
             disabled={!ready}
+            active={confirming === "arm"}
             request={latestRequestForAction(requests, "arm")}
-            onClick={() => dispatchCommand("arm")}
+            onClick={() => setConfirming("arm")}
           />
         )}
 
@@ -113,27 +150,28 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
             label="TAKEOFF"
             tone="accent"
             disabled={!ready || !armed}
+            active={confirming === "takeoff"}
             request={latestRequestForAction(requests, "takeoff")}
-            onClick={() => dispatchCommand("takeoff", { alt: altitude })}
+            onClick={() => setConfirming("takeoff")}
           />
         </div>
 
         <ActionButton
           label="LAND"
           tone="critical"
-          danger
           disabled={!ready || !armed}
+          active={confirming === "land"}
           request={latestRequestForAction(requests, "land")}
-          onClick={() => dispatchCommand("land")}
+          onClick={() => setConfirming("land")}
         />
 
         <ActionButton
           label="RTL"
           tone="critical"
-          danger
           disabled={!ready || !armed}
+          active={confirming === "rtl"}
           request={latestRequestForAction(requests, "rtl")}
-          onClick={() => dispatchCommand("rtl")}
+          onClick={() => setConfirming("rtl")}
         />
 
         <ActionButton
@@ -144,6 +182,26 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
           onClick={() => dispatchCommand("pause")}
         />
       </div>
+
+      {confirming && (
+        <div className="actions-confirm-row" role="group" aria-label="Confirm action">
+          <div className="actions-confirm-slider">
+            <Slider
+              label={`${confirming.toUpperCase()}${confirming === "takeoff" ? ` · ${altitude}m` : ""}`}
+              onConfirm={confirmPending}
+              danger={confirming !== "takeoff"}
+            />
+          </div>
+          <button
+            type="button"
+            className="actions-confirm-cancel"
+            aria-label="Cancel"
+            onClick={() => setConfirming(null)}
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -153,14 +211,14 @@ interface ActionButtonProps {
   onClick: () => void;
   disabled?: boolean;
   tone?: "accent" | "critical";
-  /** Tints the slider red and requires the full slide gesture. */
-  danger?: boolean;
-  /** Non-destructive actions (PAUSE) keep the plain click button. */
+  /** Non-destructive actions (PAUSE) dispatch straight from the click. */
   plain?: boolean;
+  /** True while this action's confirm slider is armed below the grid. */
+  active?: boolean;
   request?: CommandRequestState;
 }
 
-function ActionButton({ label, onClick, disabled, tone, danger, plain, request }: ActionButtonProps) {
+function ActionButton({ label, onClick, disabled, tone, plain, active, request }: ActionButtonProps) {
   const pending = request?.phase === "pending";
   const phaseClass =
     request?.phase === "accepted"
@@ -175,34 +233,15 @@ function ActionButton({ label, onClick, disabled, tone, danger, plain, request }
 
   return (
     <div className="actions-tile">
-      {plain ? (
-        <button
-          type="button"
-          className={`actions-button ${phaseClass}`.trim()}
-          disabled={disabled || pending}
-          onClick={onClick}
-        >
-          {pending && <span className="actions-spinner" aria-hidden="true" />}
-          {label}
-        </button>
-      ) : (
-        <div className="actions-slider-slot">
-          <Slider
-            label={label}
-            onConfirm={onClick}
-            disabled={disabled || pending}
-            danger={danger}
-            className={
-              request?.phase === "accepted"
-                ? "actions-slider--accepted"
-                : request?.phase === "rejected"
-                  ? "actions-slider--rejected"
-                  : undefined
-            }
-          />
-          {pending && <span className="actions-spinner actions-spinner--overlay" aria-hidden="true" />}
-        </div>
-      )}
+      <button
+        type="button"
+        className={`actions-button ${phaseClass}${active ? " actions-button--confirming" : ""}`.trim()}
+        disabled={disabled || pending}
+        onClick={onClick}
+      >
+        {pending && <span className="actions-spinner" aria-hidden="true" />}
+        {label}
+      </button>
       {request?.phase === "rejected" && request.reason && (
         <span className="actions-reason" role="alert">
           {request.reason}

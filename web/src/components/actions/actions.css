@@ -223,3 +223,49 @@
   color: var(--fg-dim);
   font-variant-numeric: tabular-nums;
 }
+
+/* --- Two-step confirm: one slider row, armed by pressing an action. --- */
+
+.actions-confirm-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.actions-confirm-slider {
+  flex: 1;
+  min-width: 0;
+}
+
+.actions-confirm-cancel {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  clip-path: polygon(
+    var(--chamfer-sm, 4px) 0%,
+    calc(100% - var(--chamfer-sm, 4px)) 0%,
+    100% var(--chamfer-sm, 4px),
+    100% calc(100% - var(--chamfer-sm, 4px)),
+    calc(100% - var(--chamfer-sm, 4px)) 100%,
+    var(--chamfer-sm, 4px) 100%,
+    0% calc(100% - var(--chamfer-sm, 4px)),
+    0% var(--chamfer-sm, 4px)
+  );
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--fg-dim);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.actions-confirm-cancel:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+}
+
+/* The action whose confirm row is armed glows so the pairing is obvious. */
+.actions-button--confirming {
+  border-color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow, var(--accent));
+}
