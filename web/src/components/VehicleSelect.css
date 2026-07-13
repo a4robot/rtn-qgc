@@ -31,7 +31,6 @@
     0% calc(100% - var(--chamfer-sm)),
     0% var(--chamfer-sm)
   );
-  border: 1px solid var(--border);
   background: transparent;
   color: var(--fg-dim);
   font: inherit;
@@ -39,25 +38,62 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.03em;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, filter 0.15s ease;
+}
+
+/* Chamfer-following ring: a CSS border is rectangular, so the clip-path
+   amputates it at every diagonal corner (a rectangular mask hole does
+   the same). An even-odd polygon — outer octagon minus a 1px-inset
+   inner octagon, each loop closed by repeating its first vertex so the
+   seam retraces itself — cuts ::after into a frame that tracks all
+   eight edges, drawn as an overlay so the translucent chip background
+   stays untouched. States recolor it via --ring. */
+.vehicle-select-chip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--ring, var(--border));
+  z-index: 1;
+  clip-path: polygon(
+    evenodd,
+    var(--chamfer-sm) 0%,
+    calc(100% - var(--chamfer-sm)) 0%,
+    100% var(--chamfer-sm),
+    100% calc(100% - var(--chamfer-sm)),
+    calc(100% - var(--chamfer-sm)) 100%,
+    var(--chamfer-sm) 100%,
+    0% calc(100% - var(--chamfer-sm)),
+    0% var(--chamfer-sm),
+    var(--chamfer-sm) 0%,
+    calc(var(--chamfer-sm) + 0.4px) 1px,
+    calc(100% - var(--chamfer-sm) - 0.4px) 1px,
+    calc(100% - 1px) calc(var(--chamfer-sm) + 0.4px),
+    calc(100% - 1px) calc(100% - var(--chamfer-sm) - 0.4px),
+    calc(100% - var(--chamfer-sm) - 0.4px) calc(100% - 1px),
+    calc(var(--chamfer-sm) + 0.4px) calc(100% - 1px),
+    1px calc(100% - var(--chamfer-sm) - 0.4px),
+    1px calc(var(--chamfer-sm) + 0.4px),
+    calc(var(--chamfer-sm) + 0.4px) 1px
+  );
 }
 
 .vehicle-select-chip:hover {
-  border-color: var(--accent);
+  --ring: var(--accent);
   color: var(--fg);
-  box-shadow: 0 0 8px var(--accent-glow);
+  filter: drop-shadow(0 0 8px var(--accent-glow));
 }
 
 .vehicle-select-chip--active {
   background: color-mix(in srgb, var(--accent) 15%, transparent);
-  border-color: var(--accent);
+  --ring: var(--accent);
   color: var(--fg);
   font-weight: 600;
 }
 
 .vehicle-select-chip--armed {
-  border-color: var(--status-critical);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--status-critical) 45%, transparent);
+  --ring: var(--status-critical);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--status-critical) 45%, transparent));
 }
 
 .vehicle-select-chip-armed-dot {
