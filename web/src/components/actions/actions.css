@@ -89,6 +89,10 @@
   justify-content: center;
   gap: 0.4rem;
   padding: 0.5rem 0.6rem;
+  /* Explicit none, not just omitted: without it the UA's default 2px
+     outset <button> border returns and paints a gray band outside the
+     painted ring (pseudos cover only the padding box). */
+  border: none;
   clip-path: polygon(
     var(--chamfer-md) 0%,
     calc(100% - var(--chamfer-md)) 0%,
@@ -285,6 +289,7 @@
   flex: 0 0 auto;
   width: 32px;
   height: 32px;
+  border: none; /* keep the UA <button> border from resurfacing */
   clip-path: polygon(
     var(--chamfer-sm, 4px) 0%,
     calc(100% - var(--chamfer-sm, 4px)) 0%,
@@ -340,7 +345,8 @@
    red and teal button tones, so the pressed one reads at a glance
    without restyling the rest of the grid. The ring itself comes from
    the base .actions-button ::before/::after machinery. */
-.actions-button--confirming {
+.actions-button.actions-button--confirming,
+.actions-button.actions-button--confirming:not(:disabled):hover {
   --ring: var(--ingress-recursion, #fbd150);
   --ring-w: 2px;
   filter: drop-shadow(0 0 7px color-mix(in srgb, var(--ingress-recursion, #fbd150) 70%, transparent));

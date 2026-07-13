@@ -21,6 +21,7 @@
   align-items: center;
   gap: 0.3rem;
   padding: 0.2rem 0.6rem;
+  border: none; /* keep the UA <button> border from resurfacing */
   clip-path: polygon(
     var(--chamfer-sm) 0%,
     calc(100% - var(--chamfer-sm)) 0%,
