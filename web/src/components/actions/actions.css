@@ -69,7 +69,20 @@
   opacity: 0.5;
 }
 
+/* Buttons don't use `border` or `box-shadow`: the chamfer clip-path
+   amputates a rectangular border at every diagonal corner and clips
+   box-shadow away entirely. The outline is painted instead — ::after
+   floods the clipped silhouette with the ring color and ::before covers
+   the interior back with the fill, leaving a ring that tracks all eight
+   edges (a mask-composite hole would be rectangular and re-open the
+   corner gaps). Both sit at negative z so the label stays on top; glows
+   are drop-shadow filters, which do follow clip-path. States restyle
+   via --ring / --ring-w / --fill. */
 .actions-button {
+  --ring: var(--border);
+  --ring-w: 1px;
+  --fill: var(--bg);
+
   position: relative;
   display: flex;
   align-items: center;
@@ -86,14 +99,14 @@
     0% calc(100% - var(--chamfer-md)),
     0% var(--chamfer-md)
   );
-  background: var(--bg);
+  background: var(--fill);
   color: var(--fg);
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+  transition: background 0.15s ease, opacity 0.15s ease, filter 0.15s ease;
   width: 100%;
 }
 
@@ -101,14 +114,30 @@
   content: "";
   position: absolute;
   inset: 0;
+  z-index: -2;
+  background: var(--ring);
   pointer-events: none;
-  background: var(--border);
-  clip-path: inherit;
-  padding: 1px;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-  z-index: 1;
+}
+
+/* Inner chamfer shrinks by 0.6 × ring width so the diagonal stroke stays
+   as wide as the straight edges (perpendicular offset of the 45° line). */
+.actions-button::before {
+  content: "";
+  position: absolute;
+  inset: var(--ring-w);
+  z-index: -1;
+  background: var(--fill);
+  pointer-events: none;
+  clip-path: polygon(
+    calc(var(--chamfer-md) - 0.6 * var(--ring-w)) 0%,
+    calc(100% - var(--chamfer-md) + 0.6 * var(--ring-w)) 0%,
+    100% calc(var(--chamfer-md) - 0.6 * var(--ring-w)),
+    100% calc(100% - var(--chamfer-md) + 0.6 * var(--ring-w)),
+    calc(100% - var(--chamfer-md) + 0.6 * var(--ring-w)) 100%,
+    calc(var(--chamfer-md) - 0.6 * var(--ring-w)) 100%,
+    0% calc(100% - var(--chamfer-md) + 0.6 * var(--ring-w)),
+    0% calc(var(--chamfer-md) - 0.6 * var(--ring-w))
+  );
 }
 
 .actions-button:disabled {
@@ -117,18 +146,18 @@
 }
 
 .actions-button:not(:disabled):hover {
-  border-color: var(--accent);
-  box-shadow: 0 0 8px var(--accent-glow);
+  --ring: var(--accent);
+  filter: drop-shadow(0 0 8px var(--accent-glow));
 }
 
 .actions-button--accent {
   color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  --ring: color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
 .actions-button--critical {
   color: var(--status-critical);
-  border-color: color-mix(in srgb, var(--status-critical) 40%, transparent);
+  --ring: color-mix(in srgb, var(--status-critical) 40%, transparent);
 }
 
 .actions-button--pending {
@@ -137,16 +166,16 @@
 }
 
 .actions-button--accepted {
-  background: color-mix(in srgb, var(--status-ok) 18%, transparent);
-  border-color: var(--status-ok);
+  --fill: color-mix(in srgb, var(--status-ok) 18%, var(--bg));
+  --ring: var(--status-ok);
   color: var(--status-ok);
 }
 
 .actions-button--rejected {
-  background: color-mix(in srgb, var(--status-critical) 18%, transparent);
-  border-color: var(--status-critical);
+  --fill: color-mix(in srgb, var(--status-critical) 18%, var(--bg));
+  --ring: var(--status-critical);
   color: var(--status-critical);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--status-critical) 45%, transparent);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--status-critical) 45%, transparent));
 }
 
 .actions-spinner {
@@ -272,66 +301,47 @@
   cursor: pointer;
 }
 
+/* Same painted-ring technique as .actions-button, on the small chamfer. */
 .actions-confirm-cancel::after {
   content: "";
   position: absolute;
   inset: 0;
+  z-index: -2;
+  background: var(--ring, var(--border));
   pointer-events: none;
-  background: var(--border);
-  clip-path: inherit;
-  padding: 1px;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-  z-index: 1;
+}
+
+.actions-confirm-cancel::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  background: var(--bg-panel);
+  pointer-events: none;
+  clip-path: polygon(
+    calc(var(--chamfer-sm, 4px) - 0.6px) 0%,
+    calc(100% - var(--chamfer-sm, 4px) + 0.6px) 0%,
+    100% calc(var(--chamfer-sm, 4px) - 0.6px),
+    100% calc(100% - var(--chamfer-sm, 4px) + 0.6px),
+    calc(100% - var(--chamfer-sm, 4px) + 0.6px) 100%,
+    calc(var(--chamfer-sm, 4px) - 0.6px) 100%,
+    0% calc(100% - var(--chamfer-sm, 4px) + 0.6px),
+    0% calc(var(--chamfer-sm, 4px) - 0.6px)
+  );
 }
 
 .actions-confirm-cancel:hover {
   color: var(--fg);
-  border-color: var(--accent);
+  --ring: var(--accent);
 }
 
-/* The action whose confirm row is armed: gold ring + glow (Recursion
-   gold from the Ingress token set) — bright against both the red and
-   teal button tones, so the pressed one reads at a glance without
-   restyling the rest of the grid.
-
-   Not `border` + `box-shadow`: the button's chamfer clip-path amputates
-   a rectangular border at every diagonal corner and clips box-shadow
-   away entirely. Instead the ring is painted — ::after floods the whole
-   chamfered silhouette gold (the button's own clip-path shapes it) and
-   ::before covers the interior back with the button's background,
-   leaving a 2px outline that tracks all eight edges. Both sit at
-   negative z so the label stays on top; the glow is a drop-shadow
-   filter, which does follow clip-path. */
+/* The action whose confirm row is armed: thick gold ring + glow
+   (Recursion gold from the Ingress token set) — bright against both the
+   red and teal button tones, so the pressed one reads at a glance
+   without restyling the rest of the grid. The ring itself comes from
+   the base .actions-button ::before/::after machinery. */
 .actions-button--confirming {
+  --ring: var(--ingress-recursion, #fbd150);
+  --ring-w: 2px;
   filter: drop-shadow(0 0 7px color-mix(in srgb, var(--ingress-recursion, #fbd150) 70%, transparent));
-}
-
-.actions-button--confirming::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  -webkit-mask: none;
-  padding: 0;
-  background: var(--ingress-recursion, #fbd150);
-}
-
-.actions-button--confirming::before {
-  content: "";
-  position: absolute;
-  inset: 2px;
-  z-index: -1;
-  background: inherit;
-  clip-path: polygon(
-    calc(var(--chamfer-md) - 1px) 0%,
-    calc(100% - var(--chamfer-md) + 1px) 0%,
-    100% calc(var(--chamfer-md) - 1px),
-    100% calc(100% - var(--chamfer-md) + 1px),
-    calc(100% - var(--chamfer-md) + 1px) 100%,
-    calc(var(--chamfer-md) - 1px) 100%,
-    0% calc(100% - var(--chamfer-md) + 1px),
-    0% calc(var(--chamfer-md) - 1px)
-  );
 }
