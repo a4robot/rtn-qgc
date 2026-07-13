@@ -34,9 +34,9 @@
 }
 
 .toolbar-view-switch {
+  position: relative;
   display: flex;
   flex: none;
-  border: 1px solid var(--border);
   clip-path: polygon(
     var(--chamfer-sm) 0%,
     calc(100% - var(--chamfer-sm)) 0%,
@@ -48,6 +48,20 @@
     0% var(--chamfer-sm)
   );
   overflow: hidden;
+}
+
+.toolbar-view-switch::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--border);
+  clip-path: inherit;
+  padding: 1px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  z-index: 1;
 }
 
 .toolbar-view-btn {
@@ -86,6 +100,7 @@
 }
 
 .toolbar-chip {
+  position: relative;
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -101,13 +116,26 @@
     0% calc(100% - var(--chamfer-sm)),
     0% var(--chamfer-sm)
   );
-  border: 1px solid var(--border);
   background: var(--bg);
   color: var(--fg-dim);
   font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.03em;
   white-space: nowrap;
+}
+
+.toolbar-chip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--border);
+  clip-path: inherit;
+  padding: 1px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  z-index: 1;
 }
 
 .toolbar-chip--mode {
@@ -164,6 +192,7 @@
 }
 
 .toolbar-menu-button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -179,12 +208,25 @@
     0% calc(100% - var(--chamfer-sm)),
     0% var(--chamfer-sm)
   );
-  border: 1px solid var(--border);
   background: transparent;
   color: var(--fg);
   font-size: 0.95rem;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.toolbar-menu-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--border);
+  clip-path: inherit;
+  padding: 1px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  z-index: 1;
 }
 
 .toolbar-menu-button:hover,
@@ -201,7 +243,6 @@
   display: flex;
   flex-direction: column;
   min-width: 9rem;
-  border: 1px solid var(--border);
   clip-path: polygon(
     var(--chamfer-md) 0%,
     calc(100% - var(--chamfer-md)) 0%,
@@ -215,6 +256,20 @@
   background: var(--bg-panel-a);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
   overflow: hidden;
+}
+
+.toolbar-menu-dropdown::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--border);
+  clip-path: inherit;
+  padding: 1px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  z-index: 1;
 }
 
 .toolbar-menu-item {

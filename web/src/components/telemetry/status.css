@@ -25,11 +25,11 @@
 }
 
 .status-tile {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   padding: 0.5rem 0.6rem;
-  border: 1px solid var(--border);
   clip-path: polygon(
     var(--chamfer-sm) 0%,
     calc(100% - var(--chamfer-sm)) 0%,
@@ -42,6 +42,20 @@
   );
   background: var(--bg);
   min-width: 0;
+}
+
+.status-tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--border);
+  clip-path: inherit;
+  padding: 1px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  z-index: 1;
 }
 
 .status-tile--wide {

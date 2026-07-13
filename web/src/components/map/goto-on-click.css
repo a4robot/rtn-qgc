@@ -53,9 +53,9 @@
 
 /* Popover chrome overrides — maplibre's default popup styling is light-themed. */
 .maplibregl-popup.goto-popup .maplibregl-popup-content {
+  position: relative;
   background: var(--bg-panel-a, #0f1c22);
   color: var(--fg, #eaf6f8);
-  border: 1px solid var(--border, #1b3941);
   clip-path: polygon(
     var(--chamfer-md, 8px) 0%,
     calc(100% - var(--chamfer-md, 8px)) 0%,
@@ -68,6 +68,20 @@
   );
   padding: 0.6rem 0.7rem;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), 0 0 0 1px color-mix(in srgb, var(--goto-accent, var(--secondary)) 25%, transparent);
+}
+
+.maplibregl-popup.goto-popup .maplibregl-popup-content::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--border);
+  clip-path: inherit;
+  padding: 1px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  z-index: 1;
 }
 
 .maplibregl-popup.goto-popup .maplibregl-popup-tip {
@@ -118,6 +132,7 @@
 
 .goto-popover-go,
 .goto-popover-cancel {
+  position: relative;
   flex: 1;
   padding: 0.35rem 0.5rem;
   clip-path: polygon(
@@ -130,7 +145,6 @@
     0% calc(100% - var(--chamfer-sm, 4px)),
     0% var(--chamfer-sm, 4px)
   );
-  border: 1px solid var(--border, #1b3941);
   background: var(--bg, #0a1216);
   color: var(--fg, #eaf6f8);
   font-size: 0.75rem;
@@ -138,6 +152,21 @@
   letter-spacing: 0.03em;
   text-transform: uppercase;
   cursor: pointer;
+}
+
+.goto-popover-go::after,
+.goto-popover-cancel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--border);
+  clip-path: inherit;
+  padding: 1px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  z-index: 1;
 }
 
 .goto-popover-go {

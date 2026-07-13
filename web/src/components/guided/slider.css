@@ -47,10 +47,23 @@
     0% var(--slider-chamfer)
   );
   background: color-mix(in srgb, var(--bg, #0a1216) 88%, var(--slider-accent) 6%);
-  border: 1px solid var(--border, #1b3941);
   overflow: hidden;
   user-select: none;
   touch-action: none;
+}
+
+.slider-track::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--border);
+  clip-path: inherit;
+  padding: 1px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  z-index: 1;
 }
 
 .slider-root--danger .slider-track {

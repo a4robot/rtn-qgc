@@ -125,8 +125,8 @@
 }
 
 .param-modal {
+  position: relative;
   background: var(--bg-panel-a);
-  border: 1px solid var(--border);
   clip-path: polygon(
     var(--chamfer-lg) 0%,
     calc(100% - var(--chamfer-lg)) 0%,
@@ -140,6 +140,20 @@
   width: 400px;
   max-width: 90vw;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.55), 0 0 0 1px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.param-modal::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--border);
+  clip-path: inherit;
+  padding: 1px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  z-index: 1;
 }
 
 .param-modal-header {

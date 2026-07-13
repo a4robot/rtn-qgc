@@ -14,6 +14,7 @@
 }
 
 .notif-toast {
+  position: relative;
   pointer-events: auto;
   display: flex;
   align-items: baseline;
@@ -29,7 +30,6 @@
     0% calc(100% - var(--chamfer-md)),
     0% var(--chamfer-md)
   );
-  border: 1px solid var(--border);
   background: var(--bg-panel-a);
   color: var(--fg);
   font: inherit;
@@ -37,6 +37,20 @@
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   animation: notif-toast-in 0.15s ease-out;
+}
+
+.notif-toast::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--border);
+  clip-path: inherit;
+  padding: 1px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  z-index: 1;
 }
 
 @keyframes notif-toast-in {
@@ -131,12 +145,26 @@
     0% calc(100% - var(--chamfer-sm)),
     0% var(--chamfer-sm)
   );
-  border: 1px solid var(--border);
   background: transparent;
   color: var(--fg);
   font-size: 0.95rem;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.notif-mute-button::after,
+.notif-bell-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--border);
+  clip-path: inherit;
+  padding: 1px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  z-index: 1;
 }
 
 .notif-mute-button:hover,
@@ -178,7 +206,6 @@
   width: 20rem;
   max-height: 20rem;
   overflow-y: auto;
-  border: 1px solid var(--border);
   clip-path: polygon(
     var(--chamfer-md) 0%,
     calc(100% - var(--chamfer-md)) 0%,
@@ -191,6 +218,20 @@
   );
   background: var(--bg-panel-a);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.notif-bell-dropdown::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--border);
+  clip-path: inherit;
+  padding: 1px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  z-index: 1;
 }
 
 .notif-bell-empty {
