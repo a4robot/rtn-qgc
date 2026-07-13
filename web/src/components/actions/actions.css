@@ -264,11 +264,45 @@
   border-color: var(--accent);
 }
 
-/* The action whose confirm row is armed: gold border + glow (Recursion
+/* The action whose confirm row is armed: gold ring + glow (Recursion
    gold from the Ingress token set) — bright against both the red and
    teal button tones, so the pressed one reads at a glance without
-   restyling the rest of the grid. */
+   restyling the rest of the grid.
+
+   Not `border` + `box-shadow`: the button's chamfer clip-path amputates
+   a rectangular border at every diagonal corner and clips box-shadow
+   away entirely. Instead the ring is painted — ::after floods the whole
+   chamfered silhouette gold (the button's own clip-path shapes it) and
+   ::before covers the interior back with the button's background,
+   leaving a 2px outline that tracks all eight edges. Both sit at
+   negative z so the label stays on top; the glow is a drop-shadow
+   filter, which does follow clip-path. */
 .actions-button--confirming {
-  border-color: var(--ingress-recursion, #fbd150);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--ingress-recursion, #fbd150) 65%, transparent);
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--ingress-recursion, #fbd150) 70%, transparent));
+}
+
+.actions-button--confirming::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: var(--ingress-recursion, #fbd150);
+}
+
+.actions-button--confirming::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  z-index: -1;
+  background: inherit;
+  clip-path: polygon(
+    calc(var(--chamfer-md) - 1px) 0%,
+    calc(100% - var(--chamfer-md) + 1px) 0%,
+    100% calc(var(--chamfer-md) - 1px),
+    100% calc(100% - var(--chamfer-md) + 1px),
+    calc(100% - var(--chamfer-md) + 1px) 100%,
+    calc(var(--chamfer-md) - 1px) 100%,
+    0% calc(100% - var(--chamfer-md) + 1px),
+    0% calc(var(--chamfer-md) - 1px)
+  );
 }
