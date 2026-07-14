@@ -425,7 +425,9 @@ void VideoManager2::sendViewproCommand(int commandId)
     connect(socket, &QTcpSocket::connected, socket, [socket, payload]() {
         socket->write(payload);
         socket->flush();
-        socket->disconnectFromHost();
+    });
+    connect(socket, &QTcpSocket::bytesWritten, socket, [socket](qint64 /* bytes */) {
+        QTimer::singleShot(500, socket, &QTcpSocket::disconnectFromHost);
     });
     connect(socket, &QTcpSocket::disconnected, socket, &QTcpSocket::deleteLater);
     connect(socket, &QTcpSocket::errorOccurred, socket, [socket](QAbstractSocket::SocketError error) {
