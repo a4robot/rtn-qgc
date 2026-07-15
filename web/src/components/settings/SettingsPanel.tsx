@@ -22,7 +22,8 @@
  * pattern ("a short poll loop settles quickly in practice").
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { BridgeClient } from "../../bridge/BridgeClient.ts";
 import type { AddableLinkType, LinkConfig, SettingGroup, SettingScalar } from "../../bridge/types.ts";
@@ -381,10 +382,26 @@ const APP_NUMBER_FIELDS: Array<{ name: string; label: string }> = [
 
 function AppSection({ client }: { client: BridgeClient }) {
   const { errors, setValue } = useSettingRequests(client);
+  const { t, i18n } = useTranslation();
 
   return (
     <section className="settings-section" aria-label="App settings">
-      <h3>App</h3>
+      <h3>{t("App settings")}</h3>
+      
+      <div className="settings-field">
+        <div className="settings-field-label">{t("Language")}</div>
+        <div className="settings-field-control">
+          <select 
+            className="settings-field-input"
+            value={i18n.language?.split('-')[0] || "en"}
+            onChange={(e) => i18n.changeLanguage(e.target.value)}
+          >
+            <option value="en">{t("English")}</option>
+            <option value="th">{t("Thai")}</option>
+          </select>
+        </div>
+      </div>
+
       {APP_NUMBER_FIELDS.map(({ name, label }) => (
         <NumberSettingField
           key={name}

@@ -1,3 +1,5 @@
+import i18n from "../../i18n.ts";
+
 /**
  * Notification text-to-speech — thin, defensive wrapper around
  * `window.speechSynthesis`. Headless/CI environments (and Bun's test runner)
@@ -54,13 +56,50 @@ export function saveSpeechMuted(muted: boolean): void {
  * (unsupported voice, engine crash, etc.) is swallowed.
  */
 export function speak(text: string): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  // Append lang parameter if needed, but the online TTS might auto-detect
+  if (typeof window.Audio !== "undefined" && window.navigator.onLine !== false) {
+    const langParam = i18n.language ? `&lang=${i18n.language}` : "";
+    const url = `https://tts-api.vercel.app/api/tts?text=${encodeURIComponent(text)}${langParam}`;
+    const audio = new window.Audio(url);
+    
+    let fallbackTriggered = false;
+    const doFallback = () => {
+      if (!fallbackTriggered) {
+        fallbackTriggered = true;
+        fallbackToLocalTTS(text);
+      }
+    };
+
+    audio.onerror = doFallback;
+    audio.play().catch(doFallback);
+  } else {
+    fallbackToLocalTTS(text);
+  }
+}
+
+function fallbackToLocalTTS(text: string): void {
   if (!isSpeechSupported()) {
     return;
   }
   try {
     const utterance = new window.SpeechSynthesisUtterance(text);
+    
+    // Use the language selected in settings
+    if (i18n.language) {
+      utterance.lang = i18n.language;
+    }
+    // Fallback to force Thai if there are Thai characters
+    if (/[ก-๙]/.test(text)) {
+      utterance.lang = "th-TH";
+    }
+    
     window.speechSynthesis.speak(utterance);
   } catch {
     // TTS is best-effort — never let it break the app.
   }
 }
+
