@@ -88,60 +88,72 @@
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  padding: 0.5rem 0.6rem;
+  height: 34px;
+  padding: 0 0.6rem;
   /* Explicit none, not just omitted: without it the UA's default 2px
      outset <button> border returns and paints a gray band outside the
      painted ring (pseudos cover only the padding box). */
+  appearance: none;
+  -webkit-appearance: none;
+  
+  border-radius: 999px;
   border: none;
-  clip-path: polygon(
-    var(--chamfer-md) 0%,
-    calc(100% - var(--chamfer-md)) 0%,
-    100% var(--chamfer-md),
-    100% calc(100% - var(--chamfer-md)),
-    calc(100% - var(--chamfer-md)) 100%,
-    var(--chamfer-md) 100%,
-    0% calc(100% - var(--chamfer-md)),
-    0% var(--chamfer-md)
-  );
-  background: var(--fill);
-  color: var(--fg);
+  background: transparent;
+  color: var(--accent);
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: background 0.15s ease, opacity 0.15s ease, filter 0.15s ease;
+  transition: color 0.15s ease, opacity 0.15s ease, filter 0.15s ease;
   width: 100%;
+}
+
+.actions-button::before {
+  content: "";
+  position: absolute;
+  inset: var(--ring-w);
+  border-radius: 999px;
+  background: var(--fill);
+  z-index: -1;
+  transition: background 0.15s ease;
+  pointer-events: none;
 }
 
 .actions-button::after {
   content: "";
   position: absolute;
   inset: 0;
-  z-index: -2;
+  border-radius: 999px;
   background: var(--ring);
+  z-index: -2;
+  transition: background 0.15s ease;
   pointer-events: none;
 }
 
-/* Inner chamfer shrinks by 0.6 × ring width so the diagonal stroke stays
-   as wide as the straight edges (perpendicular offset of the 45° line). */
-.actions-button::before {
-  content: "";
+.actions-button-ring {
   position: absolute;
-  inset: var(--ring-w);
-  z-index: -1;
-  background: var(--fill);
+  inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
-  clip-path: polygon(
-    calc(var(--chamfer-md) - 0.6 * var(--ring-w)) 0%,
-    calc(100% - var(--chamfer-md) + 0.6 * var(--ring-w)) 0%,
-    100% calc(var(--chamfer-md) - 0.6 * var(--ring-w)),
-    100% calc(100% - var(--chamfer-md) + 0.6 * var(--ring-w)),
-    calc(100% - var(--chamfer-md) + 0.6 * var(--ring-w)) 100%,
-    calc(var(--chamfer-md) - 0.6 * var(--ring-w)) 100%,
-    0% calc(100% - var(--chamfer-md) + 0.6 * var(--ring-w)),
-    0% calc(var(--chamfer-md) - 0.6 * var(--ring-w))
-  );
+  z-index: 0;
+  overflow: visible;
+}
+
+.actions-button-ring rect {
+  fill: none;
+  stroke: var(--ingress-recursion, #fbd150);
+  stroke-width: 3px;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 4px var(--ingress-recursion, #fbd150)) drop-shadow(0 0 10px rgba(251, 209, 80, 0.6));
+  stroke-dasharray: 4px 96px;
+  animation: actions-ring-run 1.5s linear infinite;
+}
+
+@keyframes actions-ring-run {
+  0% { stroke-dashoffset: 100px; }
+  100% { stroke-dashoffset: 0px; }
 }
 
 .actions-button:disabled {
@@ -289,50 +301,16 @@
   flex: 0 0 auto;
   width: 32px;
   height: 32px;
-  border: none; /* keep the UA <button> border from resurfacing */
-  clip-path: polygon(
-    var(--chamfer-sm, 4px) 0%,
-    calc(100% - var(--chamfer-sm, 4px)) 0%,
-    100% var(--chamfer-sm, 4px),
-    100% calc(100% - var(--chamfer-sm, 4px)),
-    calc(100% - var(--chamfer-sm, 4px)) 100%,
-    var(--chamfer-sm, 4px) 100%,
-    0% calc(100% - var(--chamfer-sm, 4px)),
-    0% var(--chamfer-sm, 4px)
-  );
+  appearance: none;
+  -webkit-appearance: none;
+  
+  border-radius: 50%;
+  border: 1px solid var(--ring, var(--border));
   background: var(--bg-panel);
   color: var(--fg-dim);
   font-size: 0.85rem;
   cursor: pointer;
-}
-
-/* Same painted-ring technique as .actions-button, on the small chamfer. */
-.actions-confirm-cancel::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  background: var(--ring, var(--border));
-  pointer-events: none;
-}
-
-.actions-confirm-cancel::before {
-  content: "";
-  position: absolute;
-  inset: 1px;
-  z-index: -1;
-  background: var(--bg-panel);
-  pointer-events: none;
-  clip-path: polygon(
-    calc(var(--chamfer-sm, 4px) - 0.6px) 0%,
-    calc(100% - var(--chamfer-sm, 4px) + 0.6px) 0%,
-    100% calc(var(--chamfer-sm, 4px) - 0.6px),
-    100% calc(100% - var(--chamfer-sm, 4px) + 0.6px),
-    calc(100% - var(--chamfer-sm, 4px) + 0.6px) 100%,
-    calc(var(--chamfer-sm, 4px) - 0.6px) 100%,
-    0% calc(100% - var(--chamfer-sm, 4px) + 0.6px),
-    0% calc(var(--chamfer-sm, 4px) - 0.6px)
-  );
+  transition: border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 
 .actions-confirm-cancel:hover {

@@ -20,6 +20,7 @@ import {
   headingCardinal,
   normalizeHeading,
 } from "./instruments.ts";
+import { useTranslation } from "react-i18next";
 import "./instruments.css";
 
 export interface InstrumentsProps {
@@ -71,12 +72,13 @@ function CompassRose({ headingDeg }: { headingDeg: number | null }) {
 }
 
 export function Instruments({ vehicleId }: InstrumentsProps) {
+  const { t } = useTranslation();
   const vehicle = useVehicle(vehicleId);
 
   if (!vehicle) {
     return (
       <div className="instrument-strip instrument-strip--empty">
-        <span className="instrument-placeholder">No instrument data</span>
+        <span className="instrument-placeholder">{t("No instrument data")}</span>
       </div>
     );
   }
@@ -88,7 +90,7 @@ export function Instruments({ vehicleId }: InstrumentsProps) {
   return (
     <div className="instrument-strip" aria-label="Flight instruments">
       <div className="instrument-cell">
-        <span className="instrument-label">Altitude</span>
+        <span className="instrument-label">{t("Altitude")}</span>
         <span className="instrument-value">
           {fmtNum(position.altMSL, 1)} <span className="instrument-unit">m MSL</span>
         </span>
@@ -98,7 +100,7 @@ export function Instruments({ vehicleId }: InstrumentsProps) {
       </div>
 
       <div className="instrument-cell">
-        <span className="instrument-label">Speed</span>
+        <span className="instrument-label">{t("Speed")}</span>
         <span className="instrument-value">
           {fmtNum(velocity.groundSpeed, 1)} <span className="instrument-unit">m/s GS</span>
         </span>
@@ -108,7 +110,7 @@ export function Instruments({ vehicleId }: InstrumentsProps) {
       </div>
 
       <div className="instrument-cell">
-        <span className="instrument-label">Climb</span>
+        <span className="instrument-label">{t("Climb")}</span>
         <span className="instrument-value">
           <span className="instrument-climb-glyph">{tendency}</span>{" "}
           {fmtSigned(velocity.climbRate)} <span className="instrument-unit">m/s</span>
@@ -116,7 +118,7 @@ export function Instruments({ vehicleId }: InstrumentsProps) {
       </div>
 
       <div className="instrument-cell instrument-cell--heading">
-        <span className="instrument-label">Heading</span>
+        <span className="instrument-label">{t("Heading")}</span>
         <div className="instrument-heading-row">
           <CompassRose headingDeg={attitude.yaw} />
           <div className="instrument-heading-text">
@@ -129,15 +131,15 @@ export function Instruments({ vehicleId }: InstrumentsProps) {
       </div>
 
       <div className="instrument-cell">
-        <span className="instrument-label">GPS</span>
+        <span className="instrument-label">{t("GPS")}</span>
         <span className="instrument-value">{gpsFixShortLabel(gps.fix)}</span>
         <span className="instrument-value instrument-value--dim">
-          {gps.count ?? "—"} sats
+          {gps.count ?? "—"} {t("sats")}
         </span>
       </div>
 
       <div className="instrument-cell">
-        <span className="instrument-label">Battery</span>
+        <span className="instrument-label">{t("Battery")}</span>
         <span className={`instrument-value instrument-value--${level}`}>
           {fmtNum(battery.percent, 0)}%
         </span>

@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useNotifications, useNotificationStore } from "../../store/index.ts";
 import { speak, SPOKEN_SEVERITIES } from "./speech.ts";
+import { useTranslation } from "react-i18next";
 import "./notifications.css";
 
 /** ms until a toast of this severity auto-dismisses; null = sticky (manual dismiss only). */
@@ -26,6 +27,7 @@ const AUTO_DISMISS_MS: Record<string, number | null> = {
 };
 
 export function NotificationToasts() {
+  const { t } = useTranslation();
   const notifications = useNotifications();
   const speechMuted = useNotificationStore((s) => s.speechMuted);
   const speechMutedRef = useRef(speechMuted);
@@ -73,7 +75,7 @@ export function NotificationToasts() {
         timers.current.set(n.id, timer);
       }
       if (SPOKEN_SEVERITIES.has(n.severity) && !speechMutedRef.current) {
-        speak(n.text);
+        speak(t(n.text));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,8 +109,8 @@ export function NotificationToasts() {
           onClick={() => dismiss(n.id)}
           aria-label={`Dismiss ${n.severity} notification: ${n.text}`}
         >
-          <span className="notif-toast-severity">{n.severity}</span>
-          <span className="notif-toast-text">{n.text}</span>
+          <span className="notif-toast-severity">{t(n.severity)}</span>
+          <span className="notif-toast-text">{t(n.text)}</span>
         </button>
       ))}
     </div>

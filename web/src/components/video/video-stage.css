@@ -32,36 +32,14 @@
   position: relative;
   width: 1.5rem;
   height: 1.5rem;
-  clip-path: polygon(
-    var(--chamfer-sm) 0%,
-    calc(100% - var(--chamfer-sm)) 0%,
-    100% var(--chamfer-sm),
-    100% calc(100% - var(--chamfer-sm)),
-    calc(100% - var(--chamfer-sm)) 100%,
-    var(--chamfer-sm) 100%,
-    0% calc(100% - var(--chamfer-sm)),
-    0% var(--chamfer-sm)
-  );
+  border-radius: var(--chamfer-sm, 4px);
+  border: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg) 80%, transparent);
   color: var(--fg-dim);
   font-size: 0.7rem;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.video-stage-switch-btn::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: var(--border);
-  clip-path: inherit;
-  padding: 1px;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-  z-index: 1;
 }
 
 .video-stage-switch-btn:hover {

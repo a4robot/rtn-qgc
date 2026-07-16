@@ -61,31 +61,9 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.35rem 0.5rem;
-  clip-path: polygon(
-    var(--chamfer-sm) 0%,
-    calc(100% - var(--chamfer-sm)) 0%,
-    100% var(--chamfer-sm),
-    100% calc(100% - var(--chamfer-sm)),
-    calc(100% - var(--chamfer-sm)) 100%,
-    var(--chamfer-sm) 100%,
-    0% calc(100% - var(--chamfer-sm)),
-    0% var(--chamfer-sm)
-  );
+  border-radius: var(--chamfer-sm, 4px);
+  border: 1px solid var(--border);
   background: var(--bg);
-}
-
-.waypoint-list-row::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: var(--border);
-  clip-path: inherit;
-  padding: 1px;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-  z-index: 1;
 }
 
 .waypoint-list-seq {
@@ -159,16 +137,8 @@
 .waypoint-list-action {
   position: relative;
   padding: 0.5rem 0.6rem;
-  clip-path: polygon(
-    var(--chamfer-md) 0%,
-    calc(100% - var(--chamfer-md)) 0%,
-    100% var(--chamfer-md),
-    100% calc(100% - var(--chamfer-md)),
-    calc(100% - var(--chamfer-md)) 100%,
-    var(--chamfer-md) 100%,
-    0% calc(100% - var(--chamfer-md)),
-    0% var(--chamfer-md)
-  );
+  border-radius: 999px;
+  border: 1px solid var(--border);
   background: var(--bg);
   color: var(--fg);
   font-size: 0.78rem;
@@ -176,21 +146,7 @@
   letter-spacing: 0.03em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
-}
-
-.waypoint-list-action::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: var(--border);
-  clip-path: inherit;
-  padding: 1px;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-  z-index: 1;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
 }
 
 .waypoint-list-action:disabled {

@@ -21,6 +21,7 @@ import type { CommandAction } from "../../bridge/types.ts";
 import { useConnection, useVehicle } from "../../store/index.ts";
 import { Slider } from "../guided/Slider.tsx";
 import { latestRequestForAction, useCommandRequests, type CommandRequestState } from "./useCommandRequests.ts";
+import { useTranslation } from "react-i18next";
 import "./actions.css";
 
 /** How long the "not connected" note stays visible after a dropped send. */
@@ -37,6 +38,7 @@ export interface ActionsPanelProps {
 }
 
 export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
+  const { t } = useTranslation();
   const vehicle = useVehicle(vehicleId);
   const connectionState = useConnection((state) => state.state);
   const { requests, send } = useCommandRequests(client);
@@ -97,7 +99,7 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
   if (!vehicle) {
     return (
       <div className="actions-panel actions-panel--empty" aria-label="Actions">
-        <span className="actions-placeholder">No vehicle data</span>
+        <span className="actions-placeholder">{t("No vehicle data")}</span>
       </div>
     );
   }
@@ -108,13 +110,13 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
     <div className="actions-panel" aria-label="Actions">
       {notConnectedNote && (
         <div className="actions-note" role="status">
-          Not connected — command not sent
+          {t("Not connected — command not sent")}
         </div>
       )}
       <div className={`actions-grid${confirming ? " actions-grid--confirming" : ""}`}>
         {armed ? (
           <ActionButton
-            label="DISARM"
+            label={t("DISARM")}
             tone="critical"
             disabled={!ready}
             active={confirming === "disarm"}
@@ -123,7 +125,7 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
           />
         ) : (
           <ActionButton
-            label="ARM"
+            label={t("ARM")}
             tone="critical"
             disabled={!ready}
             active={confirming === "arm"}
@@ -134,7 +136,7 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
 
         <div className="actions-tile actions-tile--wide">
           <div className="actions-altitude-row">
-            <label htmlFor="actions-takeoff-alt">Takeoff alt (m)</label>
+            <label htmlFor="actions-takeoff-alt">{t("Takeoff alt (m)")}</label>
             <input
               id="actions-takeoff-alt"
               className="actions-altitude-input"
@@ -147,7 +149,7 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
             />
           </div>
           <ActionButton
-            label="TAKEOFF"
+            label={t("TAKEOFF")}
             tone="accent"
             disabled={!ready || !armed}
             active={confirming === "takeoff"}
@@ -157,7 +159,7 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
         </div>
 
         <ActionButton
-          label="LAND"
+          label={t("LAND")}
           tone="critical"
           disabled={!ready || !armed}
           active={confirming === "land"}
@@ -166,7 +168,7 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
         />
 
         <ActionButton
-          label="RTL"
+          label={t("RTL")}
           tone="critical"
           disabled={!ready || !armed}
           active={confirming === "rtl"}
@@ -175,7 +177,7 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
         />
 
         <ActionButton
-          label="PAUSE"
+          label={t("PAUSE")}
           plain
           disabled={!ready || !armed}
           request={latestRequestForAction(requests, "pause")}
@@ -187,7 +189,7 @@ export function ActionsPanel({ client, vehicleId }: ActionsPanelProps) {
         <div className="actions-confirm-row" role="group" aria-label="Confirm action">
           <div className="actions-confirm-slider">
             <Slider
-              label={`${confirming.toUpperCase()}${confirming === "takeoff" ? ` · ${altitude}m` : ""}`}
+              label={`${t(confirming.toUpperCase())}${confirming === "takeoff" ? ` · ${altitude}m` : ""}`}
               onConfirm={confirmPending}
               danger={confirming !== "takeoff"}
             />
@@ -239,6 +241,11 @@ function ActionButton({ label, onClick, disabled, tone, plain, active, request }
         disabled={disabled || pending}
         onClick={onClick}
       >
+        {active && (
+          <svg className="actions-button-ring" xmlns="http://www.w3.org/2000/svg">
+            <rect width="100%" height="100%" rx="17" ry="17" pathLength="100" />
+          </svg>
+        )}
         {pending && <span className="actions-spinner" aria-hidden="true" />}
         {label}
       </button>

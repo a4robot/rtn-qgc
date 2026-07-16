@@ -42,55 +42,11 @@
   max-width: 40vw;
   aspect-ratio: 16 / 9;
   z-index: 6;
-  clip-path: polygon(
-    var(--chamfer-lg) 0%,
-    calc(100% - var(--chamfer-lg)) 0%,
-    100% var(--chamfer-lg),
-    100% calc(100% - var(--chamfer-lg)),
-    calc(100% - var(--chamfer-lg)) 100%,
-    var(--chamfer-lg) 100%,
-    0% calc(100% - var(--chamfer-lg)),
-    0% var(--chamfer-lg)
-  );
+  border-radius: var(--chamfer-lg, 12px);
+  border: 1px solid var(--border);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
   cursor: pointer;
   transition: left 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-/* Chamfer-following ring: a CSS border is rectangular, so the clip-path
-   amputates it at every diagonal corner (a rectangular mask hole does
-   the same). An even-odd polygon — outer octagon minus a 1px-inset
-   inner octagon, each loop closed by repeating its first vertex so the
-   seam retraces itself — cuts ::after into a frame that tracks all
-   eight edges without covering the content beneath. */
-.stage-slot--pip::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: var(--ring, var(--border));
-  z-index: 1;
-  clip-path: polygon(
-    evenodd,
-    var(--chamfer-lg) 0%,
-    calc(100% - var(--chamfer-lg)) 0%,
-    100% var(--chamfer-lg),
-    100% calc(100% - var(--chamfer-lg)),
-    calc(100% - var(--chamfer-lg)) 100%,
-    var(--chamfer-lg) 100%,
-    0% calc(100% - var(--chamfer-lg)),
-    0% var(--chamfer-lg),
-    var(--chamfer-lg) 0%,
-    calc(var(--chamfer-lg) + 0.4px) 1px,
-    calc(100% - var(--chamfer-lg) - 0.4px) 1px,
-    calc(100% - 1px) calc(var(--chamfer-lg) + 0.4px),
-    calc(100% - 1px) calc(100% - var(--chamfer-lg) - 0.4px),
-    calc(100% - var(--chamfer-lg) - 0.4px) calc(100% - 1px),
-    calc(var(--chamfer-lg) + 0.4px) calc(100% - 1px),
-    1px calc(100% - var(--chamfer-lg) - 0.4px),
-    1px calc(var(--chamfer-lg) + 0.4px),
-    calc(var(--chamfer-lg) + 0.4px) 1px
-  );
 }
 
 .stage-slot--pip:hover {
@@ -133,51 +89,30 @@
   max-width: calc(100vw - 2rem);
   max-height: 45vh;
   background: var(--bg-panel-a);
-  clip-path: polygon(
-    var(--chamfer-lg) 0%,
-    calc(100% - var(--chamfer-lg)) 0%,
-    100% var(--chamfer-lg),
-    100% calc(100% - var(--chamfer-lg)),
-    calc(100% - var(--chamfer-lg)) 100%,
-    var(--chamfer-lg) 100%,
-    0% calc(100% - var(--chamfer-lg)),
-    0% var(--chamfer-lg)
-  );
+  border-radius: var(--chamfer-lg, 12px);
+  border: 1px solid var(--border);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px color-mix(in srgb, var(--accent) 15%, transparent);
   overflow: auto;
 }
 
-/* Same even-odd chamfer ring as .stage-slot--pip. */
-.guided-strip::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: var(--border);
-  z-index: 1;
-  clip-path: polygon(
-    evenodd,
-    var(--chamfer-lg) 0%,
-    calc(100% - var(--chamfer-lg)) 0%,
-    100% var(--chamfer-lg),
-    100% calc(100% - var(--chamfer-lg)),
-    calc(100% - var(--chamfer-lg)) 100%,
-    var(--chamfer-lg) 100%,
-    0% calc(100% - var(--chamfer-lg)),
-    0% var(--chamfer-lg),
-    var(--chamfer-lg) 0%,
-    calc(var(--chamfer-lg) + 0.4px) 1px,
-    calc(100% - var(--chamfer-lg) - 0.4px) 1px,
-    calc(100% - 1px) calc(var(--chamfer-lg) + 0.4px),
-    calc(100% - 1px) calc(100% - var(--chamfer-lg) - 0.4px),
-    calc(100% - var(--chamfer-lg) - 0.4px) calc(100% - 1px),
-    calc(var(--chamfer-lg) + 0.4px) calc(100% - 1px),
-    1px calc(100% - var(--chamfer-lg) - 0.4px),
-    1px calc(var(--chamfer-lg) + 0.4px),
-    calc(var(--chamfer-lg) + 0.4px) 1px
-  );
-}
+
 
 .guided-strip .actions-panel {
   height: auto;
+}
+
+.rtn-panel-float {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 8;
+  transition: left 0.15s ease;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.rtn-panel-float.stage-shift-right {
+  left: calc(22rem + 1rem);
 }

@@ -141,7 +141,7 @@ export function speak(text: string): void {
 }
 
 /**
- * Cloud mode: Google Translate's TTS endpoint. Media elements aren't
+ * Cloud mode: Vercel TTS endpoint. Media elements aren't
  * CORS-restricted for playback, so `new Audio(url)` works cross-origin.
  * Any failure (offline, rate-limited, blocked) drops to the OS voice.
  */
@@ -151,9 +151,8 @@ function speakCloud(text: string, lang: string): void {
     return;
   }
   try {
-    const tl = lang === "th-TH" ? "th" : "en";
     const q = encodeURIComponent(text.slice(0, CLOUD_TEXT_LIMIT));
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${tl}&q=${q}`;
+    const url = `https://tts-api.vercel.app/api/tts?text=${q}`;
     const audio = new window.Audio(url);
     playWithFallback(audio, () => speakLocal(text, lang));
   } catch {

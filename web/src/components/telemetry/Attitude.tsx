@@ -9,6 +9,7 @@
  */
 
 import { useVehicle } from "../../store/index.ts";
+import { useTranslation } from "react-i18next";
 import "./attitude.css";
 
 export interface AttitudeProps {
@@ -213,12 +214,13 @@ function CompassTape({ headingDeg }: { headingDeg: number }) {
 }
 
 export function Attitude({ vehicleId }: AttitudeProps) {
+  const { t } = useTranslation();
   const vehicle = useVehicle(vehicleId);
 
   if (!vehicle) {
     return (
       <div className="attitude attitude-empty">
-        <span className="attitude-empty-label">No attitude data</span>
+        <span className="attitude-empty-label">{t("No attitude data")}</span>
       </div>
     );
   }
@@ -234,14 +236,14 @@ export function Attitude({ vehicleId }: AttitudeProps) {
       <AttitudeHorizon rollDeg={rollDeg} pitchDeg={pitchDeg} />
       <div className="attitude-numerics">
         <span>
-          Roll <strong>{rollDeg.toFixed(1)}°</strong>
+          {t("Roll")} <strong>{rollDeg.toFixed(1)}°</strong>
         </span>
         <span>
-          Pitch <strong>{pitchDeg.toFixed(1)}°</strong>
+          {t("Pitch")} <strong>{pitchDeg.toFixed(1)}°</strong>
         </span>
       </div>
       <div className="attitude-heading">
-        <span className="attitude-heading-value">HDG {heading.toFixed(0).padStart(3, "0")}°</span>
+        <span className="attitude-heading-value">{t("HDG")} {heading.toFixed(0).padStart(3, "0")}°</span>
         <CompassTape headingDeg={heading} />
       </div>
     </div>

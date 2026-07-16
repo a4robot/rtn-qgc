@@ -22,16 +22,8 @@
   gap: 0.3rem;
   padding: 0.2rem 0.6rem;
   border: none; /* keep the UA <button> border from resurfacing */
-  clip-path: polygon(
-    var(--chamfer-sm) 0%,
-    calc(100% - var(--chamfer-sm)) 0%,
-    100% var(--chamfer-sm),
-    100% calc(100% - var(--chamfer-sm)),
-    calc(100% - var(--chamfer-sm)) 100%,
-    var(--chamfer-sm) 100%,
-    0% calc(100% - var(--chamfer-sm)),
-    0% var(--chamfer-sm)
-  );
+  border-radius: var(--chamfer-sm, 4px);
+  border: 1px solid var(--border);
   background: transparent;
   color: var(--fg-dim);
   font: inherit;
@@ -52,31 +44,12 @@
 .vehicle-select-chip::after {
   content: "";
   position: absolute;
-  inset: 0;
+  inset: -1px;
   pointer-events: none;
-  background: var(--ring, var(--border));
+  background: transparent;
   z-index: 1;
-  clip-path: polygon(
-    evenodd,
-    var(--chamfer-sm) 0%,
-    calc(100% - var(--chamfer-sm)) 0%,
-    100% var(--chamfer-sm),
-    100% calc(100% - var(--chamfer-sm)),
-    calc(100% - var(--chamfer-sm)) 100%,
-    var(--chamfer-sm) 100%,
-    0% calc(100% - var(--chamfer-sm)),
-    0% var(--chamfer-sm),
-    var(--chamfer-sm) 0%,
-    calc(var(--chamfer-sm) + 0.4px) 1px,
-    calc(100% - var(--chamfer-sm) - 0.4px) 1px,
-    calc(100% - 1px) calc(var(--chamfer-sm) + 0.4px),
-    calc(100% - 1px) calc(100% - var(--chamfer-sm) - 0.4px),
-    calc(100% - var(--chamfer-sm) - 0.4px) calc(100% - 1px),
-    calc(var(--chamfer-sm) + 0.4px) calc(100% - 1px),
-    1px calc(100% - var(--chamfer-sm) - 0.4px),
-    1px calc(var(--chamfer-sm) + 0.4px),
-    calc(var(--chamfer-sm) + 0.4px) 1px
-  );
+  border-radius: var(--chamfer-sm, 4px);
+  border: 1px solid var(--ring, transparent);
 }
 
 .vehicle-select-chip:hover {

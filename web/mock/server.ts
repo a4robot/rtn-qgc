@@ -56,7 +56,7 @@ import surveyMission from "./fixtures/mission-survey.json";
 /** `MOCK_FIXTURE=1` env var or `--fixture` CLI flag — see §"fixture mode" below. */
 const FIXTURE_MODE = process.env.MOCK_FIXTURE === "1" || process.argv.includes("--fixture");
 
-const HOSTNAME = "127.0.0.1";
+const HOSTNAME = process.env.MOCK_HOST ?? "0.0.0.0";
 const PORT = Number(process.env.MOCK_PORT ?? 8877);
 const PROTOCOL_VERSION = "0.1";
 const SERVER_VERSION = "rtn-qgc-mock 0.1.0";
@@ -783,7 +783,7 @@ function scheduleNotificationDemo(ws: Socket): void {
     if (ws.data.closed) {
       return;
     }
-    sendNotification(ws, "warning", "Battery below 30%", VEHICLE_ID);
+    sendNotification(ws, "warning", "แบตเตอรี่อ่อน ต่ำกว่า 30 เปอร์เซ็นต์", VEHICLE_ID);
   }, NOTIFICATION_WARNING_DELAY_MS);
   ws.data.notificationTimers.add(warnTimer);
 

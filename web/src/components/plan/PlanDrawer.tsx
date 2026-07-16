@@ -10,6 +10,7 @@
 import type { BridgeClient } from "../../bridge/BridgeClient.ts";
 import { useSidePanelTab, useUiStore } from "../../store/index.ts";
 import { WaypointList } from "./WaypointList.tsx";
+import { useTranslation } from "react-i18next";
 import "./plan-drawer.css";
 
 export interface PlanDrawerProps {
@@ -18,6 +19,7 @@ export interface PlanDrawerProps {
 }
 
 export function PlanDrawer({ client, vehicleId }: PlanDrawerProps) {
+  const { t } = useTranslation();
   const tab = useSidePanelTab();
   const setSidePanelTab = useUiStore((state) => state.setSidePanelTab);
 
@@ -28,7 +30,7 @@ export function PlanDrawer({ client, vehicleId }: PlanDrawerProps) {
   return (
     <div className="plan-drawer" aria-label="Mission plan">
       <div className="plan-drawer-header">
-        <span className="plan-drawer-title">Mission Plan</span>
+        <span className="plan-drawer-title">{t("Mission Plan")}</span>
         <button
           type="button"
           className="plan-drawer-close"

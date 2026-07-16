@@ -18,6 +18,8 @@ import "./components/stage.css";
 import { ImageCard } from "./components/telemetry/ImageCard.tsx";
 import { TopToolbar } from "./components/toolbar/TopToolbar.tsx";
 import { VideoStage } from "./components/video/VideoStage.tsx";
+import { RTNPanel } from "./components/flyview/RTNPanel.tsx";
+import { RTNInstruments } from "./components/flyview/RTNInstruments.tsx";
 import {
   bindBridgeToStores,
   useActiveVehicle,
@@ -126,6 +128,11 @@ export function App() {
 
           <div className="instrument-column-float">
             <InstrumentColumn vehicleId={activeVehicleId} />
+          </div>
+
+          <div className={`rtn-panel-float${planOpen ? " stage-shift-right" : ""}`}>
+            <RTNPanel />
+            <RTNInstruments />
           </div>
 
           <div className={`image-card-float${planOpen ? " stage-shift-right" : ""}`}>

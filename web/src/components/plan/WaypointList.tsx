@@ -24,6 +24,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { BridgeClient } from "../../bridge/BridgeClient.ts";
 import type { MissionItem } from "../../bridge/types.ts";
 import { useMission, usePlanItems, usePlanStore } from "../../store/index.ts";
+import { useTranslation } from "react-i18next";
 import "./WaypointList.css";
 
 /** How long an accepted upload/clear's confirmation stays visible before clearing. */
@@ -115,6 +116,7 @@ export interface WaypointListProps {
 }
 
 export function WaypointList({ client, vehicleId }: WaypointListProps) {
+  const { t } = useTranslation();
   const items = usePlanItems();
   const removeItem = usePlanStore((state) => state.removeItem);
   const updateItemAlt = usePlanStore((state) => state.updateItemAlt);
@@ -143,18 +145,18 @@ export function WaypointList({ client, vehicleId }: WaypointListProps) {
         <div className={`waypoint-list-status waypoint-list-status--${request.phase}`} role="status">
           {request.kind === "upload" ? (
             request.phase === "pending" ? (
-              "Uploading…"
+              t("Uploading…")
             ) : request.phase === "accepted" ? (
-              `Upload accepted (${request.itemCount ?? items.length} items)`
+              `${t("Upload accepted")} (${request.itemCount ?? items.length} ${t("items")})`
             ) : (
-              `Upload rejected: ${request.reason ?? "unknown reason"}`
+              `${t("Upload rejected")}: ${request.reason ?? t("unknown reason")}`
             )
           ) : request.phase === "pending" ? (
-            "Clearing vehicle mission…"
+            t("Clearing vehicle mission…")
           ) : request.phase === "accepted" ? (
-            "Vehicle mission cleared"
+            t("Vehicle mission cleared")
           ) : (
-            `Clear rejected: ${request.reason ?? "unknown reason"}`
+            `${t("Clear rejected")}: ${request.reason ?? t("unknown reason")}`
           )}
         </div>
       )}
@@ -162,7 +164,7 @@ export function WaypointList({ client, vehicleId }: WaypointListProps) {
       <div className="waypoint-list-items">
         {items.length === 0 ? (
           <div className="waypoint-list-empty">
-            No draft waypoints — switch to PLAN and click the map, or load the vehicle&apos;s mission.
+            {t("No draft waypoints — switch to PLAN and click the map, or load the vehicle's mission.")}
           </div>
         ) : (
           items.map((item) => (
@@ -207,7 +209,7 @@ export function WaypointList({ client, vehicleId }: WaypointListProps) {
           onClick={handleLoadFromVehicle}
           disabled={!onVehicleMission}
         >
-          Load from vehicle
+          {t("Load from vehicle")}
         </button>
         <button
           type="button"
@@ -215,7 +217,7 @@ export function WaypointList({ client, vehicleId }: WaypointListProps) {
           onClick={handleUpload}
           disabled={pending}
         >
-          {pending && request?.kind === "upload" ? "Uploading…" : "Upload"}
+          {pending && request?.kind === "upload" ? t("Uploading…") : t("Upload")}
         </button>
         <button
           type="button"
@@ -223,7 +225,7 @@ export function WaypointList({ client, vehicleId }: WaypointListProps) {
           onClick={handleClearVehicle}
           disabled={pending}
         >
-          {pending && request?.kind === "clear" ? "Clearing…" : "Clear vehicle"}
+          {pending && request?.kind === "clear" ? t("Clearing…") : t("Clear vehicle")}
         </button>
       </div>
     </div>

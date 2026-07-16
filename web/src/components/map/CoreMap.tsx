@@ -18,6 +18,7 @@ const DEFAULT_ZOOM = 16;
  */
 const OSM_DARK_STYLE: StyleSpecification = {
   version: 8,
+  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
   sources: {
     osm: {
       type: "raster",

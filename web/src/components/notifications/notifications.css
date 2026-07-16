@@ -20,16 +20,8 @@
   align-items: baseline;
   gap: 0.5rem;
   padding: 0.55rem 0.75rem;
-  clip-path: polygon(
-    var(--chamfer-md) 0%,
-    calc(100% - var(--chamfer-md)) 0%,
-    100% var(--chamfer-md),
-    100% calc(100% - var(--chamfer-md)),
-    calc(100% - var(--chamfer-md)) 100%,
-    var(--chamfer-md) 100%,
-    0% calc(100% - var(--chamfer-md)),
-    0% var(--chamfer-md)
-  );
+  border-radius: var(--chamfer-md, 8px);
+  border: 1px solid var(--border);
   background: var(--bg-panel-a);
   color: var(--fg);
   font: inherit;
@@ -37,20 +29,6 @@
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   animation: notif-toast-in 0.15s ease-out;
-}
-
-.notif-toast::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: var(--border);
-  clip-path: inherit;
-  padding: 1px;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-  z-index: 1;
 }
 
 @keyframes notif-toast-in {
@@ -135,16 +113,8 @@
   justify-content: center;
   width: 1.9rem;
   height: 1.9rem;
-  clip-path: polygon(
-    var(--chamfer-sm) 0%,
-    calc(100% - var(--chamfer-sm)) 0%,
-    100% var(--chamfer-sm),
-    100% calc(100% - var(--chamfer-sm)),
-    calc(100% - var(--chamfer-sm)) 100%,
-    var(--chamfer-sm) 100%,
-    0% calc(100% - var(--chamfer-sm)),
-    0% var(--chamfer-sm)
-  );
+  border-radius: var(--chamfer-sm, 4px);
+  border: 1px solid var(--border);
   background: transparent;
   color: var(--fg);
   font-size: 0.95rem;
@@ -152,19 +122,8 @@
   transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
-.notif-mute-button::after,
-.notif-bell-button::after {
+.notif-mute-button::after {
   content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: var(--border);
-  clip-path: inherit;
-  padding: 1px;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-  z-index: 1;
 }
 
 .notif-mute-button:hover,
@@ -175,6 +134,51 @@
 
 .notif-mute-button--muted {
   color: var(--fg-dim);
+}
+
+/* Magical Ring Animation for the unmuted speaker button */
+.notif-mute-button:not(.notif-mute-button--muted) {
+  border: none;
+  background: transparent;
+  overflow: hidden;
+  box-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+.notif-mute-button:not(.notif-mute-button--muted)::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 300%;
+  height: 300%;
+  background: conic-gradient(from 0deg, transparent 40%, rgba(255, 215, 0, 0.3) 70%, #ffd700 95%, #fff 100%);
+  animation: magical-spin 1.5s linear infinite;
+  z-index: 0;
+  transform-origin: 0 0;
+  /* transform-origin 0 0 means the rotation is around top-left which is at 50% 50% of the button, but we need it to rotate around center. */
+}
+/* Corrected centering for the spinning conic-gradient */
+.notif-mute-button:not(.notif-mute-button--muted)::before {
+  transform: translate(-50%, -50%);
+  transform-origin: center center;
+}
+
+.notif-mute-button:not(.notif-mute-button--muted)::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  background: var(--bg-panel-a);
+  border-radius: calc(var(--chamfer-sm, 4px) - 1px);
+  z-index: 1;
+}
+/* Ensure the icon is above the background */
+.notif-mute-button > * {
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes magical-spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
 }
 
 .notif-bell-wrap {
@@ -206,32 +210,10 @@
   width: 20rem;
   max-height: 20rem;
   overflow-y: auto;
-  clip-path: polygon(
-    var(--chamfer-md) 0%,
-    calc(100% - var(--chamfer-md)) 0%,
-    100% var(--chamfer-md),
-    100% calc(100% - var(--chamfer-md)),
-    calc(100% - var(--chamfer-md)) 100%,
-    var(--chamfer-md) 100%,
-    0% calc(100% - var(--chamfer-md)),
-    0% var(--chamfer-md)
-  );
+  border-radius: var(--chamfer-md, 8px);
+  border: 1px solid var(--border);
   background: var(--bg-panel-a);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
-}
-
-.notif-bell-dropdown::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: var(--border);
-  clip-path: inherit;
-  padding: 1px;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-  z-index: 1;
 }
 
 .notif-bell-empty {

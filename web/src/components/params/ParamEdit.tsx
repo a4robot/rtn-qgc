@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParam, useParamStore } from "../../store/index.ts";
 import { useBridge } from "../../bridge/BridgeContext.ts";
 import { validateParamValue } from "./validateParamValue.ts";
+import { useTranslation } from "react-i18next";
 import "./params.css";
 
 interface ParamEditProps {
@@ -20,6 +21,7 @@ function nextRequestId(): string {
 }
 
 export function ParamEdit({ path, onClose }: ParamEditProps) {
+  const { t } = useTranslation();
   const param = useParam(path);
   const applyParamValue = useParamStore((state) => state.applyParamValue);
   const bridge = useBridge();
@@ -87,7 +89,7 @@ export function ParamEdit({ path, onClose }: ParamEditProps) {
 
     if (!sent) {
       pendingIdRef.current = null;
-      setError("Not connected — unable to send");
+      setError(t("Not connected — unable to send"));
       return;
     }
 
@@ -98,7 +100,7 @@ export function ParamEdit({ path, onClose }: ParamEditProps) {
       pendingIdRef.current = null;
       timeoutRef.current = null;
       setPending(false);
-      setError("No response from vehicle — try again");
+      setError(t("No response from vehicle — try again"));
     }, SAVE_TIMEOUT_MS);
   };
 
@@ -108,7 +110,7 @@ export function ParamEdit({ path, onClose }: ParamEditProps) {
     <div className="param-modal-overlay">
       <div className="param-modal">
         <header className="param-modal-header">
-          <h3>Edit {name}</h3>
+          <h3>{t("Edit {{name}}", { name })}</h3>
           <button
             type="button"
             className="param-close-btn"
@@ -125,7 +127,7 @@ export function ParamEdit({ path, onClose }: ParamEditProps) {
 
           <div className="param-field">
             <label htmlFor="param-edit-value">
-              Value{meta.units ? ` (${meta.units})` : ""}
+              {t("Value")}{meta.units ? ` (${meta.units})` : ""}
             </label>
             <input
               id="param-edit-value"
@@ -149,30 +151,30 @@ export function ParamEdit({ path, onClose }: ParamEditProps) {
 
           <div className="param-meta">
             <p>
-              <strong>Current:</strong> {param.value}
+              <strong>{t("Current:")}</strong> {param.value}
             </p>
             <p>
-              <strong>Type:</strong> {meta.type}
+              <strong>{t("Type:")}</strong> {meta.type}
             </p>
             <p>
-              <strong>Description:</strong> {meta.description ?? "N/A"}
+              <strong>{t("Description:")}</strong> {meta.description ?? t("N/A")}
             </p>
             <p>
-              <strong>Default:</strong> {meta.default ?? "N/A"}
+              <strong>{t("Default:")}</strong> {meta.default ?? t("N/A")}
             </p>
             {meta.min != null && meta.max != null && (
               <p>
-                <strong>Range:</strong> {meta.min} to {meta.max}
+                <strong>{t("Range:")}</strong> {meta.min} {t("to")} {meta.max}
               </p>
             )}
           </div>
 
           <footer className="param-modal-footer">
             <button type="button" className="btn-cancel" onClick={onClose} disabled={pending}>
-              Cancel
+              {t("Cancel")}
             </button>
             <button type="submit" className="btn-save" disabled={pending}>
-              {pending ? "Saving…" : "Save"}
+              {pending ? t("Saving…") : t("Save")}
             </button>
           </footer>
         </form>

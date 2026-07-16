@@ -20,14 +20,8 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  clip-path: polygon(
-    var(--chamfer-lg) 0%,
-    100% 0%,
-    100% 100%,
-    var(--chamfer-lg) 100%,
-    0% calc(100% - var(--chamfer-lg)),
-    0% var(--chamfer-lg)
-  );
+  border-radius: var(--chamfer-lg, 12px);
+  border: 1px solid var(--border);
   background: var(--bg-panel-a);
   border-left: 1px solid var(--border);
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5), inset 1px 0 0 color-mix(in srgb, var(--accent) 20%, transparent);

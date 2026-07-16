@@ -53,7 +53,10 @@ export interface NotificationStoreState {
  * one so React lists and toast dismissal have a stable key.
  */
 function nextId(): string {
-  return `notif-${crypto.randomUUID()}`;
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return `notif-${crypto.randomUUID()}`;
+  }
+  return `notif-${Math.random().toString(36).substring(2, 11)}-${Date.now()}`;
 }
 
 export const useNotificationStore = create<NotificationStoreState>()((set, get) => ({

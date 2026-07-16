@@ -95,16 +95,8 @@
    directly against --chamfer-sm/-md/-lg to avoid touching every .tsx. */
 .ingress-chamfer {
   --chamfer: var(--chamfer-md);
-  clip-path: polygon(
-    var(--chamfer) 0%,
-    calc(100% - var(--chamfer)) 0%,
-    100% var(--chamfer),
-    100% calc(100% - var(--chamfer)),
-    calc(100% - var(--chamfer)) 100%,
-    var(--chamfer) 100%,
-    0% calc(100% - var(--chamfer)),
-    0% var(--chamfer)
-  );
+  border-radius: var(--chamfer, 8px);
+  border: 1px solid var(--border);
 }
 
 * {
@@ -121,8 +113,12 @@ body,
 body {
   background: var(--bg);
   color: var(--fg);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: "Google Sans", "Noto Sans Thai", system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: 14px;
+}
+
+button, input, textarea, select, .gcs-shell * {
+  font-family: inherit;
 }
 
 .gcs-shell {

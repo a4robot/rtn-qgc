@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { BridgeClient } from "../../bridge/BridgeClient.ts";
 import { VideoStreamDecoder } from "../../video/Decoder.ts";
+import { useTranslation } from "react-i18next";
 import "./video.css";
 
 /** How long (ms) with no decoded frame before we fall back to the placeholder. */
@@ -66,6 +67,7 @@ export function VideoPlayer({
   hardwareAcceleration,
   onFrameMeta,
 }: VideoPlayerProps) {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
@@ -207,7 +209,7 @@ export function VideoPlayer({
         {!supported && (
           <div className="video-player-placeholder">
             <span className="video-player-placeholder-text">
-              WebCodecs not supported in this browser
+              {t("WebCodecs not supported in this browser")}
             </span>
           </div>
         )}
@@ -215,19 +217,19 @@ export function VideoPlayer({
         {supported && !hasSignal && (
           <div className="video-player-placeholder">
             <span className="video-player-placeholder-text">
-              No signal — awaiting keyframe
+              {t("No signal — awaiting keyframe")}
             </span>
           </div>
         )}
 
         <div className="video-player-badge-row">
           <span className="video-player-badge video-player-badge-stream">
-            Stream {streamId}
+            {t("Stream {{streamId}}", { streamId })}
           </span>
-          <span className="video-player-badge">{fps} fps</span>
+          <span className="video-player-badge">{t("{{fps}} fps", { fps })}</span>
           {errorCount > 0 && (
             <span className="video-player-badge video-player-badge-error" title={lastError ?? undefined}>
-              {errorCount} decode {errorCount === 1 ? "error" : "errors"}
+              {t("{{count}} decode error", { count: errorCount })}
             </span>
           )}
         </div>

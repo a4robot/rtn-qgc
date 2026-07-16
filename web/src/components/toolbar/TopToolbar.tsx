@@ -23,6 +23,7 @@ import { batteryLevel, fmtNum, gpsFixShortLabel } from "../flyview/instruments.t
 import { NotificationBell } from "../notifications/NotificationBell.tsx";
 import { VehicleSelect } from "../VehicleSelect.tsx";
 import { useConnection, useSidePanelTab, useUiStore, useVehicle } from "../../store/index.ts";
+import { useTranslation } from "react-i18next";
 import "./toolbar.css";
 
 export interface TopToolbarProps {
@@ -36,6 +37,7 @@ export function TopToolbar({ activeVehicleId, onSelectVehicle }: TopToolbarProps
   const vehicle = useVehicle(activeVehicleId);
   const connectionState = useConnection((state) => state.state);
   const [menuOpen, setMenuOpen] = useState(false);
+  const { t } = useTranslation();
 
   const level = batteryLevel(vehicle?.battery.percent ?? null);
 
@@ -51,7 +53,7 @@ export function TopToolbar({ activeVehicleId, onSelectVehicle }: TopToolbarProps
             aria-pressed={tab === "fly"}
             onClick={() => setSidePanelTab("fly")}
           >
-            FLY
+            {t("FLY")}
           </button>
           <button
             type="button"
@@ -59,14 +61,14 @@ export function TopToolbar({ activeVehicleId, onSelectVehicle }: TopToolbarProps
             aria-pressed={tab === "plan"}
             onClick={() => setSidePanelTab("plan")}
           >
-            PLAN
+            {t("PLAN")}
           </button>
         </div>
 
         <div className="toolbar-indicators" aria-label="Vehicle indicators">
-          <span className="toolbar-chip toolbar-chip--mode">{vehicle?.flightMode ?? "—"}</span>
+          <span className="toolbar-chip toolbar-chip--mode">{t(vehicle?.flightMode ?? "—")}</span>
           <span className={`toolbar-chip ${vehicle?.armed ? "toolbar-chip--armed" : "toolbar-chip--disarmed"}`}>
-            {vehicle ? (vehicle.armed ? "ARMED" : "DISARMED") : "—"}
+            {vehicle ? (vehicle.armed ? t("ARMED") : t("DISARMED")) : "—"}
           </span>
           <span className={`toolbar-chip toolbar-chip--${level}`}>
             {fmtNum(vehicle?.battery.percent ?? null, 0)}%
@@ -74,7 +76,7 @@ export function TopToolbar({ activeVehicleId, onSelectVehicle }: TopToolbarProps
           <span className="toolbar-chip">
             {vehicle ? gpsFixShortLabel(vehicle.gps.fix) : "—"} · {vehicle?.gps.count ?? "—"}
           </span>
-          <span className={`toolbar-chip toolbar-chip--conn-${connectionState}`}>{connectionState}</span>
+          <span className={`toolbar-chip toolbar-chip--conn-${connectionState}`}>{t(connectionState)}</span>
         </div>
       </div>
 
@@ -103,7 +105,7 @@ export function TopToolbar({ activeVehicleId, onSelectVehicle }: TopToolbarProps
                   setMenuOpen(false);
                 }}
               >
-                Params
+                {t("Params")}
               </button>
               <button
                 type="button"
@@ -114,7 +116,7 @@ export function TopToolbar({ activeVehicleId, onSelectVehicle }: TopToolbarProps
                   setMenuOpen(false);
                 }}
               >
-                Settings
+                {t("Settings")}
               </button>
             </div>
           )}

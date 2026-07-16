@@ -26,33 +26,11 @@
   justify-content: center;
   gap: 0.2rem;
   padding: 0.4rem 0.7rem;
-  clip-path: polygon(
-    var(--chamfer-sm) 0%,
-    calc(100% - var(--chamfer-sm)) 0%,
-    100% var(--chamfer-sm),
-    100% calc(100% - var(--chamfer-sm)),
-    calc(100% - var(--chamfer-sm)) 100%,
-    var(--chamfer-sm) 100%,
-    0% calc(100% - var(--chamfer-sm)),
-    0% var(--chamfer-sm)
-  );
+  border-radius: var(--chamfer-sm, 4px);
+  border: 1px solid var(--border);
   background: var(--bg);
   min-width: 5.5rem;
   flex: 1 1 0;
-}
-
-.instrument-cell::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: var(--border);
-  clip-path: inherit;
-  padding: 1px;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-  z-index: 1;
 }
 
 .instrument-cell--heading {

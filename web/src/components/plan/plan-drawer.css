@@ -14,14 +14,8 @@
   max-width: 85vw;
   display: flex;
   flex-direction: column;
-  clip-path: polygon(
-    0% 0%,
-    calc(100% - var(--chamfer-lg)) 0%,
-    100% var(--chamfer-lg),
-    100% calc(100% - var(--chamfer-lg)),
-    calc(100% - var(--chamfer-lg)) 100%,
-    0% 100%
-  );
+  border-radius: var(--chamfer-lg, 12px);
+  border: 1px solid var(--border);
   background: var(--bg-panel-a);
   border-right: 1px solid var(--border);
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.45), inset -1px 0 0 color-mix(in srgb, var(--accent) 20%, transparent);

@@ -37,16 +37,8 @@
   color: var(--bg);
   border: none;
   padding: 4px 12px;
-  clip-path: polygon(
-    var(--chamfer-sm) 0%,
-    calc(100% - var(--chamfer-sm)) 0%,
-    100% var(--chamfer-sm),
-    100% calc(100% - var(--chamfer-sm)),
-    calc(100% - var(--chamfer-sm)) 100%,
-    var(--chamfer-sm) 100%,
-    0% calc(100% - var(--chamfer-sm)),
-    0% var(--chamfer-sm)
-  );
+  border-radius: var(--chamfer-sm, 4px);
+  border: 1px solid var(--border);
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
@@ -127,33 +119,11 @@
 .param-modal {
   position: relative;
   background: var(--bg-panel-a);
-  clip-path: polygon(
-    var(--chamfer-lg) 0%,
-    calc(100% - var(--chamfer-lg)) 0%,
-    100% var(--chamfer-lg),
-    100% calc(100% - var(--chamfer-lg)),
-    calc(100% - var(--chamfer-lg)) 100%,
-    var(--chamfer-lg) 100%,
-    0% calc(100% - var(--chamfer-lg)),
-    0% var(--chamfer-lg)
-  );
+  border-radius: var(--chamfer-lg, 12px);
+  border: 1px solid var(--border);
   width: 400px;
   max-width: 90vw;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.55), 0 0 0 1px color-mix(in srgb, var(--accent) 15%, transparent);
-}
-
-.param-modal::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: var(--border);
-  clip-path: inherit;
-  padding: 1px;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-          mask-composite: exclude;
-  z-index: 1;
 }
 
 .param-modal-header {

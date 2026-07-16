@@ -17,9 +17,11 @@ import {
 } from "../../store/index.ts";
 import { isSpeechSupported } from "./speech.ts";
 import { formatRelativeTime } from "./relativeTime.ts";
+import { useTranslation } from "react-i18next";
 import "./notifications.css";
 
 export function NotificationBell() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const notifications = useNotifications();
   const unreadCount = useUnreadNotificationCount();
@@ -54,7 +56,7 @@ export function NotificationBell() {
           aria-label={speechMuted ? "Unmute notification speech" : "Mute notification speech"}
           title={speechMuted ? "Notification speech muted" : "Notification speech on"}
         >
-          {speechMuted ? "\u{1F507}" : "\u{1F50A}"}
+          <span>{speechMuted ? "\u{1F507}" : "\u{1F50A}"}</span>
         </button>
       )}
 
@@ -73,14 +75,14 @@ export function NotificationBell() {
         {open && (
           <div className="notif-bell-dropdown" role="menu" aria-label="Notification history">
             {notifications.length === 0 ? (
-              <div className="notif-bell-empty">no notifications yet</div>
+              <div className="notif-bell-empty">{t("no notifications yet")}</div>
             ) : (
               <ul className="notif-bell-list">
                 {notifications.map((n) => (
                   <li key={n.id} className={`notif-bell-item notif-bell-item--${n.severity}`}>
-                    <span className="notif-bell-item-severity">{n.severity}</span>
-                    <span className="notif-bell-item-text">{n.text}</span>
-                    <span className="notif-bell-item-time">{formatRelativeTime(n.receivedAtMs)}</span>
+                    <span className="notif-bell-item-severity">{t(n.severity)}</span>
+                    <span className="notif-bell-item-text">{t(n.text)}</span>
+                    <span className="notif-bell-item-time">{formatRelativeTime(n.receivedAtMs, t)}</span>
                   </li>
                 ))}
               </ul>

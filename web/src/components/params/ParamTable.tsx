@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useParams } from "../../store/index.ts";
 import { useBridge } from "../../bridge/BridgeContext.ts";
 import { ParamEdit } from "./ParamEdit.tsx";
+import { useTranslation } from "react-i18next";
 import "./params.css";
 
 export function ParamTable({ vehicleId = 1 }: { vehicleId?: number }) {
+  const { t } = useTranslation();
   const params = useParams();
   const bridge = useBridge();
   const [editingPath, setEditingPath] = useState<string | null>(null);
@@ -28,15 +30,15 @@ export function ParamTable({ vehicleId = 1 }: { vehicleId?: number }) {
   return (
     <div className="param-table-container">
       <div className="param-table-header">
-        <h2>Parameters</h2>
+        <h2>{t("Parameters")}</h2>
         <form onSubmit={handleFetch} className="param-fetch-form">
           <input
             type="text"
             value={fetchName}
             onChange={(e) => setFetchName(e.target.value)}
-            placeholder="e.g. BAT_N_CELLS"
+            placeholder={t("e.g. BAT_N_CELLS")}
           />
-          <button type="submit" className="btn-fetch">Fetch</button>
+          <button type="submit" className="btn-fetch">{t("Fetch")}</button>
         </form>
       </div>
 
@@ -44,18 +46,18 @@ export function ParamTable({ vehicleId = 1 }: { vehicleId?: number }) {
         <table className="param-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Value</th>
-              <th>Units</th>
-              <th>Description</th>
-              <th>Action</th>
+              <th>{t("Name")}</th>
+              <th>{t("Value")}</th>
+              <th>{t("Units")}</th>
+              <th>{t("Description")}</th>
+              <th>{t("Action")}</th>
             </tr>
           </thead>
           <tbody>
             {paramList.length === 0 ? (
               <tr>
                 <td colSpan={5} className="param-empty">
-                  No parameters loaded.
+                  {t("No parameters loaded.")}
                 </td>
               </tr>
             ) : (
@@ -69,7 +71,7 @@ export function ParamTable({ vehicleId = 1 }: { vehicleId?: number }) {
                     <td className="param-desc">{p.meta.description || "-"}</td>
                     <td className="param-actions">
                       <button type="button" className="btn-edit" onClick={() => setEditingPath(p.path)}>
-                        Edit
+                        {t("Edit")}
                       </button>
                     </td>
                   </tr>

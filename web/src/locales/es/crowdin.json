@@ -1,0 +1,11 @@
+{
+  "Airframe is currently not set.": "Tipo de fuselaje no configurado.",
+  "Frame Type": "Tipo de Fuselaje",
+  "Invalid setting for FRAME_TYPE. Click to Reset.": "Configuración inválida para FRAME_TYPE. Haga clic para reiniciar.",
+  "Frame": "Fuselaje",
+  "Param file download failed: %1": "Error al descargar el archivo de parámetros: %1",
+  "Frame Class": "Clase de Fuselaje",
+  "Firmware Version": "Versión de Firmware",
+  "Unknown": "Desconocido",
+  "WARNING: The flight board you are using has a critical service bulletin against it which advises against flying. For details see: https://discuss.cubepilot.org/t/sb-0000002-critical-service-bulletin-for-cubes-purchased-between-january-2019-to-present-do-not-fly/406": "ADVERTENCIA: El controlador de vuelo que está utilizando tiene un boletín de servicio crítico que aconseja no volar. Para más detalles, consulte: https://discuss.cubepilot.org/t/sb-0000002-critical-service-bulletin-for-cubes-purchased-between-january-2019-to-present-do-not-fly/406"
+}

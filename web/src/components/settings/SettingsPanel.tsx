@@ -298,17 +298,18 @@ const VIDEO_URL_FIELD_LABELS: Record<"udpUrl" | "rtspUrl" | "tcpUrl", string> = 
 
 function VideoSection({ client }: { client: BridgeClient }) {
   const { errors, setValue } = useSettingRequests(client);
+  const { t } = useTranslation();
   const source = useSetting("Video", "videoSource");
   const sourceValue = typeof source?.value === "string" ? source.value : DEFAULT_VIDEO_SOURCES[0]!;
   const urlField = videoUrlFieldForSource(sourceValue);
 
   return (
     <section className="settings-section" aria-label="Video settings">
-      <h3>Video</h3>
+      <h3>{t("Video")}</h3>
       <VideoSourceField
         group="Video"
         name="videoSource"
-        label="Source"
+        label={t("Source")}
         error={errors["Video.videoSource"]}
         onChange={(value) => setValue("Video", "videoSource", value)}
       />
@@ -316,7 +317,7 @@ function VideoSection({ client }: { client: BridgeClient }) {
         <TextSettingField
           group="Video"
           name={urlField}
-          label={VIDEO_URL_FIELD_LABELS[urlField]}
+          label={t(VIDEO_URL_FIELD_LABELS[urlField])}
           error={errors[`Video.${urlField}`]}
           onChange={(value) => setValue("Video", urlField, value)}
         />
@@ -324,14 +325,14 @@ function VideoSection({ client }: { client: BridgeClient }) {
       <ToggleSettingField
         group="Video"
         name="streamEnabled"
-        label="Stream enabled"
+        label={t("Stream enabled")}
         error={errors["Video.streamEnabled"]}
         onChange={(value) => setValue("Video", "streamEnabled", value)}
       />
       <ToggleSettingField
         group="Video"
         name="lowLatencyMode"
-        label="Low latency mode"
+        label={t("Low latency mode")}
         error={errors["Video.lowLatencyMode"]}
         onChange={(value) => setValue("Video", "lowLatencyMode", value)}
       />
@@ -348,16 +349,17 @@ const AUTO_CONNECT_TOGGLES: Array<{ name: string; label: string }> = [
 
 function AutoConnectSection({ client }: { client: BridgeClient }) {
   const { errors, setValue } = useSettingRequests(client);
+  const { t } = useTranslation();
 
   return (
     <section className="settings-section" aria-label="AutoConnect settings">
-      <h3>AutoConnect</h3>
+      <h3>{t("AutoConnect")}</h3>
       {AUTO_CONNECT_TOGGLES.map(({ name, label }) => (
         <ToggleSettingField
           key={name}
           group="AutoConnect"
           name={name}
-          label={label}
+          label={t(label)}
           error={errors[`AutoConnect.${name}`]}
           onChange={(value) => setValue("AutoConnect", name, value)}
         />
@@ -365,7 +367,7 @@ function AutoConnectSection({ client }: { client: BridgeClient }) {
       <NumberSettingField
         group="AutoConnect"
         name="udpListenPort"
-        label="UDP listen port"
+        label={t("UDP listen port")}
         error={errors["AutoConnect.udpListenPort"]}
         onChange={(value) => setValue("AutoConnect", "udpListenPort", value)}
       />
@@ -402,7 +404,11 @@ function AppSection({ client }: { client: BridgeClient }) {
           <select 
             className="settings-field-input"
             value={i18n.language?.split('-')[0] || "en"}
-            onChange={(e) => i18n.changeLanguage(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              i18n.changeLanguage(val);
+              setValue("App", "qLocaleLanguage", val === "th" ? 112 : 1);
+            }}
           >
             <option value="en">{t("English")}</option>
             <option value="th">{t("Thai")}</option>
@@ -432,7 +438,7 @@ function AppSection({ client }: { client: BridgeClient }) {
           key={name}
           group="App"
           name={name}
-          label={label}
+          label={t(label)}
           error={errors[`App.${name}`]}
           onChange={(value) => setValue("App", name, value)}
         />
@@ -632,6 +638,7 @@ function LinkRow({
   onDisconnect: () => void;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation();
   const pendingOp = useLinkPending(link.name);
   const busy = pendingOp !== undefined;
 
@@ -645,20 +652,20 @@ function LinkRow({
         <span className="settings-link-name">{link.name}</span>
         <span className="settings-link-type">{link.type}</span>
         <span className="settings-link-detail">{linkSummary(link)}</span>
-        {link.autoConnect && <span className="settings-link-auto">auto</span>}
+        {link.autoConnect && <span className="settings-link-auto">{t("auto")}</span>}
       </div>
       <div className="settings-link-actions">
         {link.connected ? (
           <button type="button" onClick={onDisconnect} disabled={busy}>
-            {pendingOp === "disconnect" ? "Disconnecting…" : "Disconnect"}
+            {pendingOp === "disconnect" ? t("Disconnecting…") : t("Disconnect")}
           </button>
         ) : (
           <button type="button" onClick={onConnect} disabled={busy}>
-            {pendingOp === "connect" ? "Connecting…" : "Connect"}
+            {pendingOp === "connect" ? t("Connecting…") : t("Connect")}
           </button>
         )}
         <button type="button" className="settings-link-remove" onClick={onRemove} disabled={busy}>
-          {pendingOp === "remove" ? "Removing…" : "Remove"}
+          {pendingOp === "remove" ? t("Removing…") : t("Remove")}
         </button>
       </div>
       {error && <span className="settings-field-error">{error}</span>}
@@ -675,6 +682,7 @@ function AddLinkForm({
   error: string | null;
   onSubmit: (fields: LinkFieldsInput) => void;
 }) {
+  const { t } = useTranslation();
   const [linkType, setLinkType] = useState<AddableLinkType>("udp");
   const [name, setName] = useState("");
   const [path, setPath] = useState("");
@@ -769,23 +777,24 @@ function AddLinkForm({
       {error && <span className="settings-field-error">{error}</span>}
 
       <button type="submit" className="settings-add-link-submit" disabled={pending}>
-        {pending ? "Adding…" : "Add Link"}
+        {pending ? t("Adding…") : t("Add Link")}
       </button>
     </form>
   );
 }
 
 function LinksSection({ client }: { client: BridgeClient }) {
+  const { t } = useTranslation();
   const links = useLinks();
   const { linkErrors, addError, addPending, sendAdd, sendConnect, sendDisconnect, sendRemove } =
     useLinkRequests(client);
 
   return (
     <section className="settings-section" aria-label="Links">
-      <h3>Links</h3>
+      <h3>{t("Links")}</h3>
       <div className="settings-link-list">
         {links.length === 0 ? (
-          <div className="settings-empty">No links configured.</div>
+          <div className="settings-empty">{t("No links configured.")}</div>
         ) : (
           links.map((link) => (
             <LinkRow

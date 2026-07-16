@@ -11,6 +11,7 @@
  */
 
 import { useConnection, useVehicles } from "../store/index.ts";
+import { useTranslation } from "react-i18next";
 import "./VehicleSelect.css";
 
 /** Above this many known vehicles, switch from a chip row to a dropdown. */
@@ -24,13 +25,14 @@ export interface VehicleSelectProps {
 }
 
 export function VehicleSelect({ activeVehicleId, onSelect }: VehicleSelectProps) {
+  const { t } = useTranslation();
   const vehicleIds = useConnection((state) => state.vehicleIds);
   const vehicles = useVehicles();
 
   if (vehicleIds.length === 0) {
     return (
       <div className="vehicle-select vehicle-select--empty" aria-label="Vehicle selector">
-        <span className="vehicle-select-empty">no vehicles</span>
+        <span className="vehicle-select-empty">{t("no vehicles")}</span>
       </div>
     );
   }

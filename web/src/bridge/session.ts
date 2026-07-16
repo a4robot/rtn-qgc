@@ -54,7 +54,8 @@ export interface BridgeSessionHandle {
   stop(): void;
 }
 
-const DEFAULT_URL = "ws://127.0.0.1:8877";
+const wsProtocol = typeof window !== 'undefined' && window.location.protocol === "https:" ? "wss:" : "ws:";
+const DEFAULT_URL = typeof window !== 'undefined' ? `${wsProtocol}//${window.location.hostname}:8877` : "ws://127.0.0.1:8877";
 
 /**
  * Pure switch decision, extracted so the branching is unit-testable without
