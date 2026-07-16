@@ -37,6 +37,10 @@ android {
             }
         }
         getByName("release") {
+            // The GCS dials the ghost bridge over plain ws:// on the LAN
+            // (the headless core has no TLS tier — see the wave-18 notes);
+            // without this the WebView silently refuses the connection.
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
             isMinifyEnabled = true
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }

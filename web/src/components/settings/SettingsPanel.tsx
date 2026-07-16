@@ -462,7 +462,7 @@ function AppSection({ client }: { client: BridgeClient }) {
             }}
             aria-label="Bridge WebSocket address"
           />
-          <button type="button" className="settings-link-btn" onClick={applyBridgeUrl}>
+          <button type="button" className="settings-add-link-submit" onClick={applyBridgeUrl}>
             {t("Apply")}
           </button>
         </div>
