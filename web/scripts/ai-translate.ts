@@ -1,58 +1,35 @@
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
+import { $ } from "bun";
 
 const translationsDir = join(import.meta.dir, "../../translations");
 const qgcTsPath = join(translationsDir, "qgc.ts");
 const outTsPath = join(translationsDir, "qgc_source_th_TH.ts");
 
-// You can use OpenAI or any OpenAI-compatible API (like Groq, OpenRouter, local LM Studio)
-const API_KEY = process.env.OPENAI_API_KEY;
-const API_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1/chat/completions";
-const MODEL = process.env.MODEL || "gpt-4o-mini";
-
-if (!API_KEY) {
-  console.error("🚨 Please set OPENAI_API_KEY environment variable.");
-  console.error("Example: OPENAI_API_KEY=sk-... bun run web/scripts/ai-translate.ts");
-  process.exit(1);
-}
-
 const messageRegex = /<message>([\s\S]*?)<\/message>/g;
 const sourceRegex = /<source>([\s\S]*?)<\/source>/;
 
-// Helper to wait to avoid rate limits
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function translateBatch(sources: string[]): Promise<string[]> {
-  const prompt = `You are an expert translator for a Drone Ground Control Station (QGroundControl).
+  const promptText = `You are an expert translator for a Drone Ground Control Station (QGroundControl).
 Translate the following English strings to Thai. 
 Rules:
 1. Maintain all special placeholders like %1, %2, %n, <br>, etc. exactly as they are.
 2. Keep technical terms natural for drone pilots (e.g., Roll, Pitch, Yaw, Waypoint, Armed).
-3. Return ONLY a valid JSON array of strings in the exact same order. Do not wrap in markdown or add explanations.
+3. Return ONLY a valid JSON array of strings in the exact same order. Do not wrap in markdown, do not use tools, do not output any other conversational text.
 
 Strings to translate:
 ${JSON.stringify(sources, null, 2)}`;
 
-  const response = await fetch(API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${API_KEY}`
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.3,
-    })
-  });
+  // Use headless agy instead of external API
+  const { stdout, stderr, exitCode } = await $`agy -p ${promptText}`.quiet();
 
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`API Error: ${response.status} - ${err}`);
+  if (exitCode !== 0) {
+    throw new Error(`agy CLI Error: ${stderr.toString()}`);
   }
 
-  const data = await response.json();
-  const content = data.choices[0].message.content.trim();
+  const content = stdout.toString().trim();
   
   // Clean markdown block if the AI returned it
   const jsonStr = content.replace(/^```json/, "").replace(/```$/, "").trim();
