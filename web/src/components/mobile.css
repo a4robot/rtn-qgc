@@ -17,8 +17,10 @@
   .gcs-toolbar {
     gap: 0.5rem;
     padding: 0 0.5rem;
+    padding-top: env(safe-area-inset-top);
     padding-left: max(0.5rem, env(safe-area-inset-left));
     padding-right: max(0.5rem, env(safe-area-inset-right));
+    height: calc(3rem + env(safe-area-inset-top));
     overflow-x: auto;
     scrollbar-width: none;
   }

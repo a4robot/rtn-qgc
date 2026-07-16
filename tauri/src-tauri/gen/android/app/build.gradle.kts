@@ -13,6 +13,17 @@ val tauriProperties = Properties().apply {
     }
 }
 
+// Release signing comes from an untracked keystore.properties next to the
+// gradle project (keyAlias/password/storeFile — see .gitignore). Without
+// it the release APK is built unsigned, same as before, so keyless
+// checkouts/CI still build.
+val keystoreProperties = Properties().apply {
+    val propFile = rootProject.file("keystore.properties")
+    if (propFile.exists()) {
+        propFile.inputStream().use { load(it) }
+    }
+}
+
 android {
     compileSdk = 36
     namespace = "com.a4robotics.rtnqgc"
@@ -23,6 +34,16 @@ android {
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
+    }
+    signingConfigs {
+        create("release") {
+            if (keystoreProperties.containsKey("storeFile")) {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["password"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["password"] as String
+            }
+        }
     }
     buildTypes {
         getByName("debug") {
@@ -41,6 +62,9 @@ android {
             // (the headless core has no TLS tier — see the wave-18 notes);
             // without this the WebView silently refuses the connection.
             manifestPlaceholders["usesCleartextTraffic"] = "true"
+            if (keystoreProperties.containsKey("storeFile")) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = true
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }
