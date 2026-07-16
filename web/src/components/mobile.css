@@ -1,0 +1,152 @@
+/* Compact cockpit for phone-sized viewports (the Android/Tauri build and
+ * small browser windows). All responsive overrides live in this one file.
+ *
+ * Every selector is prefixed with the stage/toolbar container on purpose:
+ * these rules override same-specificity declarations in the component
+ * stylesheets, and the dev bundler does not guarantee this file lands
+ * last in the cascade — the extra specificity does, without !important.
+ *
+ * Breakpoints: a Pixel-7-class phone is ~412 CSS px portrait / ~915 CSS px
+ * landscape, so ≤950px catches phone-landscape + small tablets and
+ * ≤600px-portrait catches phones held upright.
+ */
+
+@media (max-width: 950px) {
+  /* Toolbar: horizontally scrollable instead of chips colliding; the
+     brand text goes — on a phone the app is the whole screen. */
+  .gcs-toolbar {
+    gap: 0.5rem;
+    padding: 0 0.5rem;
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .gcs-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+  .gcs-toolbar .gcs-toolbar-brand {
+    display: none;
+  }
+  .gcs-toolbar .gcs-toolbar-section {
+    flex: none;
+  }
+
+  /* Right-edge instruments: narrower, and internally scrollable so the
+     column can never grow past the stage. */
+  .gcs-stage .instrument-column-float {
+    top: 0.5rem;
+    right: 0.5rem;
+    max-height: calc(100% - 1rem);
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .gcs-stage .instrument-column-float::-webkit-scrollbar {
+    display: none;
+  }
+  .gcs-stage .instrument-column {
+    width: 11rem;
+  }
+
+  /* RTN quick actions + engine gauges (top-left): tighter, scrollable,
+     and stopped well short of the bottom edge so the video PiP and
+     image card underneath stay reachable. */
+  .gcs-stage .rtn-panel-float {
+    top: 0.5rem;
+    left: 0.5rem;
+    gap: 0.5rem;
+    max-width: calc(100vw - 12.5rem);
+    max-height: calc(100% - 160px);
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .gcs-stage .rtn-panel-float::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Video PiP + image card: smaller floats, shifted right of the
+     quick-action rail so its buttons stay visible and tappable. */
+  .gcs-stage .stage-slot--pip {
+    width: 200px;
+    left: 5rem;
+    bottom: 0.5rem;
+  }
+  .gcs-stage .image-card-float {
+    width: 200px;
+    left: 5rem;
+    bottom: calc(113px + 1.25rem); /* 200px 16:9 PiP + gap */
+  }
+
+  /* Guided actions: docked to the bottom edge. */
+  .gcs-stage .guided-strip {
+    bottom: max(0.5rem, env(safe-area-inset-bottom));
+    max-height: 42vh;
+  }
+
+  /* Drawers become full-screen sheets. */
+  .gcs-stage .plan-drawer {
+    width: 100vw;
+    max-width: 100vw;
+  }
+  .overlay-backdrop .overlay-drawer {
+    width: 100vw;
+    max-width: 100vw;
+  }
+
+  /* With full-screen drawers there is nowhere to shift floats to. */
+  .gcs-stage .stage-slot--pip.stage-shift-right,
+  .gcs-stage .image-card-float.stage-shift-right {
+    left: 5rem;
+  }
+  .gcs-stage .rtn-panel-float.stage-shift-right {
+    left: 0.5rem;
+  }
+}
+
+@media (max-width: 950px) and (max-height: 480px) {
+  /* Phone landscape: the engine-gauge card is ~350px tall — on a ~412px
+     screen it buries the map and the floats under it. Landscape keeps
+     the quick-action rail; the gauges are tablet/desktop furniture. */
+  .gcs-stage .rtn-panel-float .rtn-inst-panel {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) and (orientation: portrait) {
+  /* Portrait phone: map + toolbar + slim instruments + the guided strip
+     are the essentials. The engine-gauge panel is landscape-only — in
+     portrait it buried the map under a 180px-wide card; the same fuel/
+     volts data lives in the instrument column tiles. */
+  .gcs-stage .rtn-panel-float .rtn-inst-panel {
+    display: none;
+  }
+  .gcs-stage .rtn-panel-float {
+    max-width: calc(100vw - 11.5rem);
+  }
+
+  .gcs-stage .instrument-column {
+    width: 10rem;
+  }
+
+  /* Guided strip: full-width dock, capped so the map keeps the middle
+     of the screen. */
+  .gcs-stage .guided-strip {
+    width: calc(100vw - 1rem);
+    max-width: none;
+    max-height: 32vh;
+  }
+
+  /* PiP + image card ride ABOVE the strip's reserved band instead of
+     underneath it, and to the RIGHT of the quick-action rail so the
+     rail's lower buttons stay tappable. */
+  .gcs-stage .stage-slot--pip {
+    width: 150px;
+    left: 5rem;
+    bottom: calc(32vh + 1rem);
+  }
+  .gcs-stage .image-card-float {
+    width: 150px;
+    left: 5rem;
+    bottom: calc(32vh + 85px + 1.5rem); /* strip band + 150px 16:9 PiP + gap */
+  }
+}
