@@ -16,6 +16,7 @@ import i18n from "../../i18n.ts";
 export const SPOKEN_SEVERITIES = new Set(["warning", "critical"]);
 
 const MUTE_STORAGE_KEY = "rtn-gcs.notifications.speechMuted";
+const VOICE_LANG_STORAGE_KEY = "rtn-gcs.notifications.voiceLang";
 
 /** True if the browser's speechSynthesis API is present and callable. */
 export function isSpeechSupported(): boolean {
@@ -51,6 +52,30 @@ export function saveSpeechMuted(muted: boolean): void {
   }
 }
 
+/** Read the persisted voice language preference. Defaults to "auto" if unset or unreadable. */
+export function loadVoiceLanguage(): string {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return "auto";
+  }
+  try {
+    return window.localStorage.getItem(VOICE_LANG_STORAGE_KEY) || "auto";
+  } catch {
+    return "auto";
+  }
+}
+
+/** Persist the voice language preference. */
+export function saveVoiceLanguage(lang: string): void {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+  try {
+    window.localStorage.setItem(VOICE_LANG_STORAGE_KEY, lang);
+  } catch {
+    // ignore
+  }
+}
+
 /**
  * Speak `text` if supported. Never throws — any speechSynthesis failure
  * (unsupported voice, engine crash, etc.) is swallowed.
@@ -60,9 +85,13 @@ export function speak(text: string): void {
     return;
   }
 
-  // Append lang parameter if needed, but the online TTS might auto-detect
+  const voiceLang = loadVoiceLanguage();
+  // If auto, we let the OS/API decide, or fallback to Thai if Thai chars detected
+  const resolvedLang = voiceLang !== "auto" ? voiceLang : (/[ก-๙]/.test(text) ? "th-TH" : "");
+
+  // Append lang parameter if needed
   if (typeof window.Audio !== "undefined" && window.navigator.onLine !== false) {
-    const langParam = i18n.language ? `&lang=${i18n.language}` : "";
+    const langParam = resolvedLang ? `&lang=${resolvedLang}` : "";
     const url = `https://tts-api.vercel.app/api/tts?text=${encodeURIComponent(text)}${langParam}`;
     const audio = new window.Audio(url);
     
@@ -70,36 +99,28 @@ export function speak(text: string): void {
     const doFallback = () => {
       if (!fallbackTriggered) {
         fallbackTriggered = true;
-        fallbackToLocalTTS(text);
+        fallbackToLocalTTS(text, resolvedLang);
       }
     };
 
     audio.onerror = doFallback;
     audio.play().catch(doFallback);
   } else {
-    fallbackToLocalTTS(text);
+    fallbackToLocalTTS(text, resolvedLang);
   }
 }
 
-function fallbackToLocalTTS(text: string): void {
+function fallbackToLocalTTS(text: string, lang: string): void {
   if (!isSpeechSupported()) {
     return;
   }
   try {
     const utterance = new window.SpeechSynthesisUtterance(text);
-    
-    // Use the language selected in settings
-    if (i18n.language) {
-      utterance.lang = i18n.language;
+    if (lang) {
+      utterance.lang = lang;
     }
-    // Fallback to force Thai if there are Thai characters
-    if (/[ก-๙]/.test(text)) {
-      utterance.lang = "th-TH";
-    }
-    
     window.speechSynthesis.speak(utterance);
   } catch {
     // TTS is best-effort — never let it break the app.
   }
 }
-

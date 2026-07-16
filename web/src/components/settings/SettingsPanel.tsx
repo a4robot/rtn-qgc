@@ -24,6 +24,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { loadVoiceLanguage, saveVoiceLanguage } from "../notifications/speech.ts";
 
 import type { BridgeClient } from "../../bridge/BridgeClient.ts";
 import type { AddableLinkType, LinkConfig, SettingGroup, SettingScalar } from "../../bridge/types.ts";
@@ -383,13 +384,20 @@ const APP_NUMBER_FIELDS: Array<{ name: string; label: string }> = [
 function AppSection({ client }: { client: BridgeClient }) {
   const { errors, setValue } = useSettingRequests(client);
   const { t, i18n } = useTranslation();
+  const [voiceLang, setVoiceLang] = useState(() => loadVoiceLanguage());
+
+  const handleVoiceLangChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    setVoiceLang(val);
+    saveVoiceLanguage(val);
+  };
 
   return (
     <section className="settings-section" aria-label="App settings">
       <h3>{t("App settings")}</h3>
       
       <div className="settings-field">
-        <div className="settings-field-label">{t("Language")}</div>
+        <div className="settings-field-label">{t("UI Language")}</div>
         <div className="settings-field-control">
           <select 
             className="settings-field-input"
@@ -398,6 +406,21 @@ function AppSection({ client }: { client: BridgeClient }) {
           >
             <option value="en">{t("English")}</option>
             <option value="th">{t("Thai")}</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="settings-field">
+        <div className="settings-field-label">{t("Voice Language")}</div>
+        <div className="settings-field-control">
+          <select 
+            className="settings-field-input"
+            value={voiceLang}
+            onChange={handleVoiceLangChange}
+          >
+            <option value="auto">{t("Auto-Detect")}</option>
+            <option value="en">{t("English")}</option>
+            <option value="th-TH">{t("Thai")}</option>
           </select>
         </div>
       </div>

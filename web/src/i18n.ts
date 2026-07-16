@@ -6,7 +6,9 @@ const resources = {
   en: {
     translation: {
       "App settings": "App settings",
-      "Language": "Language",
+      "UI Language": "UI Language",
+      "Voice Language": "Voice Language",
+      "Auto-Detect": "Auto-Detect",
       "English": "English",
       "Thai": "Thai"
     }
@@ -14,7 +16,9 @@ const resources = {
   th: {
     translation: {
       "App settings": "การตั้งค่าแอปพลิเคชัน",
-      "Language": "ภาษา",
+      "UI Language": "ภาษาของหน้าจอ (UI Language)",
+      "Voice Language": "ภาษาของเสียงเตือน (Voice Language)",
+      "Auto-Detect": "อัตโนมัติ (Auto-Detect)",
       "English": "อังกฤษ (English)",
       "Thai": "ไทย (Thai)"
     }
