@@ -9,7 +9,8 @@
     "mock:selftest": "bun mock/selftest.ts",
     "test": "bun test",
     "build:tauri": "bun build ./index.html --outdir ../tauri/dist --production",
-    "sync-i18n": "bun scripts/sync-translations.ts"
+    "sync-i18n": "bun scripts/sync-translations.ts",
+    "ai-translate": "bun scripts/ai-translate.ts"
   },
   "dependencies": {
     "i18next": "^26.3.6",
