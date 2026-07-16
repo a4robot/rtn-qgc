@@ -8,7 +8,8 @@
     "mock": "bun mock/server.ts",
     "mock:selftest": "bun mock/selftest.ts",
     "test": "bun test",
-    "build:tauri": "bun build ./index.html --outdir ../tauri/dist --production"
+    "build:tauri": "bun build ./index.html --outdir ../tauri/dist --production",
+    "sync-i18n": "bun scripts/sync-translations.ts"
   },
   "dependencies": {
     "i18next": "^26.3.6",
