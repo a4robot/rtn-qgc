@@ -419,8 +419,10 @@ function AppSection({ client }: { client: BridgeClient }) {
             onChange={handleVoiceLangChange}
           >
             <option value="auto">{t("Auto-Detect")}</option>
-            <option value="en">{t("English")}</option>
-            <option value="th-TH">{t("Thai")}</option>
+            <option value="thai-cloud">{t("Thai (Cloud)")}</option>
+            <option value="english-cloud">{t("English (Cloud)")}</option>
+            <option value="thai-offline">{t("Thai (Offline)")}</option>
+            <option value="english-offline">{t("English (Offline)")}</option>
           </select>
         </div>
       </div>

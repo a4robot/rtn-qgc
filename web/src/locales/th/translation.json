@@ -1,0 +1,12 @@
+{
+  "App settings": "การตั้งค่าแอปพลิเคชัน",
+  "UI Language": "ภาษาของหน้าจอ (UI Language)",
+  "Voice Language": "ภาษาของเสียงเตือน (Voice Language)",
+  "Auto-Detect": "อัตโนมัติ (Auto-Detect)",
+  "English": "อังกฤษ (English)",
+  "Thai": "ไทย (Thai)",
+  "Thai (Cloud)": "ไทย (คลาวด์)",
+  "English (Cloud)": "อังกฤษ (คลาวด์)",
+  "Thai (Offline)": "ไทย (ออฟไลน์)",
+  "English (Offline)": "อังกฤษ (ออฟไลน์)"
+}
