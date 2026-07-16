@@ -58,6 +58,55 @@ const wsProtocol = typeof window !== 'undefined' && window.location.protocol ===
 const DEFAULT_URL = typeof window !== 'undefined' ? `${wsProtocol}//${window.location.hostname}:8877` : "ws://127.0.0.1:8877";
 
 /**
+ * Persistent bridge-address override (Settings → App → Bridge address).
+ * Deriving the host from `window.location` works in a browser, but inside
+ * the Tauri mobile shell the page origin is `tauri.localhost` — there is
+ * no ghost there, and no address bar to type `?bridge=` into. The saved
+ * address (e.g. `ws://192.168.1.50:8877` for a ghost on the drone's
+ * companion or a laptop) fills that gap; the `?bridge=` query param still
+ * wins when present (dev workflow, see App.tsx).
+ */
+const BRIDGE_URL_STORAGE_KEY = "rtn-gcs.bridge.url";
+
+/** Read the persisted bridge address. Returns null if unset or storage is unavailable. */
+export function loadBridgeUrl(): string | null {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return null;
+  }
+  try {
+    return window.localStorage.getItem(BRIDGE_URL_STORAGE_KEY) || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist the bridge address; empty/whitespace clears the override. */
+export function saveBridgeUrl(url: string): void {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+  try {
+    const trimmed = url.trim();
+    if (trimmed) {
+      window.localStorage.setItem(BRIDGE_URL_STORAGE_KEY, trimmed);
+    } else {
+      window.localStorage.removeItem(BRIDGE_URL_STORAGE_KEY);
+    }
+  } catch {
+    // private mode / quota exceeded — override just won't persist.
+  }
+}
+
+/**
+ * The address the session will actually dial: explicit override (query
+ * param) > saved override > location-derived default. Pure precedence,
+ * exported for tests and for showing the effective address in Settings.
+ */
+export function resolveBridgeUrl(explicit?: string): string {
+  return explicit ?? loadBridgeUrl() ?? DEFAULT_URL;
+}
+
+/**
  * Pure switch decision, extracted so the branching is unit-testable without
  * a real BridgeClient/WebSocket: given the currently active vehicle, the
  * requested vehicle, and the live connection state, decide whether the
@@ -206,7 +255,7 @@ export function startBridgeSession(
     }
   });
 
-  client.connect(options.url ?? DEFAULT_URL);
+  client.connect(resolveBridgeUrl(options.url));
 
   return {
     setVehicle(id: number): void {

@@ -24,6 +24,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { loadBridgeUrl, resolveBridgeUrl, saveBridgeUrl } from "../../bridge/session.ts";
 import { loadVoiceLanguage, saveVoiceLanguage } from "../notifications/speech.ts";
 
 import type { BridgeClient } from "../../bridge/BridgeClient.ts";
@@ -394,6 +395,17 @@ function AppSection({ client }: { client: BridgeClient }) {
     saveVoiceLanguage(val);
   };
 
+  // Bridge-address override — the way a phone/tablet build (no ghost
+  // sidecar, no address bar) points at a ghost running on the drone's
+  // companion or a laptop. Applying reconnects by reloading: the bridge
+  // session dials once at startup, and a full reload is the one path that
+  // cleanly rebinds every store.
+  const [bridgeUrl, setBridgeUrl] = useState(() => loadBridgeUrl() ?? "");
+  const applyBridgeUrl = () => {
+    saveBridgeUrl(bridgeUrl);
+    window.location.reload();
+  };
+
   return (
     <section className="settings-section" aria-label="App settings">
       <h3>{t("App settings")}</h3>
@@ -430,6 +442,29 @@ function AppSection({ client }: { client: BridgeClient }) {
             <option value="thai-offline">{t("Thai (Offline)")}</option>
             <option value="english-offline">{t("English (Offline)")}</option>
           </select>
+        </div>
+      </div>
+
+      <div className="settings-field">
+        <div className="settings-field-label">{t("Bridge address")}</div>
+        <div className="settings-field-control">
+          <input
+            className="settings-field-input"
+            type="text"
+            inputMode="url"
+            value={bridgeUrl}
+            placeholder={resolveBridgeUrl()}
+            onChange={(e) => setBridgeUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                applyBridgeUrl();
+              }
+            }}
+            aria-label="Bridge WebSocket address"
+          />
+          <button type="button" className="settings-link-btn" onClick={applyBridgeUrl}>
+            {t("Apply")}
+          </button>
         </div>
       </div>
 
