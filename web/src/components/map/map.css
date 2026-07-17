@@ -35,7 +35,8 @@
  */
 .core-map .maplibregl-canvas {
   outline: none;
-  filter: invert(90%) hue-rotate(200deg) brightness(1.05) contrast(0.9) saturate(1.4);
+  /* Tuned to approximate: Land #131c1c, Water #005eff */
+  filter: invert(90%) sepia(20%) hue-rotate(185deg) brightness(0.9) contrast(1.2) saturate(2.5);
 }
 
 .core-map .maplibregl-ctrl-attrib {
