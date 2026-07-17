@@ -25,13 +25,9 @@ const FOLLOW_THRESHOLD_M = 3;
 // browser's CSSOM, so `var(...)` would never resolve there, and both use
 // sites share these constants.
 //
-// Only the marker icon is exempt from the Ingress dark-map canvas filter
-// (see map/map.css) — it's a DOM overlay (maplibregl.Marker), not part of
-// the filtered `.maplibregl-canvas`, so it always shows this true color.
-// The trail *is* a GL layer drawn onto that same canvas, so it does get
-// filtered — checked against the filter recipe, #ff3b46/#12e0ea still land
-// on a clearly-visible orange-red/blue post-filter, so no compensation
-// needed there (unlike MissionLayer's waypoint/current colors).
+// Both the DOM marker and the GL trail render these true colors directly —
+// the old canvas-wide dark-map CSS filter is gone (the basemap is a dark
+// vector style now), so no filter compensation applies anywhere on the map.
 const ARMED_COLOR = "#ff3b46"; // --status-critical
 const DISARMED_COLOR = "#12e0ea"; // --accent
 
