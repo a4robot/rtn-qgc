@@ -47,17 +47,23 @@ export function CoreMap({
     mapRef.current = map;
 
     map.once("load", () => {
-      // 1. Change water color to the exact shade calculated from the styler
+      // Colors computed by running the requested Google styled-map rules
+      // exactly (hue styler = replace H, keep S/L; saturation −50 = S×0.5;
+      // invert_lightness = L→1−L; the "all" rule and the "water" rule BOTH
+      // match water, so its lightness inverts twice and cancels):
+      //   water: base #b3e1ff = hsl(203°,100%,85%) → hue(#005eff)=218°,
+      //          S×0.5 → hsl(218°,50%,85%) = #c6d4ec  (matches the given
+      //          calibration point bit-exactly)
+      //   land:  base #f2efe9 = hsl(40°,25%,93%) → hue(#131c1c)=180°,
+      //          S×0.5, L inverted → hsl(180°,13%,7%) = #0f1414
       if (map.getLayer("water")) {
         map.setPaintProperty("water", "fill-color", "#c6d4ec");
       }
       if (map.getLayer("waterway")) {
         map.setPaintProperty("waterway", "line-color", "#c6d4ec");
       }
-      
-      // Also set the background color to the exact shade calculated for land
       if (map.getLayer("background")) {
-        map.setPaintProperty("background", "background-color", "#151919");
+        map.setPaintProperty("background", "background-color", "#0f1414");
       }
 
       // 2. & 3. Hide POI and Transit
