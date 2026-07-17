@@ -38,12 +38,12 @@
 
 .rtn-rudder-needle-container {
   position: absolute;
-  bottom: 0;
+  top: 0;
   left: 50%;
   width: 4px;
   height: 50px;
   margin-left: -2px;
-  transform-origin: bottom center;
+  transform-origin: top center;
   transition: transform 0.2s ease;
 }
 
@@ -54,12 +54,12 @@
   width: 100%;
   height: 100%;
   background: white;
-  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
 }
 
 .rtn-rudder-dot {
   position: absolute;
-  bottom: -4px;
+  top: -4px;
   left: 50%;
   width: 8px;
   height: 8px;

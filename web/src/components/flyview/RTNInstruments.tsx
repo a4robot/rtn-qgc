@@ -11,7 +11,7 @@ export function RTNInstruments() {
   const rpm = 0;
 
   // Rudder rotation mapping (assuming -45 to 45 deg)
-  const needleRotation = rudderAngle;
+  const needleRotation = -rudderAngle;
 
   return (
     <div className="rtn-inst-panel">
@@ -19,12 +19,12 @@ export function RTNInstruments() {
         <div className="rtn-inst-title">{t("RUDDER")} {rudderAngle}&deg;</div>
         
         <div className="rtn-rudder-gauge">
-          {/* Semicircle outline */}
-          <svg viewBox="-50 -50 100 50" className="rtn-rudder-svg">
-            <path d="M -40 0 A 40 40 0 0 1 40 0" fill="none" stroke="white" strokeWidth="2" />
-            <line x1="0" y1="0" x2="0" y2="-40" stroke="white" strokeWidth="2" />
-            <line x1="-28.28" y1="-28.28" x2="-35" y2="-35" stroke="white" strokeWidth="2" />
-            <line x1="28.28" y1="-28.28" x2="35" y2="-35" stroke="white" strokeWidth="2" />
+          {/* Semicircle outline (lower half) */}
+          <svg viewBox="-50 0 100 50" className="rtn-rudder-svg">
+            <path d="M -40 0 A 40 40 0 0 0 40 0" fill="none" stroke="white" strokeWidth="2" />
+            <line x1="0" y1="0" x2="0" y2="40" stroke="white" strokeWidth="2" />
+            <line x1="-28.28" y1="28.28" x2="-35" y2="35" stroke="white" strokeWidth="2" />
+            <line x1="28.28" y1="28.28" x2="35" y2="35" stroke="white" strokeWidth="2" />
             <line x1="-40" y1="0" x2="-45" y2="0" stroke="white" strokeWidth="2" />
             <line x1="40" y1="0" x2="45" y2="0" stroke="white" strokeWidth="2" />
           </svg>
