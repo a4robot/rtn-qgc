@@ -191,7 +191,7 @@ async fn run_ghost_once(
     Ok(())
 }
 
-/// Watchdog: keep ghost alive, restarting with exponential backoff.
+#[cfg(not(target_os = "android"))]
 fn spawn_watchdog(app: AppHandle, slot: Arc<GhostSlot>) {
     tauri::async_runtime::spawn(async move {
         let launch = GhostLaunchConfig::resolve(&app);
@@ -223,6 +223,41 @@ fn spawn_watchdog(app: AppHandle, slot: Arc<GhostSlot>) {
             );
             emit_status(&app, "restarting", attempt);
             tokio::time::sleep(delay).await;
+        }
+    });
+}
+
+#[cfg(target_os = "android")]
+fn spawn_watchdog(app: AppHandle, _slot: Arc<GhostSlot>) {
+    std::thread::spawn(move || {
+        log::info!(target: "ghost", "Loading shared library libQGroundControl.so on Android...");
+        emit_status(&app, "running", 0);
+        
+        // Wait briefly for app to settle
+        std::thread::sleep(Duration::from_millis(500));
+
+        unsafe {
+            match libloading::Library::new("libQGroundControl_arm64-v8a.so") {
+                Ok(lib) => {
+                    log::info!(target: "ghost", "Successfully loaded libQGroundControl_arm64-v8a.so");
+                    // Try to find start_qgc_ghost
+                    let start_func: Result<libloading::Symbol<unsafe extern "C" fn()>, _> = lib.get(b"start_qgc_ghost\0");
+                    match start_func {
+                        Ok(func) => {
+                            log::info!(target: "ghost", "Found start_qgc_ghost. Invoking...");
+                            func();
+                            // We purposefully leak the lib so the thread keeps running
+                            std::mem::forget(lib);
+                        }
+                        Err(e) => {
+                            log::error!(target: "ghost", "Failed to find start_qgc_ghost symbol: {e}");
+                        }
+                    }
+                }
+                Err(e) => {
+                    log::error!(target: "ghost", "Failed to load libQGroundControl.so: {e}");
+                }
+            }
         }
     });
 }

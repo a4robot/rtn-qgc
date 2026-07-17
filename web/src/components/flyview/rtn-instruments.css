@@ -85,9 +85,10 @@
   font-size: 0.75rem;
   font-weight: bold;
   margin-bottom: 8px;
-  height: 2.2rem;
+  min-height: 2.5rem;
   display: flex;
   align-items: flex-end;
+  justify-content: center;
   text-align: center;
 }
 
@@ -96,6 +97,7 @@
   height: 120px;
   display: flex;
   align-items: center;
+  justify-content: center;
 }
 
 .rtn-bar-outline {
