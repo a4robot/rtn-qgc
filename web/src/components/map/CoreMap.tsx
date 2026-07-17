@@ -47,17 +47,17 @@ export function CoreMap({
     mapRef.current = map;
 
     map.once("load", () => {
-      // 1. Change water color (simulating a hue modifier on a dark map)
+      // 1. Change water color to the exact shade calculated from the styler
       if (map.getLayer("water")) {
-        map.setPaintProperty("water", "fill-color", "#0a295c");
+        map.setPaintProperty("water", "fill-color", "#c6d4ec");
       }
       if (map.getLayer("waterway")) {
-        map.setPaintProperty("waterway", "line-color", "#0a295c");
+        map.setPaintProperty("waterway", "line-color", "#c6d4ec");
       }
       
-      // Also set the background color to the dark cyan-ish gray requested
+      // Also set the background color to the exact shade calculated for land
       if (map.getLayer("background")) {
-        map.setPaintProperty("background", "background-color", "#131c1c");
+        map.setPaintProperty("background", "background-color", "#151919");
       }
 
       // 2. & 3. Hide POI and Transit
