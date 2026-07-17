@@ -1,6 +1,6 @@
 [package]
 name = "rtn-qgc-shell"
-version = "0.1.0"
+version = "0.4.0"
 description = "Tauri desktop shell for RTN QGroundControl (strangler-fig port). Process manager + window only."
 edition = "2021"
 license = "GPL-3.0-or-later"
