@@ -8,40 +8,7 @@ import "./map.css";
 const DEFAULT_CENTER: [number, number] = [100.9034, 12.6634];
 const DEFAULT_ZOOM = 16;
 
-/**
- * Key-free raster style: plain OSM tiles, left close to their normal light
- * colors — the dark, cyan-tinted "Ingress" look is applied afterwards as a
- * CSS filter on the rendered canvas (see map.css's `.core-map
- * .maplibregl-canvas` invert/hue-rotate recipe), not baked in here. The
- * background layer's color is the OSM land tone so canvas gaps blend with
- * the tiles once the same filter runs over both.
- */
-const OSM_DARK_STYLE: StyleSpecification = {
-  version: 8,
-  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-  sources: {
-    osm: {
-      type: "raster",
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-      tileSize: 256,
-      maxzoom: 19,
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    },
-  },
-  layers: [
-    {
-      id: "background",
-      type: "background",
-      paint: { "background-color": "#f2efe9" },
-    },
-    {
-      id: "osm",
-      type: "raster",
-      source: "osm",
-    },
-  ],
-};
+const CARTO_DARK_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
 export interface CoreMapProps {
   /** [longitude, latitude] */
@@ -71,7 +38,7 @@ export function CoreMap({
 
     const map = new maplibregl.Map({
       container,
-      style: OSM_DARK_STYLE,
+      style: CARTO_DARK_STYLE,
       center: initialViewRef.current.center,
       zoom: initialViewRef.current.zoom,
     });
@@ -80,6 +47,34 @@ export function CoreMap({
     mapRef.current = map;
 
     map.once("load", () => {
+      // 1. Change water color
+      if (map.getLayer("water")) {
+        map.setPaintProperty("water", "fill-color", "#005eff");
+      }
+      if (map.getLayer("waterway")) {
+        map.setPaintProperty("waterway", "line-color", "#005eff");
+      }
+      
+      // Also set the background color to the dark cyan-ish gray requested
+      if (map.getLayer("background")) {
+        map.setPaintProperty("background", "background-color", "#131c1c");
+      }
+
+      // 2. & 3. Hide POI and Transit
+      const style = map.getStyle();
+      if (style && style.layers) {
+        style.layers.forEach((layer) => {
+          if (
+            layer.id.includes("poi") ||
+            layer.id.includes("transit") ||
+            layer.id.includes("railway") ||
+            layer.id.includes("station")
+          ) {
+            map.setLayoutProperty(layer.id, "visibility", "none");
+          }
+        });
+      }
+
       onMapReadyRef.current?.(map);
     });
 
