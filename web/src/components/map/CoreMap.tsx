@@ -47,12 +47,12 @@ export function CoreMap({
     mapRef.current = map;
 
     map.once("load", () => {
-      // 1. Change water color
+      // 1. Change water color (simulating a hue modifier on a dark map)
       if (map.getLayer("water")) {
-        map.setPaintProperty("water", "fill-color", "#005eff");
+        map.setPaintProperty("water", "fill-color", "#0a295c");
       }
       if (map.getLayer("waterway")) {
-        map.setPaintProperty("waterway", "line-color", "#005eff");
+        map.setPaintProperty("waterway", "line-color", "#0a295c");
       }
       
       // Also set the background color to the dark cyan-ish gray requested
