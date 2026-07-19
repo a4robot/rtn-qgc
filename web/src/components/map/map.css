@@ -109,3 +109,13 @@
 .core-map-3d-ctrl .core-map-3d-btn--active {
   color: var(--accent, #2f81f7);
 }
+
+/* The instrument column owns the entire right edge (top-right corner down
+   past the battery tile), so maplibre's bottom-right control stack — nav,
+   compass, the 2D/3D toggle — slides LEFT of it. Keeping them in the
+   bottom-right group (rather than a different corner) keeps the attribution
+   stacking behaviour; only the inset moves. The tighter phone widths are
+   matched in mobile.css. */
+.core-map .maplibregl-ctrl-bottom-right {
+  right: calc(15rem + 1.5rem);
+}

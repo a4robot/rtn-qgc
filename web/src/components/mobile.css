@@ -1,0 +1,13 @@
+
+@media (max-width: 950px) {
+  /* Map controls clear the narrower phone instrument column (11rem). */
+  .gcs-stage .maplibregl-ctrl-bottom-right {
+    right: calc(11rem + 1.25rem);
+  }
+}
+
+@media (max-width: 600px) and (orientation: portrait) {
+  .gcs-stage .maplibregl-ctrl-bottom-right {
+    right: calc(10rem + 1.25rem);
+  }
+}
