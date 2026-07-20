@@ -129,3 +129,12 @@ jobs:
         with:
           projectPath: tauri
           args: --target x86_64-pc-windows-msvc
+
+      - name: Upload Windows bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: rtn-qgc-windows-x64
+          if-no-files-found: error
+          path: |
+            tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
