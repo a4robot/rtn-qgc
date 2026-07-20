@@ -7,3 +7,6 @@ src-tauri/gen/schemas/
 # Sidecar binaries (dummy or real headless QGC) — never committed
 src-tauri/binaries/ghost-*
 dist/
+
+# Android signing secrets — never commit (leaked once in b06490355; password rotated?)
+keystore.properties
