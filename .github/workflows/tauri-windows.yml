@@ -2,6 +2,8 @@ name: Tauri Windows
 
 on:
   push:
+    branches:
+      - feature/star-map-semi3d
     tags:
       - 'rtn_tauri-v*'
   workflow_dispatch:
