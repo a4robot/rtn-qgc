@@ -120,5 +120,14 @@
   "RUDDER": "หางเสือ",
   "FUEL": "เชื้อเพลิง",
   "VOLTS": "โวลต์",
-  "RPM": "รอบเครื่อง"
+  "RPM": "รอบเครื่อง",
+  "Latest image": "ภาพล่าสุด",
+  "No image yet": "ยังไม่มีภาพ",
+  "Image #{{index}}": "ภาพที่ {{index}}",
+  "{{count}} received": "รับแล้ว {{count}} ภาพ",
+  "Latest {{format}} frame": "ภาพ {{format}} ล่าสุด",
+  "no browser decoder": "เบราว์เซอร์ไม่รองรับ",
+  "Voice Speed": "ความเร็วเสียงพูด",
+  "Normal": "ปกติ",
+  "Fast": "เร็ว"
 }

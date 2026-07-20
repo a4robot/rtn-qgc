@@ -38,15 +38,18 @@
 .stage-slot--pip {
   left: 1rem;
   bottom: 1rem;
-  width: 320px;
-  max-width: 40vw;
-  aspect-ratio: 16 / 9;
+  width: var(--pip-w, 400px);
+  height: var(--pip-h, auto);
+  min-width: 240px;
+  min-height: 135px;
+  max-width: 80vw;
+  max-height: 80vh;
   z-index: 6;
   border-radius: var(--chamfer-lg, 12px);
   border: 1px solid var(--border);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
   cursor: pointer;
-  transition: left 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .stage-slot--pip:hover {
@@ -72,11 +75,11 @@
 .image-card-float {
   position: absolute;
   left: 1rem;
-  bottom: calc(180px + 1.75rem);
+  bottom: calc(var(--pip-actual-height, 135px) + 2rem);
   z-index: 8;
   width: 320px;
   max-width: 40vw;
-  transition: left 0.15s ease;
+  transition: left 0.15s ease, bottom 0.15s ease;
 }
 
 .guided-strip {

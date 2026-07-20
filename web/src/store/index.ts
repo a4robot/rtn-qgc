@@ -62,8 +62,10 @@ export { bindBridgeToStores } from "./bindBridge.ts";
 export {
   useActiveVehicle,
   useMapMode,
+  useMapStyle,
   useSidePanelTab,
   useUiStore,
+  useVehicleMarkerStyle,
   useVehicleSwitcher,
   type MapMode,
   type SidePanelTab,

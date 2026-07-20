@@ -43,6 +43,12 @@ export interface UiStoreState {
   /** Which SidePanel tab (FLY/PLAN/PARAMS/SETTINGS) is showing. Default "fly". */
   sidePanelTab: SidePanelTab;
   setSidePanelTab: (tab: SidePanelTab) => void;
+  /** Vehicle marker style: "default" (red/blue) or "high-vis" (green/gold, 1.5x scale) */
+  vehicleMarkerStyle: "default" | "high-vis";
+  setVehicleMarkerStyle: (style: "default" | "high-vis") => void;
+  /** Map base layer style: "street" (Carto Dark) or "satellite" (Esri) */
+  mapStyle: "street" | "satellite";
+  setMapStyle: (style: "street" | "satellite") => void;
 }
 
 export const useUiStore = create<UiStoreState>()((set, get) => ({
@@ -54,6 +60,16 @@ export const useUiStore = create<UiStoreState>()((set, get) => ({
   setMapMode: (mode) => set({ mapMode: mode, sidePanelTab: tabForMapMode(mode) }),
   sidePanelTab: "fly",
   setSidePanelTab: (tab) => set({ sidePanelTab: tab, mapMode: mapModeForTab(tab, get().mapMode) }),
+  vehicleMarkerStyle: (localStorage.getItem("vehicleMarkerStyle") as "default" | "high-vis") || "high-vis",
+  setVehicleMarkerStyle: (style) => {
+    localStorage.setItem("vehicleMarkerStyle", style);
+    set({ vehicleMarkerStyle: style });
+  },
+  mapStyle: (localStorage.getItem("mapStyle") as "street" | "satellite") || "street",
+  setMapStyle: (style) => {
+    localStorage.setItem("mapStyle", style);
+    set({ mapStyle: style });
+  },
 }));
 
 /** Current map interaction mode. */
@@ -69,6 +85,16 @@ export function useSidePanelTab(): SidePanelTab {
 /** The currently active vehicle id. */
 export function useActiveVehicle(): number {
   return useUiStore((state) => state.activeVehicleId);
+}
+
+/** The current vehicle marker style. */
+export function useVehicleMarkerStyle(): "default" | "high-vis" {
+  return useUiStore((state) => state.vehicleMarkerStyle);
+}
+
+/** The current map base layer style. */
+export function useMapStyle(): "street" | "satellite" {
+  return useUiStore((state) => state.mapStyle);
 }
 
 /** Minimal shape `useVehicleSwitcher` needs — matches `BridgeSessionHandle`. */

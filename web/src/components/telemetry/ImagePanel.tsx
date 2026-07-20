@@ -13,6 +13,7 @@
  */
 
 import { useEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { ImageFormat } from "../../bridge/types.ts";
 import { useImage } from "../../store/index.ts";
@@ -65,6 +66,7 @@ function Raw8uCanvas({ data, width, height }: { data: string; width: number; hei
 
 export function ImagePanel({ vehicleId }: ImagePanelProps) {
   const image = useImage(vehicleId);
+  const { t } = useTranslation();
 
   const dataUri = useMemo(() => {
     if (!image || !NATIVE_CONTAINER_FORMATS.has(image.format)) {
@@ -75,28 +77,28 @@ export function ImagePanel({ vehicleId }: ImagePanelProps) {
 
   if (!image) {
     return (
-      <div className="image-panel image-panel--empty" aria-label="Latest image">
-        <span className="image-panel-placeholder">No image yet</span>
+      <div className="image-panel image-panel--empty" aria-label={t("Latest image")}>
+        <span className="image-panel-placeholder">{t("No image yet")}</span>
       </div>
     );
   }
 
   return (
-    <div className="image-panel" aria-label="Latest image">
+    <div className="image-panel" aria-label={t("Latest image")}>
       <div className="image-panel-header">
-        <span className="image-panel-title">Image #{image.imageIndex}</span>
+        <span className="image-panel-title">{t("Image #{{index}}", { index: image.imageIndex })}</span>
         <span className="image-panel-meta">
-          {image.format} · {image.width}×{image.height} · {image.count} received
+          {image.format} · {image.width}×{image.height} · {t("{{count}} received", { count: image.count })}
         </span>
       </div>
       <div className="image-panel-body">
         {dataUri ? (
-          <img src={dataUri} alt={`Latest ${image.format} frame`} className="image-panel-img" />
+          <img src={dataUri} alt={t("Latest {{format}} frame", { format: image.format })} className="image-panel-img" />
         ) : image.format === "raw8u" ? (
           <Raw8uCanvas data={image.data} width={image.width} height={image.height} />
         ) : (
           <span className="image-panel-placeholder">
-            {image.format} ({Math.ceil((image.data.length * 3) / 4)} bytes) — no browser decoder
+            {image.format} ({Math.ceil((image.data.length * 3) / 4)} bytes) — {t("no browser decoder")}
           </span>
         )}
       </div>

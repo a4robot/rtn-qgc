@@ -24,7 +24,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { loadVoiceLanguage, saveVoiceLanguage } from "../notifications/speech.ts";
+import { loadVoiceLanguage, saveVoiceLanguage, loadVoiceSpeed, saveVoiceSpeed } from "../notifications/speech.ts";
 
 import type { BridgeClient } from "../../bridge/BridgeClient.ts";
 import type { AddableLinkType, LinkConfig, SettingGroup, SettingScalar } from "../../bridge/types.ts";
@@ -35,6 +35,7 @@ import {
   useSetting,
   useSettingPending,
   useSettingsStore,
+  useUiStore,
 } from "../../store/index.ts";
 import { validateLinkFields, type LinkFieldsInput } from "./validateLinkFields.ts";
 import "./settings.css";
@@ -387,11 +388,22 @@ function AppSection({ client }: { client: BridgeClient }) {
   const { errors, setValue } = useSettingRequests(client);
   const { t, i18n } = useTranslation();
   const [voiceLang, setVoiceLang] = useState(() => loadVoiceLanguage());
+  const [voiceSpeed, setVoiceSpeed] = useState(() => loadVoiceSpeed());
+  const vehicleMarkerStyle = useUiStore((state) => state.vehicleMarkerStyle);
+  const setVehicleMarkerStyle = useUiStore((state) => state.setVehicleMarkerStyle);
+  const mapStyle = useUiStore((state) => state.mapStyle);
+  const setMapStyle = useUiStore((state) => state.setMapStyle);
 
   const handleVoiceLangChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
     setVoiceLang(val);
     saveVoiceLanguage(val);
+  };
+
+  const handleVoiceSpeedChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = parseFloat(e.target.value);
+    setVoiceSpeed(val);
+    saveVoiceSpeed(val);
   };
 
   return (
@@ -429,6 +441,48 @@ function AppSection({ client }: { client: BridgeClient }) {
             <option value="english-cloud">{t("English (Cloud)")}</option>
             <option value="thai-offline">{t("Thai (Offline)")}</option>
             <option value="english-offline">{t("English (Offline)")}</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="settings-field">
+        <div className="settings-field-label">{t("Voice Speed")}</div>
+        <div className="settings-field-control">
+          <select 
+            className="settings-field-input"
+            value={voiceSpeed.toString()}
+            onChange={handleVoiceSpeedChange}
+          >
+            <option value="1">{t("Normal")}</option>
+            <option value="1.5">{t("Fast")}</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="settings-field">
+        <div className="settings-field-label">{t("Vehicle Marker Style")}</div>
+        <div className="settings-field-control">
+          <select 
+            className="settings-field-input"
+            value={vehicleMarkerStyle}
+            onChange={(e) => setVehicleMarkerStyle(e.target.value as "default" | "high-vis")}
+          >
+            <option value="default">{t("Default (Red/Blue)")}</option>
+            <option value="high-vis">{t("High Visibility (Green/Gold)")}</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="settings-field">
+        <div className="settings-field-label">{t("Map Style")}</div>
+        <div className="settings-field-control">
+          <select 
+            className="settings-field-input"
+            value={mapStyle}
+            onChange={(e) => setMapStyle(e.target.value as "street" | "satellite")}
+          >
+            <option value="street">{t("Street (Dark)")}</option>
+            <option value="satellite">{t("Satellite (Esri)")}</option>
           </select>
         </div>
       </div>

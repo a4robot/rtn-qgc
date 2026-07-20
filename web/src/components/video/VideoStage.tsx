@@ -23,47 +23,32 @@ import "./video-stage.css";
 
 export interface VideoStageProps {
   client: BridgeClient;
-  /** The two stream ids selectable via the switcher chip. */
-  streamIds: [number, number];
+  /** The stream ids to display in a grid. */
+  streamIds: number[];
 }
 
 export function VideoStage({ client, streamIds }: VideoStageProps) {
-  const [activeIndex, setActiveIndex] = useState<0 | 1>(0);
-  const [frameMetaA, setFrameMetaA] = useState<FrameMeta | null>(null);
-  const [frameMetaB, setFrameMetaB] = useState<FrameMeta | null>(null);
+  const [frameMetas, setFrameMetas] = useState<Record<number, FrameMeta | null>>({});
 
-  const frameMeta = activeIndex === 0 ? frameMetaA : frameMetaB;
+  // Dynamic grid based on number of streams
+  const count = streamIds.length;
+  const cols = count > 0 ? Math.ceil(Math.sqrt(count)) : 1;
 
   return (
-    <div className="video-stage">
-      <div className={`video-stage-pane${activeIndex === 0 ? " video-stage-pane--active" : ""}`}>
-        <VideoPlayer streamId={streamIds[0]} client={client} onFrameMeta={setFrameMetaA} />
-      </div>
-      <div className={`video-stage-pane${activeIndex === 1 ? " video-stage-pane--active" : ""}`}>
-        <VideoPlayer streamId={streamIds[1]} client={client} onFrameMeta={setFrameMetaB} />
-      </div>
-
-      <LatencyOverlay streamId={streamIds[activeIndex]} frameMeta={frameMeta} />
-
-      <div className="video-stage-switcher" role="group" aria-label="Video stream select">
-        {streamIds.map((id, index) => (
-          <button
-            key={id}
-            type="button"
-            className={`video-stage-switch-btn${activeIndex === index ? " video-stage-switch-btn--active" : ""}`}
-            aria-pressed={activeIndex === index}
-            onClick={(event) => {
-              // Don't let the switcher click bubble up into the PiP's
-              // click-to-swap handler (App.tsx) — picking a stream should
-              // never also flip map<->video fullscreen.
-              event.stopPropagation();
-              setActiveIndex(index as 0 | 1);
-            }}
-          >
-            {id}
-          </button>
-        ))}
-      </div>
+    <div 
+      className="video-stage"
+      style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}
+    >
+      {streamIds.map((id) => (
+        <div key={id} className="video-stage-pane">
+          <VideoPlayer 
+            streamId={id} 
+            client={client} 
+            onFrameMeta={(meta) => setFrameMetas(prev => ({ ...prev, [id]: meta }))} 
+          />
+          <LatencyOverlay streamId={id} frameMeta={frameMetas[id] ?? null} />
+        </div>
+      ))}
     </div>
   );
 }
