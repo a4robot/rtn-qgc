@@ -67,6 +67,11 @@ struct GhostLaunchConfig {
     qt_plugin_path: Option<OsString>,
 }
 
+#[cfg(windows)]
+const LIB_PATH_ENV: &str = "PATH";
+#[cfg(not(windows))]
+const LIB_PATH_ENV: &str = "LD_LIBRARY_PATH";
+
 impl GhostLaunchConfig {
     fn resolve(app: &AppHandle) -> Self {
         let mut args: Vec<String> = GHOST_BASE_ARGS.iter().map(|s| s.to_string()).collect();
@@ -80,7 +85,7 @@ impl GhostLaunchConfig {
 
         let (ld_library_path, qt_plugin_path) = match app.path().resource_dir() {
             Ok(dir) => (
-                Some(prepend_path(dir.join("lib"), "LD_LIBRARY_PATH")),
+                Some(prepend_path(dir.join("lib"), LIB_PATH_ENV)),
                 Some(prepend_path(dir.join("plugins"), "QT_PLUGIN_PATH")),
             ),
             Err(err) => {
@@ -105,15 +110,13 @@ impl GhostLaunchConfig {
 /// in the shell's own environment for that variable (defense in depth,
 /// mirroring what `ghost-bundle/ghost.sh` does by hand for local dev).
 fn prepend_path(dir: PathBuf, existing_env_var: &str) -> OsString {
-    match std::env::var_os(existing_env_var) {
-        Some(existing) if !existing.is_empty() => {
-            let mut joined = dir.into_os_string();
-            joined.push(":");
-            joined.push(existing);
-            joined
+    let mut paths = vec![dir];
+    if let Some(existing) = std::env::var_os(existing_env_var) {
+        if !existing.is_empty() {
+            paths.extend(std::env::split_paths(&existing));
         }
-        _ => dir.into_os_string(),
     }
+    std::env::join_paths(paths).unwrap_or_else(|_| OsString::new())
 }
 
 #[derive(Clone, Serialize)]
@@ -149,7 +152,7 @@ async fn run_ghost_once(
 ) -> Result<(), tauri_plugin_shell::Error> {
     let mut cmd = app.shell().sidecar("ghost")?.args(&launch.args);
     if let Some(ld_library_path) = &launch.ld_library_path {
-        cmd = cmd.env("LD_LIBRARY_PATH", ld_library_path);
+        cmd = cmd.env(LIB_PATH_ENV, ld_library_path);
     }
     if let Some(qt_plugin_path) = &launch.qt_plugin_path {
         cmd = cmd.env("QT_PLUGIN_PATH", qt_plugin_path);
