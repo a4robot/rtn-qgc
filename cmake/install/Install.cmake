@@ -59,15 +59,25 @@ if(NOT ANDROID AND NOT IOS)
     endif()
 endif()
 
-qt_generate_deploy_qml_app_script(
-    TARGET ${CMAKE_PROJECT_NAME}
-    OUTPUT_SCRIPT deploy_script
-    MACOS_BUNDLE_POST_BUILD
-    NO_UNSUPPORTED_PLATFORM_ERROR
-    DEPLOY_USER_QML_MODULES_ON_UNSUPPORTED_PLATFORM
-    DEPLOY_TOOL_OPTIONS ${deploy_tool_options_arg}
-    ${deploy_include_plugins}
-)
+if(QGC_ENABLE_QML)
+    qt_generate_deploy_qml_app_script(
+        TARGET ${CMAKE_PROJECT_NAME}
+        OUTPUT_SCRIPT deploy_script
+        MACOS_BUNDLE_POST_BUILD
+        NO_UNSUPPORTED_PLATFORM_ERROR
+        DEPLOY_USER_QML_MODULES_ON_UNSUPPORTED_PLATFORM
+        DEPLOY_TOOL_OPTIONS ${deploy_tool_options_arg}
+        ${deploy_include_plugins}
+    )
+else()
+    qt_generate_deploy_app_script(
+        TARGET ${CMAKE_PROJECT_NAME}
+        OUTPUT_SCRIPT deploy_script
+        NO_UNSUPPORTED_PLATFORM_ERROR
+        DEPLOY_TOOL_OPTIONS ${deploy_tool_options_arg}
+        ${deploy_include_plugins}
+    )
+endif()
 
 install(SCRIPT ${deploy_script})
 message(STATUS "QGC: Qt deployment script: ${deploy_script}")
