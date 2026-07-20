@@ -3,7 +3,7 @@ import maplibregl from "maplibre-gl";
 import type { Map as MapLibreMap, GeoJSONSource } from "maplibre-gl";
 import type { Feature, FeatureCollection, LineString } from "geojson";
 
-import { useVehicle } from "../../store/index.ts";
+import { useVehicle, useVehicleMarkerStyle } from "../../store/index.ts";
 
 export interface VehicleLayerProps {
   map: MapLibreMap | null;
@@ -47,8 +47,7 @@ function distanceMeters(a: [number, number], b: [number, number]): number {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-/** Builds the vehicle marker's SVG element (an aircraft/quad arrow icon). */
-function createMarkerElement(): { el: HTMLDivElement; path: SVGPathElement } {
+function createMarkerElement(): { el: HTMLDivElement; path: SVGPathElement; ringEl: HTMLDivElement; goldRingEl: HTMLDivElement } {
   const el = document.createElement("div");
   el.className = "vehicle-marker";
   el.style.width = "28px";
@@ -56,8 +55,60 @@ function createMarkerElement(): { el: HTMLDivElement; path: SVGPathElement } {
   el.style.display = "flex";
   el.style.alignItems = "center";
   el.style.justifyContent = "center";
+  
+  if (!document.getElementById("sonar-ping-style")) {
+    const style = document.createElement("style");
+    style.id = "sonar-ping-style";
+    style.textContent = `
+      @keyframes sonar-ping {
+        0% {
+          transform: translate(-50%, -50%) scale(0);
+          opacity: 0.8;
+        }
+        100% {
+          transform: translate(-50%, -50%) scale(1);
+          opacity: 0;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
 
-  el.innerHTML = `
+  const ringEl = document.createElement("div");
+  ringEl.className = "vehicle-ring";
+  ringEl.style.position = "absolute";
+  ringEl.style.top = "50%";
+  ringEl.style.left = "50%";
+  ringEl.style.transform = "translate(-50%, -50%)";
+  ringEl.style.border = "2px solid rgba(255, 255, 255, 0.8)";
+  ringEl.style.boxShadow = "0 0 15px rgba(255, 255, 255, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.3)";
+  ringEl.style.borderRadius = "50%";
+  ringEl.style.pointerEvents = "none";
+  ringEl.style.display = "none"; // Off by default
+  ringEl.style.boxSizing = "border-box";
+  ringEl.style.animation = "sonar-ping 3s cubic-bezier(0, 0, 0.2, 1) infinite";
+  el.appendChild(ringEl);
+
+  const goldRingEl = document.createElement("div");
+  goldRingEl.className = "vehicle-gold-ring";
+  goldRingEl.style.position = "absolute";
+  goldRingEl.style.top = "50%";
+  goldRingEl.style.left = "50%";
+  goldRingEl.style.transform = "translate(-50%, -50%)";
+  goldRingEl.style.border = "2px solid rgba(255, 215, 0, 0.8)";
+  goldRingEl.style.boxShadow = "0 0 10px rgba(255, 215, 0, 0.5), inset 0 0 10px rgba(255, 215, 0, 0.3)";
+  goldRingEl.style.borderRadius = "50%";
+  goldRingEl.style.pointerEvents = "none";
+  goldRingEl.style.display = "none"; // Off by default
+  goldRingEl.style.boxSizing = "border-box";
+  el.appendChild(goldRingEl);
+
+  const svgWrapper = document.createElement("div");
+  svgWrapper.style.position = "absolute";
+  svgWrapper.style.display = "flex";
+  svgWrapper.style.alignItems = "center";
+  svgWrapper.style.justifyContent = "center";
+  svgWrapper.innerHTML = `
     <svg width="28" height="28" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M12 2 L19 20 L12 16 L5 20 Z"
@@ -67,10 +118,11 @@ function createMarkerElement(): { el: HTMLDivElement; path: SVGPathElement } {
       />
     </svg>
   `;
+  el.appendChild(svgWrapper);
 
-  const path = el.querySelector("path");
+  const path = svgWrapper.querySelector("path");
   if (!path) throw new Error("VehicleLayer: marker svg path missing");
-  return { el, path };
+  return { el, path, ringEl, goldRingEl };
 }
 
 function emptyTrailData(): FeatureCollection<LineString> {
@@ -93,16 +145,22 @@ function emptyTrailData(): FeatureCollection<LineString> {
  */
 export function VehicleLayer({ map, vehicleId, follow = false }: VehicleLayerProps) {
   const vehicle = useVehicle(vehicleId);
+  const markerStyle = useVehicleMarkerStyle();
 
   const sourceId = `vehicle-${vehicleId}-trail`;
   const layerId = `vehicle-${vehicleId}-trail-layer`;
 
   const markerRef = useRef<maplibregl.Marker | null>(null);
   const iconPathRef = useRef<SVGPathElement | null>(null);
+  const ringRef = useRef<HTMLDivElement | null>(null);
+  const goldRingRef = useRef<HTMLDivElement | null>(null);
   const readyRef = useRef(false);
   const trailRef = useRef<[number, number][]>([]);
   const lastFollowPosRef = useRef<[number, number] | null>(null);
   const addedToMapRef = useRef(false);
+  
+  // Track last known lat for zoom calculations
+  const lastLatRef = useRef<number | null>(null);
 
   // --- Setup / teardown of marker + trail source+layer, keyed on the map instance. ---
   useEffect(() => {
@@ -113,8 +171,10 @@ export function VehicleLayer({ map, vehicleId, follow = false }: VehicleLayerPro
     const setup = () => {
       if (cancelled) return;
 
-      const { el, path } = createMarkerElement();
+      const { el, path, ringEl, goldRingEl } = createMarkerElement();
       iconPathRef.current = path;
+      ringRef.current = ringEl;
+      goldRingRef.current = goldRingEl;
       path.setAttribute("fill", DISARMED_COLOR);
 
       const marker = new maplibregl.Marker({
@@ -160,14 +220,52 @@ export function VehicleLayer({ map, vehicleId, follow = false }: VehicleLayerPro
     };
     trySetup();
 
+    const onStyleData = () => {
+      if (cancelled) return;
+      // Re-add sources and layers if style changes wipe them out
+      if (map.isStyleLoaded() && !map.getSource(sourceId)) {
+        setup();
+      }
+    };
+    map.on("styledata", onStyleData);
+
+    const updateRingSize = () => {
+      const ringEl = ringRef.current;
+      const lat = lastLatRef.current;
+      if (!ringEl || lat === null) return;
+      
+      const zoom = map.getZoom();
+      // Calculate meters per pixel at current latitude
+      const metersPerPixel = (156543.03392 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom);
+      
+      // 1 km radius = 2000 meter diameter
+      const diameterPixels = 2000 / metersPerPixel;
+      ringEl.style.width = `${diameterPixels}px`;
+      ringEl.style.height = `${diameterPixels}px`;
+      
+      const goldRingEl = goldRingRef.current;
+      if (goldRingEl) {
+        // 40m radius = 80 meter diameter
+        const goldDiameterPixels = 80 / metersPerPixel;
+        goldRingEl.style.width = `${goldDiameterPixels}px`;
+        goldRingEl.style.height = `${goldDiameterPixels}px`;
+      }
+    };
+
+    map.on("zoom", updateRingSize);
+
     return () => {
       cancelled = true;
       readyRef.current = false;
       map.off("idle", trySetup);
+      map.off("styledata", onStyleData);
+      map.off("zoom", updateRingSize);
 
       markerRef.current?.remove();
       markerRef.current = null;
       iconPathRef.current = null;
+      ringRef.current = null;
+      goldRingRef.current = null;
       addedToMapRef.current = false;
 
       if (map.getLayer(layerId)) map.removeLayer(layerId);
@@ -175,6 +273,7 @@ export function VehicleLayer({ map, vehicleId, follow = false }: VehicleLayerPro
 
       trailRef.current = [];
       lastFollowPosRef.current = null;
+      lastLatRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, sourceId, layerId]);
@@ -196,15 +295,55 @@ export function VehicleLayer({ map, vehicleId, follow = false }: VehicleLayerPro
     }
 
     const pos: [number, number] = [lon, lat];
+    lastLatRef.current = lat;
 
     marker.getElement().style.display = "";
     marker.setLngLat(pos);
     marker.setRotation(vehicle.attitude.yaw ?? 0);
     marker.getElement().style.opacity = vehicle.connected ? "1" : "0.4";
 
+    const ringEl = ringRef.current;
+    const goldRingEl = goldRingRef.current;
+    if (ringEl && goldRingEl) {
+      if (markerStyle === "high-vis") {
+        ringEl.style.display = "block";
+        goldRingEl.style.display = "block";
+        const zoom = map.getZoom();
+        const metersPerPixel = (156543.03392 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom);
+        // 1 km radius = 2000 meter diameter
+        const diameterPixels = 2000 / metersPerPixel;
+        ringEl.style.width = `${diameterPixels}px`;
+        ringEl.style.height = `${diameterPixels}px`;
+        // 40m radius = 80 meter diameter
+        const goldDiameterPixels = 80 / metersPerPixel;
+        goldRingEl.style.width = `${goldDiameterPixels}px`;
+        goldRingEl.style.height = `${goldDiameterPixels}px`;
+      } else {
+        ringEl.style.display = "none";
+        goldRingEl.style.display = "none";
+      }
+    }
+
     const path = iconPathRef.current;
     if (path) {
-      path.setAttribute("fill", vehicle.armed ? ARMED_COLOR : DISARMED_COLOR);
+      if (markerStyle === "high-vis") {
+        path.setAttribute("fill", "#00ff00"); // Green
+        path.setAttribute("stroke", "#ffd700"); // Gold border
+        path.setAttribute("stroke-width", "2.0");
+        const svg = marker.getElement().querySelector("svg");
+        if (svg) {
+          svg.style.transform = "scale(1.0)";
+          svg.style.transition = "transform 0.2s ease";
+        }
+      } else {
+        path.setAttribute("fill", vehicle.armed ? ARMED_COLOR : DISARMED_COLOR);
+        path.setAttribute("stroke", "rgba(10,18,22,0.85)");
+        path.setAttribute("stroke-width", "1.5");
+        const svg = marker.getElement().querySelector("svg");
+        if (svg) {
+          svg.style.transform = "scale(1)";
+        }
+      }
     }
     if (map.getLayer(layerId)) {
       map.setPaintProperty(
@@ -249,7 +388,7 @@ export function VehicleLayer({ map, vehicleId, follow = false }: VehicleLayerPro
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, vehicle, follow, sourceId, layerId]);
+  }, [map, vehicle, follow, markerStyle, sourceId, layerId]);
 
   return null;
 }

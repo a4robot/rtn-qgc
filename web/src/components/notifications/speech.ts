@@ -35,6 +35,7 @@ export const SPOKEN_SEVERITIES = new Set(["warning", "critical"]);
 
 const MUTE_STORAGE_KEY = "rtn-gcs.notifications.speechMuted";
 const VOICE_LANG_STORAGE_KEY = "rtn-gcs.notifications.voiceLang";
+const VOICE_SPEED_STORAGE_KEY = "rtn-gcs.notifications.voiceSpeed";
 
 export type VoiceMode =
   | "auto"
@@ -116,6 +117,31 @@ export function saveVoiceLanguage(lang: string): void {
   }
 }
 
+/** Read the persisted voice speed. Defaults to 1.0 if unset or unreadable. */
+export function loadVoiceSpeed(): number {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return 1.0;
+  }
+  try {
+    const val = window.localStorage.getItem(VOICE_SPEED_STORAGE_KEY);
+    return val ? parseFloat(val) : 1.0;
+  } catch {
+    return 1.0;
+  }
+}
+
+/** Persist the voice speed. */
+export function saveVoiceSpeed(speed: number): void {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
+  try {
+    window.localStorage.setItem(VOICE_SPEED_STORAGE_KEY, speed.toString());
+  } catch {
+    // ignore
+  }
+}
+
 /**
  * Speak `text` according to the persisted voice mode. Never throws — any
  * engine failure falls back to the OS voice, and OS-voice failures are
@@ -127,16 +153,17 @@ export function speak(text: string): void {
   }
 
   const mode = loadVoiceLanguage();
+  const speed = loadVoiceSpeed();
   const thai = mode === "auto" ? /[ก-๙]/.test(text) : mode.startsWith("thai");
   const lang = thai ? "th-TH" : "en-US";
 
   if (mode === "thai-cloud" || mode === "english-cloud") {
-    speakCloud(text, lang);
+    speakCloud(text, lang, speed);
   } else if (mode === "english-offline") {
-    speakPiper(text, lang);
+    speakPiper(text, lang, speed);
   } else {
     // "auto" and "thai-offline" (see the header — Piper has no Thai voice).
-    speakLocal(text, lang);
+    speakLocal(text, lang, speed);
   }
 }
 
@@ -145,18 +172,19 @@ export function speak(text: string): void {
  * CORS-restricted for playback, so `new Audio(url)` works cross-origin.
  * Any failure (offline, rate-limited, blocked) drops to the OS voice.
  */
-function speakCloud(text: string, lang: string): void {
+function speakCloud(text: string, lang: string, speed: number): void {
   if (typeof window.Audio === "undefined" || window.navigator.onLine === false) {
-    speakLocal(text, lang);
+    speakLocal(text, lang, speed);
     return;
   }
   try {
     const q = encodeURIComponent(text.slice(0, CLOUD_TEXT_LIMIT));
     const url = `https://tts-api.vercel.app/api/tts?text=${q}`;
     const audio = new window.Audio(url);
-    playWithFallback(audio, () => speakLocal(text, lang));
+    audio.playbackRate = speed;
+    playWithFallback(audio, () => speakLocal(text, lang, speed));
   } catch {
-    speakLocal(text, lang);
+    speakLocal(text, lang, speed);
   }
 }
 
@@ -167,12 +195,12 @@ function speakCloud(text: string, lang: string): void {
  * offline. Everything is lazy-imported so the ONNX runtime never loads
  * unless this mode is actually selected.
  */
-function speakPiper(text: string, lang: string): void {
+function speakPiper(text: string, lang: string, speed: number): void {
   let fellBack = false;
   const fallBack = () => {
     if (!fellBack) {
       fellBack = true;
-      speakLocal(text, lang);
+      speakLocal(text, lang, speed);
     }
   };
   const deadline = window.setTimeout(fallBack, PIPER_DEADLINE_MS);
@@ -188,6 +216,7 @@ function speakPiper(text: string, lang: string): void {
         return;
       }
       const audio = new window.Audio();
+      audio.playbackRate = speed;
       audio.src = URL.createObjectURL(wav);
       audio.onended = () => URL.revokeObjectURL(audio.src);
       playWithFallback(audio, () => {
@@ -217,13 +246,14 @@ function playWithFallback(audio: HTMLAudioElement, fallback: () => void): void {
 }
 
 /** The OS voice (`speechSynthesis`) — final fallback for every mode. */
-function speakLocal(text: string, lang: string): void {
+function speakLocal(text: string, lang: string, speed: number): void {
   if (!isSpeechSupported()) {
     return;
   }
   try {
     const utterance = new window.SpeechSynthesisUtterance(text);
     utterance.lang = lang;
+    utterance.rate = speed;
     window.speechSynthesis.speak(utterance);
   } catch {
     // TTS is best-effort — never let it break the app.

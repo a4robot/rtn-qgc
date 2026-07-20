@@ -115,6 +115,7 @@ export function MissionLayer({ map, vehicleId }: MissionLayerProps) {
   // must re-run when setup completes — a ref flip wouldn't trigger it and the
   // one-shot mission would never be drawn.
   const [ready, setReady] = useState(false);
+  const [styleRev, setStyleRev] = useState(0);
 
   // --- Setup / teardown of sources + layers, keyed on the map instance. ---
   useEffect(() => {
@@ -195,10 +196,21 @@ export function MissionLayer({ map, vehicleId }: MissionLayerProps) {
     };
     trySetup();
 
+    const onStyleData = () => {
+      if (cancelled) return;
+      // If our source is missing after a style change, rebuild everything
+      if (map.isStyleLoaded() && !map.getSource(lineSourceId)) {
+        setup();
+        setStyleRev(r => r + 1); // Trigger data effect to re-populate
+      }
+    };
+    map.on("styledata", onStyleData);
+
     return () => {
       cancelled = true;
       setReady(false);
       map.off("idle", trySetup);
+      map.off("styledata", onStyleData);
 
       if (map.getLayer(labelLayerId)) map.removeLayer(labelLayerId);
       if (map.getLayer(circleLayerId)) map.removeLayer(circleLayerId);
@@ -222,7 +234,7 @@ export function MissionLayer({ map, vehicleId }: MissionLayerProps) {
     const pointSource = map.getSource(pointSourceId) as GeoJSONSource | undefined;
     pointSource?.setData(pointData(items, currentSeq));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, ready, mission, lineSourceId, pointSourceId]);
+  }, [map, ready, mission, lineSourceId, pointSourceId, styleRev]);
 
   return null;
 }

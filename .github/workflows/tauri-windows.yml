@@ -1,0 +1,140 @@
+name: Tauri Windows
+
+on:
+  push:
+    branches:
+      - feature/star-map-semi3d
+    tags:
+      - 'rtn_tauri-v*'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-tauri:
+    runs-on: windows-2022
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Build Setup
+        id: build-setup
+        uses: ./.github/actions/build-setup
+        with:
+          qt-host: windows
+          qt-arch: win64_msvc2022_64
+          build-type: Release
+
+      - name: Configure Ghost
+        uses: ./.github/actions/cmake-configure
+        with:
+          build-dir: ${{ runner.temp }}\build
+          build-type: Release
+          extra-args: >-
+            -DQGC_ENABLE_QML=OFF
+            -DQGC_ENABLE_MOCKLINK=ON
+
+      - name: Resolve GStreamer root
+        id: gst-root
+        shell: bash
+        run: |
+          python3 "${GITHUB_WORKSPACE}/.github/scripts/cmake_helper.py" cache-var \
+            --build-dir "${RUNNER_TEMP}/build" \
+            --name GStreamer_ROOT_DIR \
+            --required \
+            --output-key gst_root
+
+      - name: Add GStreamer to PATH
+        shell: bash
+        run: echo "${{ steps.gst-root.outputs.gst_root }}/bin" >> "$GITHUB_PATH"
+
+      - name: Build Ghost
+        uses: ./.github/actions/cmake-build
+        with:
+          build-dir: ${{ runner.temp }}\build
+          build-type: Release
+
+      - name: Create Installer (windeployqt)
+        uses: ./.github/actions/cmake-install
+        with:
+          build-dir: ${{ runner.temp }}\build
+          build-type: Release
+
+      - name: Extract Ghost resources
+        shell: pwsh
+        run: |
+          $buildDir = "${{ runner.temp }}\build"
+          $installerExe = Get-ChildItem -Path $buildDir -Filter "*installer*.exe" | Select-Object -First 1
+          if (-not $installerExe) {
+            Write-Error "Installer .exe not found in $buildDir"
+            exit 1
+          }
+          $installDir = "${{ runner.temp }}\qgc-install-test"
+          Write-Host "Installing $($installerExe.Name) to $installDir"
+          Start-Process -FilePath $installerExe.FullName -ArgumentList "/S", "/D=$installDir" -Wait -NoNewWindow
+          
+          # Prepare Tauri binaries folder
+          $binDir = "${{ github.workspace }}\tauri\src-tauri\binaries"
+          $resLibDir = "$binDir\ghost-resources\lib"
+          $resPluginDir = "$binDir\ghost-resources\plugins"
+          New-Item -ItemType Directory -Force -Path $resLibDir
+          New-Item -ItemType Directory -Force -Path $resPluginDir
+
+          # Copy main executable
+          Copy-Item -Path "$installDir\bin\QGroundControl.exe" -Destination "$binDir\ghost-x86_64-pc-windows-msvc.exe"
+
+          # Copy DLLs from bin to lib
+          Copy-Item -Path "$installDir\bin\*.dll" -Destination $resLibDir
+
+          # Copy GStreamer plugins if they exist
+          if (Test-Path "$installDir\lib\gstreamer-1.0") {
+            Copy-Item -Path "$installDir\lib\gstreamer-1.0\*.dll" -Destination $resLibDir
+          }
+
+          # Copy Qt plugins
+          # The plugins are usually in subdirectories like platforms/, tls/, sqldrivers/ inside bin or plugins
+          # Usually windeployqt puts them in $installDir/bin
+          $pluginDirs = @("platforms", "tls", "sqldrivers", "position", "networkinformation", "multimedia")
+          foreach ($p in $pluginDirs) {
+            if (Test-Path "$installDir\bin\$p") {
+              New-Item -ItemType Directory -Force -Path "$resPluginDir\$p"
+              Copy-Item -Path "$installDir\bin\$p\*.dll" -Destination "$resPluginDir\$p"
+            }
+          }
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Build Web UI
+        working-directory: web
+        run: |
+          bun install
+          bun run build:tauri
+
+      - name: Build Tauri App
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: tauri
+          args: --target x86_64-pc-windows-msvc
+
+      - name: Upload Windows bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: rtn-qgc-windows-x64
+          if-no-files-found: error
+          path: |
+            tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+            tauri/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi

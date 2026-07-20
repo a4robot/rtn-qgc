@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import maplibregl from "maplibre-gl";
 import type {
   IControl,
@@ -12,7 +13,31 @@ import "./map.css";
 const DEFAULT_CENTER: [number, number] = [100.9034, 12.6634];
 const DEFAULT_ZOOM = 16;
 
+import { useUiStore } from "../../store/uiStore.ts";
+import { CelestialSkybox } from "./CelestialSkybox.tsx";
+import type { StyleSpecification } from "maplibre-gl";
+
 const CARTO_DARK_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+const ESRI_SATELLITE_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    "esri-satellite": {
+      type: "raster",
+      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+      tileSize: 256,
+      attribution: "Tiles &copy; Esri"
+    }
+  },
+  layers: [
+    {
+      id: "satellite",
+      type: "raster",
+      source: "esri-satellite",
+      minzoom: 0,
+      maxzoom: 22
+    }
+  ]
+};
 
 /**
  * Free, key-free elevation source (terrarium-encoded PNGs, per-pixel RGB
@@ -144,12 +169,17 @@ export function CoreMap({
 }: CoreMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
+  const [mapInstance, setMapInstance] = useState<MapLibreMap | null>(null);
   const skipFirstMoveRef = useRef(true);
 
   const onMapReadyRef = useRef(onMapReady);
+  const mapStyleType = useUiStore((state) => state.mapStyle);
   onMapReadyRef.current = onMapReady;
 
   const initialViewRef = useRef({ center, zoom });
+
+  const { i18n } = useTranslation();
+  const isThai = i18n.language?.startsWith('th');
 
   useEffect(() => {
     const container = containerRef.current;
@@ -157,9 +187,12 @@ export function CoreMap({
 
     const map = new maplibregl.Map({
       container,
-      style: CARTO_DARK_STYLE,
+      style: mapStyleType === "satellite" ? ESRI_SATELLITE_STYLE : CARTO_DARK_STYLE,
       center: initialViewRef.current.center,
       zoom: initialViewRef.current.zoom,
+      attributionControl: false,
+      pitchWithRotate: true,
+      maxPitch: 85,
       // dragRotate/pitchWithRotate default to true — right-drag (or
       // ctrl-drag) pitch works out of the box, left as maplibre defaults.
     });
@@ -173,6 +206,7 @@ export function CoreMap({
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
     map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
     mapRef.current = map;
+    setMapInstance(map);
 
     let mode3D = loadMode3D();
     // Becomes true once the DEM source is registered without throwing;
@@ -221,55 +255,59 @@ export function CoreMap({
     map.addControl(toggleControl, "bottom-right");
 
     map.once("load", () => {
-      // Colors computed by running the requested Google styled-map rules
-      // exactly (hue styler = replace H, keep S/L; saturation −50 = S×0.5;
-      // invert_lightness = L→1−L; the "all" rule and the "water" rule BOTH
-      // match water, so its lightness inverts twice and cancels):
-      //   water: base #b3e1ff = hsl(203°,100%,85%) → hue(#005eff)=218°,
-      //          S×0.5 → hsl(218°,50%,85%) = #c6d4ec  (matches the given
-      //          calibration point bit-exactly)
-      //   land:  base #f2efe9 = hsl(40°,25%,93%) → hue(#131c1c)=180°,
-      //          S×0.5, L inverted → hsl(180°,13%,7%) = #0f1414
-      if (map.getLayer("water")) {
-        map.setPaintProperty("water", "fill-color", "#c6d4ec");
-      }
-      if (map.getLayer("waterway")) {
-        map.setPaintProperty("waterway", "line-color", "#c6d4ec");
-      }
-      if (map.getLayer("background")) {
-        map.setPaintProperty("background", "background-color", "#0f1414");
-      }
+      if (mapStyleType !== "satellite") {
+        // Colors computed by running the requested Google styled-map rules
+        // exactly (hue styler = replace H, keep S/L; saturation −50 = S×0.5;
+        // invert_lightness = L→1−L; the "all" rule and the "water" rule BOTH
+        // match water, so its lightness inverts twice and cancels):
+        //   water: base #b3e1ff = hsl(203°,100%,85%) → hue(#005eff)=218°,
+        //          S×0.5 → hsl(218°,50%,85%) = #c6d4ec  (matches the given
+        //          calibration point bit-exactly)
+        //   land:  base #f2efe9 = hsl(40°,25%,93%) → hue(#131c1c)=180°,
+        //          S×0.5, L inverted → hsl(180°,13%,7%) = #0f1414
+        if (map.getLayer("water")) {
+          map.setPaintProperty("water", "fill-color", "#c6d4ec");
+        }
+        if (map.getLayer("waterway")) {
+          map.setPaintProperty("waterway", "line-color", "#c6d4ec");
+        }
+        if (map.getLayer("background")) {
+          map.setPaintProperty("background", "background-color", "#0f1414");
+        }
 
-      // 2. & 3. Hide POI and Transit
-      const style = map.getStyle();
-      if (style && style.layers) {
-        style.layers.forEach((layer) => {
-          if (
-            layer.id.includes("poi") ||
-            layer.id.includes("transit") ||
-            layer.id.includes("railway") ||
-            layer.id.includes("station")
-          ) {
-            map.setLayoutProperty(layer.id, "visibility", "none");
+        // 2. & 3. Hide POI and Transit
+        const style = map.getStyle();
+        if (style && style.layers) {
+          style.layers.forEach((layer) => {
+            if (
+              layer.id.includes("poi") ||
+              layer.id.includes("transit") ||
+              layer.id.includes("railway") ||
+              layer.id.includes("station")
+            ) {
+              map.setLayoutProperty(layer.id, "visibility", "none");
+            }
+          });
+        }
+        
+        if (!map.getLayer(BUILDINGS_3D_LAYER_ID)) {
+          if (map.getSource("carto")) {
+            map.addLayer({
+              id: BUILDINGS_3D_LAYER_ID,
+              type: "fill-extrusion",
+              source: "carto",
+              "source-layer": "building",
+              minzoom: 13,
+              layout: { visibility: "none" },
+              paint: {
+                "fill-extrusion-color": "#1d2a2a",
+                "fill-extrusion-height": ["coalesce", ["get", "render_height"], 12],
+                "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+                "fill-extrusion-opacity": 0.85,
+              },
+            });
           }
-        });
-      }
-
-      if (!map.getLayer(BUILDINGS_3D_LAYER_ID)) {
-        map.addLayer({
-          id: BUILDINGS_3D_LAYER_ID,
-          type: "fill-extrusion",
-          source: "carto",
-          "source-layer": "building",
-          minzoom: 13,
-          layout: { visibility: "none" },
-          paint: {
-            "fill-extrusion-color": "#1d2a2a",
-            "fill-extrusion-height": ["coalesce", ["get", "render_height"], 12],
-            "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
-            "fill-extrusion-opacity": 0.85,
-          },
-        });
+        }
       }
 
       try {
@@ -316,13 +354,36 @@ export function CoreMap({
     });
     observer.observe(container);
 
+    // Support Ctrl+Scroll for pitch adjustment
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        const currentPitch = map.getPitch();
+        const newPitch = Math.max(0, Math.min(85, currentPitch + (e.deltaY > 0 ? -5 : 5)));
+        map.setPitch(newPitch);
+      }
+    };
+    container.addEventListener("wheel", handleWheel, { passive: false, capture: true });
+
     return () => {
+      container.removeEventListener("wheel", handleWheel, { capture: true });
       observer.disconnect();
       map.off("error", onMapError);
       mapRef.current = null;
+      setMapInstance(null);
       map.remove();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sync map style when user changes it from settings
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map) {
+      map.setStyle(mapStyleType === "satellite" ? ESRI_SATELLITE_STYLE : CARTO_DARK_STYLE);
+    }
+  }, [mapStyleType]);
 
   // Follow center/zoom prop changes without recreating the map.
   const [lon, lat] = center;
@@ -334,5 +395,39 @@ export function CoreMap({
     mapRef.current?.easeTo({ center: [lon, lat], zoom });
   }, [lon, lat, zoom]);
 
-  return <div ref={containerRef} className="core-map" />;
+  // Update map language when UI language changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    
+    const updateLang = () => {
+      const style = map.getStyle();
+      if (style && style.layers) {
+        style.layers.forEach((layer) => {
+          if (layer.type === "symbol") {
+            const textField = map.getLayoutProperty(layer.id, "text-field");
+            if (textField) {
+              const strField = JSON.stringify(textField);
+              if (strField.includes("{name}") || strField.includes("{name_en}")) {
+                map.setLayoutProperty(layer.id, "text-field", isThai ? "{name}" : "{name_en}");
+              }
+            }
+          }
+        });
+      }
+    };
+
+    if (map.isStyleLoaded()) {
+      updateLang();
+    } else {
+      map.once("styledata", updateLang);
+    }
+  }, [isThai]);
+
+  return (
+    <>
+      <CelestialSkybox map={mapInstance} />
+      <div ref={containerRef} className="core-map" style={{ backgroundColor: "transparent" }} />
+    </>
+  );
 }

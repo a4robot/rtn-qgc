@@ -10,14 +10,17 @@ import { Attitude } from "../telemetry/Attitude.tsx";
 import { Instruments } from "./Instruments.tsx";
 import "./instrument-column.css";
 
+import type maplibregl from "maplibre-gl";
+
 export interface InstrumentColumnProps {
   vehicleId: number;
+  map?: maplibregl.Map | null;
 }
 
-export function InstrumentColumn({ vehicleId }: InstrumentColumnProps) {
+export function InstrumentColumn({ vehicleId, map }: InstrumentColumnProps) {
   return (
     <div className="instrument-column" aria-label="Instrument panel">
-      <Attitude vehicleId={vehicleId} />
+      <Attitude vehicleId={vehicleId} map={map} />
       <Instruments vehicleId={vehicleId} />
     </div>
   );

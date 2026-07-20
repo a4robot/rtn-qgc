@@ -3,9 +3,13 @@
    keeps filling its panel. */
 .core-map,
 .core-map.maplibregl-map {
+  width: 100%;
+  height: 100%;
   position: absolute;
-  inset: 0;
-  background: var(--bg);
+  top: 0;
+  left: 0;
+  /* Transparent so the 3D CelestialSkybox behind it is visible */
+  background-color: transparent !important;
 }
 
 /* Ingress-mode dark map treatment (always on for this theme) — the classic

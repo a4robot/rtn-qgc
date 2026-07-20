@@ -28,6 +28,66 @@ import {
   useUiStore,
 } from "./store/index.ts";
 
+function PipResizeHandle({ position }: { position: "tr" | "br" }) {
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const stage = (e.target as HTMLElement).closest('.gcs-stage') as HTMLElement;
+    const pip = (e.target as HTMLElement).closest('.stage-slot--pip') as HTMLElement;
+    if (!stage || !pip) return;
+    const startW = pip.offsetWidth;
+    const startH = pip.offsetHeight;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const dx = moveEvent.clientX - startX;
+      const dy = moveEvent.clientY - startY;
+      let newW = startW + dx;
+      let newH = position === "tr" ? startH - dy : startH + dy;
+      
+      newW = Math.max(240, Math.min(newW, window.innerWidth * 0.8));
+      newH = Math.max(135, Math.min(newH, window.innerHeight * 0.8));
+      
+      stage.style.setProperty('--pip-w', `${newW}px`);
+      stage.style.setProperty('--pip-h', `${newH}px`);
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
+
+  return (
+    <div
+      className="pip-resize-handle"
+      onMouseDown={handleMouseDown}
+      style={{
+        position: "absolute",
+        [position === "tr" ? "top" : "bottom"]: 0,
+        right: 0,
+        width: 32,
+        height: 32,
+        cursor: position === "tr" ? "ne-resize" : "se-resize",
+        zIndex: 10,
+        display: "flex",
+        alignItems: position === "tr" ? "flex-start" : "flex-end",
+        justifyContent: "flex-end",
+        padding: "4px",
+        color: "rgba(255,255,255,0.8)"
+      }}
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" style={{ transform: position === "tr" ? "rotate(-90deg)" : "none", opacity: 0.5 }}>
+        <path fill="currentColor" d="M11 22h11V11z" />
+      </svg>
+    </div>
+  );
+}
+
 /**
  * Dev overrides: `?bridge=ws://127.0.0.1:8899` retargets the bridge (e.g. the
  * real ghost instead of the mock) and `?vehicle=128` seeds the initially
@@ -62,7 +122,38 @@ export function App() {
   // both clear of it while it's open (see stage.css's `.stage-shift-right`).
   const planOpen = tab === "plan";
 
+  const pipClickRef = useRef<{ x: number; y: number } | null>(null);
+  
+  const handlePipSwap = (e: React.MouseEvent, targetVideoFullscreen: boolean) => {
+    // If we clicked on a resize handle, don't swap
+    if ((e.target as HTMLElement).closest('.pip-resize-handle')) return;
+    
+    if (pipClickRef.current) {
+      const dx = Math.abs(e.clientX - pipClickRef.current.x);
+      const dy = Math.abs(e.clientY - pipClickRef.current.y);
+      pipClickRef.current = null;
+      if (dx > 5 || dy > 5) return; // Was a drag, ignore click
+    }
+    setVideoFullscreen(targetVideoFullscreen);
+  };
+
   const client = useMemo(() => new BridgeClient(), []);
+
+  useEffect(() => {
+    const stage = document.querySelector('.gcs-stage') as HTMLElement;
+    if (!stage) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.target.classList.contains('stage-slot--pip')) {
+          const height = (entry.target as HTMLElement).offsetHeight;
+          stage.style.setProperty('--pip-actual-height', `${height}px`);
+        }
+      }
+    });
+    const slots = document.querySelectorAll('.stage-slot');
+    slots.forEach(slot => observer.observe(slot));
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     setActiveVehicleId(INITIAL_VEHICLE_ID);
@@ -97,8 +188,15 @@ export function App() {
               videoFullscreen && planOpen ? " stage-shift-right" : ""
             }`}
             aria-label="Map"
-            onClick={videoFullscreen ? () => setVideoFullscreen(false) : undefined}
+            onMouseDown={videoFullscreen ? (e) => pipClickRef.current = { x: e.clientX, y: e.clientY } : undefined}
+            onClick={videoFullscreen ? (e) => handlePipSwap(e, false) : undefined}
           >
+            {videoFullscreen && (
+              <>
+                <PipResizeHandle position="tr" />
+                <PipResizeHandle position="br" />
+              </>
+            )}
             <CoreMap onMapReady={setMap} />
             <VehicleLayer map={map} vehicleId={activeVehicleId} follow />
             <MissionLayer map={map} vehicleId={activeVehicleId} />
@@ -121,13 +219,20 @@ export function App() {
               !videoFullscreen && planOpen ? " stage-shift-right" : ""
             }`}
             aria-label="Video"
-            onClick={!videoFullscreen ? () => setVideoFullscreen(true) : undefined}
+            onMouseDown={!videoFullscreen ? (e) => pipClickRef.current = { x: e.clientX, y: e.clientY } : undefined}
+            onClick={!videoFullscreen ? (e) => handlePipSwap(e, true) : undefined}
           >
+            {!videoFullscreen && (
+              <>
+                <PipResizeHandle position="tr" />
+                <PipResizeHandle position="br" />
+              </>
+            )}
             <VideoStage client={client} streamIds={[1, 2]} />
           </div>
 
           <div className="instrument-column-float">
-            <InstrumentColumn vehicleId={activeVehicleId} />
+            <InstrumentColumn vehicleId={activeVehicleId} map={map} />
           </div>
 
           <div className={`rtn-panel-float${planOpen ? " stage-shift-right" : ""}`}>
