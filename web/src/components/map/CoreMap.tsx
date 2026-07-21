@@ -254,7 +254,7 @@ export function CoreMap({
     const toggleControl = createToggle3DControl(() => applyMode3D(!mode3D, { animate: true }));
     map.addControl(toggleControl, "bottom-right");
 
-    map.once("load", () => {
+    map.on("style.load", () => {
       if (mapStyleType !== "satellite") {
         // Colors computed by running the requested Google styled-map rules
         // exactly (hue styler = replace H, keep S/L; saturation −50 = S×0.5;
@@ -326,8 +326,6 @@ export function CoreMap({
         terrainAvailable = false;
       }
 
-      map.setSky(SKY_CONFIG);
-
       // Apply the persisted 2D/3D preference now that the style (and, best
       // effort, the terrain source) is in place. No animation on initial
       // load — only user-triggered toggles ease.
@@ -378,7 +376,12 @@ export function CoreMap({
   }, []);
 
   // Sync map style when user changes it from settings
+  const isFirstStyleRender = useRef(true);
   useEffect(() => {
+    if (isFirstStyleRender.current) {
+      isFirstStyleRender.current = false;
+      return;
+    }
     const map = mapRef.current;
     if (map) {
       map.setStyle(mapStyleType === "satellite" ? ESRI_SATELLITE_STYLE : CARTO_DARK_STYLE);

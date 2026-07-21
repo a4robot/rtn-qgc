@@ -245,6 +245,7 @@ export function CelestialSkybox({ map }: CelestialSkyboxProps) {
         { ra: star.ra, dec: star.dec }
       );
 
+      if (alt < 0) continue;
       const altRad = THREE.MathUtils.degToRad(alt);
       const azRad = THREE.MathUtils.degToRad(az);
 
@@ -286,6 +287,7 @@ export function CelestialSkybox({ map }: CelestialSkyboxProps) {
           const z1 = -r * Math.cos(alt1Rad) * Math.cos(az1Rad);
           
           const hor2 = convertEquatorialToHorizontal(now, { latitude: lat, longitude: lon }, { ra: pt2![0] as number, dec: pt2![1] as number });
+          if (hor1.alt < 0 && hor2.alt < 0) continue;
           const alt2Rad = THREE.MathUtils.degToRad(hor2.alt);
           const az2Rad = THREE.MathUtils.degToRad(hor2.az);
           const y2 = r * Math.sin(alt2Rad);
@@ -314,6 +316,10 @@ export function CelestialSkybox({ map }: CelestialSkyboxProps) {
     
     const r = 500;
     for (const p of planets) {
+      if (p.alt < 0) {
+        // Find existing label if we can and hide it, or just skip
+        continue;
+      }
       const altRad = THREE.MathUtils.degToRad(p.alt);
       const azRad = THREE.MathUtils.degToRad(p.az);
       const y = r * Math.sin(altRad);
@@ -366,6 +372,12 @@ export function CelestialSkybox({ map }: CelestialSkyboxProps) {
       for (const label of labelElementsRef.current) {
         if (label.isPlanet) continue; // Already calculated
         const hor = convertEquatorialToHorizontal(now, { latitude: lat, longitude: lon }, { ra: label.ra, dec: label.dec });
+        if (hor.alt < 0) {
+            label.el.dataset.hidden = "true";
+            continue;
+        } else {
+            label.el.dataset.hidden = "false";
+        }
         const altRad = THREE.MathUtils.degToRad(hor.alt);
         const azRad = THREE.MathUtils.degToRad(hor.az);
         const y = r * Math.sin(altRad);
@@ -416,7 +428,7 @@ export function CelestialSkybox({ map }: CelestialSkyboxProps) {
             vec.project(camera);
             
             // If z > 1, it's behind the camera
-            if (vec.z > 1.0 || vec.z < -1.0) {
+            if (label.el.dataset.hidden === "true" || vec.z > 1.0 || vec.z < -1.0) {
               label.el.style.display = "none";
             } else {
               const screenX = (vec.x * 0.5 + 0.5) * w;
