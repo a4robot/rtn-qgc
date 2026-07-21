@@ -162,12 +162,41 @@ export function CelestialSkybox({ map }: CelestialSkyboxProps) {
 
     const syncCamera = () => {
       if (!map) return;
-      const bearing = map.getBearing(); 
-      const pitch = map.getPitch();     
+      const bearing = map.getBearing();
+      const pitch = map.getPitch();
 
       camera.rotation.order = "YXZ";
       camera.rotation.y = THREE.MathUtils.degToRad(-bearing);
-      camera.rotation.x = THREE.MathUtils.degToRad(pitch - 90);
+
+      // Align our horizon (alt=0) with the horizon line maplibre actually
+      // draws, not with an idealized `pitch - 90` camera: maplibre's camera
+      // orbits the ground point at cameraToCenterDistance (with a 0.85
+      // curvature fudge on the horizon), so the naive formula puts our
+      // horizon hundreds of px away from the map's — stars then show up
+      // "under" the ground and the visible sky band stays empty.
+      // transform.getHorizon() returns the horizon's distance in px above
+      // screen center; invert the pinhole projection to get the camera
+      // tilt that projects alt=0 exactly onto that line.
+      const transform = (map as unknown as { transform?: { fov?: number; getHorizon?: () => number } }).transform;
+      if (typeof transform?.fov === "number" && camera.fov !== transform.fov) {
+        camera.fov = transform.fov;
+        camera.updateProjectionMatrix();
+      }
+      let horizonPx: number | null = null;
+      if (typeof transform?.getHorizon === "function") {
+        try {
+          horizonPx = transform.getHorizon();
+        } catch {
+          horizonPx = null;
+        }
+      }
+      const viewH = containerRef.current?.clientHeight || window.innerHeight;
+      if (horizonPx !== null && Number.isFinite(horizonPx) && viewH > 0) {
+        const focalPx = viewH / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+        camera.rotation.x = -Math.atan(horizonPx / focalPx);
+      } else {
+        camera.rotation.x = THREE.MathUtils.degToRad(pitch - 90);
+      }
       
       renderer.render(scene, camera);
 
@@ -287,7 +316,10 @@ export function CelestialSkybox({ map }: CelestialSkyboxProps) {
           const z1 = -r * Math.cos(alt1Rad) * Math.cos(az1Rad);
           
           const hor2 = convertEquatorialToHorizontal(now, { latitude: lat, longitude: lon }, { ra: pt2![0] as number, dec: pt2![1] as number });
-          if (hor1.alt < 0 && hor2.alt < 0) continue;
+          // Drop any segment touching the below-horizon hemisphere — stars
+          // are already alt-clipped, and a line dangling under the horizon
+          // reads as "stars below the map floor" through transparent canvas.
+          if (hor1.alt < 0 || hor2.alt < 0) continue;
           const alt2Rad = THREE.MathUtils.degToRad(hor2.alt);
           const az2Rad = THREE.MathUtils.degToRad(hor2.az);
           const y2 = r * Math.sin(alt2Rad);
@@ -423,6 +455,13 @@ export function CelestialSkybox({ map }: CelestialSkyboxProps) {
         // We need 3D coords of the labels.
         // We can retrieve them if we store them in the label objects!
         for (const label of labelElementsRef.current) {
+          // The position updater flags below-horizon objects instead of
+          // recomputing coords; without this check they'd keep projecting
+          // at their stale above-horizon position.
+          if (label.el.dataset.hidden === "true") {
+            label.el.style.display = "none";
+            continue;
+          }
           if (label.el.dataset.x !== undefined) {
             vec.set(parseFloat(label.el.dataset.x!), parseFloat(label.el.dataset.y!), parseFloat(label.el.dataset.z!));
             vec.project(camera);
