@@ -129,5 +129,6 @@
   "no browser decoder": "เบราว์เซอร์ไม่รองรับ",
   "Voice Speed": "ความเร็วเสียงพูด",
   "Normal": "ปกติ",
-  "Fast": "เร็ว"
+  "Fast": "เร็ว",
+  "Low battery, below 30 percent": "แบตเตอรี่อ่อน ต่ำกว่า 30 เปอร์เซ็นต์"
 }

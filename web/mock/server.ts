@@ -783,7 +783,7 @@ function scheduleNotificationDemo(ws: Socket): void {
     if (ws.data.closed) {
       return;
     }
-    sendNotification(ws, "warning", "แบตเตอรี่อ่อน ต่ำกว่า 30 เปอร์เซ็นต์", VEHICLE_ID);
+    sendNotification(ws, "warning", "Low battery, below 30 percent", VEHICLE_ID);
   }, NOTIFICATION_WARNING_DELAY_MS);
   ws.data.notificationTimers.add(warnTimer);
 
