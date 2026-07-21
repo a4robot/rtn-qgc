@@ -376,12 +376,12 @@ export function CoreMap({
   }, []);
 
   // Sync map style when user changes it from settings
-  const isFirstStyleRender = useRef(true);
+  const lastStyleRef = useRef(mapStyleType);
   useEffect(() => {
-    if (isFirstStyleRender.current) {
-      isFirstStyleRender.current = false;
+    if (lastStyleRef.current === mapStyleType) {
       return;
     }
+    lastStyleRef.current = mapStyleType;
     const map = mapRef.current;
     if (map) {
       map.setStyle(mapStyleType === "satellite" ? ESRI_SATELLITE_STYLE : CARTO_DARK_STYLE);
