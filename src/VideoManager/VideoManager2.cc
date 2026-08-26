@@ -422,12 +422,23 @@ void VideoManager2::sendViewproCommand(int commandId)
     qCDebug(VideoManager2Log) << "sendViewproCommand: Sending TCP command" << commandId << "to" << ip << ":2000";
 
     QTcpSocket* socket = new QTcpSocket(this);
-    connect(socket, &QTcpSocket::connected, socket, [socket, payload]() {
+    QTimer* disconnectTimer = new QTimer(socket);
+    disconnectTimer->setSingleShot(true);
+
+    connect(socket, &QTcpSocket::connected, socket, [socket, payload, disconnectTimer]() {
         socket->write(payload);
         socket->flush();
+        // Allow up to 2500 ms for camera to process command and respond before disconnecting
+        disconnectTimer->start(2500);
     });
-    connect(socket, &QTcpSocket::bytesWritten, socket, [socket](qint64 /* bytes */) {
-        QTimer::singleShot(500, socket, &QTcpSocket::disconnectFromHost);
+    connect(disconnectTimer, &QTimer::timeout, socket, [socket]() {
+        qCDebug(VideoManager2Log) << "sendViewproCommand: Disconnecting TCP socket after timeout";
+        socket->disconnectFromHost();
+    });
+    connect(socket, &QTcpSocket::readyRead, socket, [socket]() {
+        QByteArray response = socket->readAll();
+        qCDebug(VideoManager2Log) << "sendViewproCommand: Received response from ViewPro camera:" << response.toHex();
+        socket->disconnectFromHost();
     });
     connect(socket, &QTcpSocket::disconnected, socket, &QTcpSocket::deleteLater);
     connect(socket, &QTcpSocket::errorOccurred, socket, [socket](QAbstractSocket::SocketError error) {
